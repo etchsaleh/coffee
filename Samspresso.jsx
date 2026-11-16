@@ -979,6 +979,12 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
             <>
               {/* zero-height sticky rail: keeps the close button on screen while the sheet scrolls */}
               <div className="sticky top-0 z-30 h-0">
+                {chromeOverlay && (
+                  // grabber rides the same sticky rail, so it never scrolls away
+                  <div data-sheet-handle className="absolute inset-x-16 top-0 flex h-7 justify-center pt-2 md:hidden" style={{ touchAction: "none" }}>
+                    <span className="h-1 w-9 rounded-full" style={{ background: "rgba(42,38,35,.28)", boxShadow: "0 0 0 1px rgba(255,255,255,.35)" }} />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={onClose}
@@ -994,13 +1000,11 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
                   <X size={17} strokeWidth={2} />
                 </button>
               </div>
-              <div
-                data-sheet-handle
-                className={`${chromeOverlay ? "absolute inset-x-0" : "sticky"} top-0 z-20 flex justify-center pb-1 pt-2 md:hidden`}
-                style={{ background: chromeOverlay ? "transparent" : surface, touchAction: "none" }}
-              >
-                <span className="h-1 w-9 rounded-full" style={{ background: chromeOverlay ? "rgba(42,38,35,.25)" : "rgba(42,38,35,.18)" }} />
-              </div>
+              {!chromeOverlay && (
+                <div data-sheet-handle className="sticky top-0 z-20 flex justify-center pb-1 pt-2 md:hidden" style={{ background: surface, touchAction: "none" }}>
+                  <span className="h-1 w-9 rounded-full" style={{ background: "rgba(42,38,35,.18)" }} />
+                </div>
+              )}
             </>
           )}
           {children(last.current)}
