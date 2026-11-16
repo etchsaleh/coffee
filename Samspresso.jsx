@@ -3499,7 +3499,7 @@ export default function Samspresso() {
         }} />}
       </Sheet>
 
-      <Sheet data={articleId ? journal.find((j) => j.id === articleId) : null} onClose={closeArticle} label="Journal story" originEl={articleOrigin} chromeOverlay>
+      <Sheet data={articleId ? journal.find((j) => j.id === articleId) : null} onClose={closeArticle} label="Journal story" originEl={articleOrigin}>
         {(entry) => (
           <JournalArticle
             entry={entry}
