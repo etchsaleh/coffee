@@ -108,6 +108,7 @@ const CSS = `
 @keyframes spFlash{0%{opacity:1}100%{opacity:0}}
 @keyframes spDraw{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
 @keyframes spTick{0%{opacity:.4;transform:translate3d(0,6px,0)}100%{opacity:1;transform:none}}
+@keyframes spShine{0%{transform:translate3d(-120%,0,0)}60%,100%{transform:translate3d(220%,0,0)}}
 @keyframes spCardUp{from{opacity:0;transform:translate3d(0,24px,0) scale(.97)}to{opacity:1;transform:none}}
 
 .sp .a-fadeup{animation:spFadeUp .7s ${EASE} both}
@@ -120,6 +121,7 @@ const CSS = `
 .sp .a-flash{animation:spFlash 2.4s ${EASE} both}
 .sp .a-draw{stroke-dasharray:24;animation:spDraw .55s ${EASE} .25s both}
 .sp .a-tick{animation:spTick .3s ${EASE} both}
+.sp .a-shine::after{content:"";position:absolute;inset:0;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:spShine 3.6s ${EASE} 1s infinite}
 .sp .a-cardup{animation:spCardUp .55s ${SPRING} both}
 .sp .ov-in{animation:spFade .35s ${EASE} both}
 .sp .ov-out{animation:spFadeOut .3s ${EASE} both}
@@ -853,16 +855,23 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
     const from = fromOrigin();
     if (!from) return;
     if (open) {
+      originEl.style.transition = "none";
       originEl.style.opacity = "0";
       panel.animate([{ transform: from }, { transform: "none" }], { duration: 560, easing: "cubic-bezier(.22,1,.36,1)" });
       content && content.animate([{ opacity: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 1 }], { duration: 560, easing: "ease-out" });
     } else {
-      content && content.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: "forwards" });
-      const anim = panel.animate([{ transform: "none" }, { transform: from }], { duration: 380, easing: "cubic-bezier(.32,.72,0,1)", fill: "forwards" });
-      anim.onfinish = () => {
-        originEl.style.transition = "opacity .2s";
-        originEl.style.opacity = "";
-      };
+      content && content.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, fill: "forwards" });
+      panel.animate(
+        [
+          { transform: "none", opacity: 1 },
+          { transform: from, opacity: 1, offset: 0.75 },
+          { transform: from, opacity: 0 },
+        ],
+        { duration: 300, easing: "cubic-bezier(.4,0,.2,1)", fill: "forwards" }
+      );
+      // bring the card back as the sheet lands on it, rather than after
+      originEl.style.transition = "opacity .18s ease-out .12s";
+      originEl.style.opacity = "";
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, render]);
@@ -873,7 +882,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
       setDy(0);
       return;
     }
-    const t = setTimeout(() => setRender(false), morph && !reduce ? 420 : 340);
+    const t = setTimeout(() => setRender(false), morph && !reduce ? 310 : 340);
     return () => clearTimeout(t);
   }, [open]);
 
@@ -922,7 +931,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
         style={{ background: "rgba(42,38,35,.32)", opacity: open ? clamp(1 - dy / 500, 0.2, 1) : undefined, transition: dragging ? "none" : `opacity .4s ${EASE}` }}
         onClick={onClose}
       />
-      <div ref={panelRef} className={`sheet-clip relative w-full md:max-w-xl ${morph && !reduce ? "" : open ? "sheet-in" : "sheet-out"}`} style={{ willChange: "transform", transformOrigin: "0 0" }}>
+      <div ref={panelRef} className={`relative w-full md:max-w-xl ${morph && !reduce ? "" : open ? "sheet-in" : "sheet-out"}`} style={{ willChange: "transform", transformOrigin: "0 0" }}>
         <div
           className="no-scrollbar relative overflow-y-auto overflow-x-hidden rounded-t-3xl md:rounded-3xl"
           onPointerDown={onPointerDown}
@@ -1212,20 +1221,12 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
     <div className="a-fadeup" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
       <article
         data-morph
-        className="lift flex h-full flex-col overflow-hidden rounded-3xl bg-white soft"
+        className="lift flex h-full flex-col rounded-3xl bg-white p-5 soft md:p-6"
         onMouseEnter={() => onHover && onHover(cafe.id)}
         onMouseLeave={() => onHover && onHover(null)}
       >
         <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} className="w-full text-left" aria-label={`Open ${cafe.name}`}>
-          <div className="relative h-32 overflow-hidden md:h-36">
-            <CafeArt cafe={cafe} />
-            {distance != null && (
-              <span className="glass-white tabular absolute left-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs" style={{ color: C.ink }}>
-                <Footprints size={12} aria-hidden="true" /> {walkMins(distance)} min
-              </span>
-            )}
-          </div>
-          <div className="flex items-start justify-between gap-3 px-5 pt-4 md:px-6">
+          <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className="flex items-center gap-2 truncate text-lg font-medium tracking-tight">
                 {cafe.name}
@@ -1237,13 +1238,18 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
             </div>
             <p className="tabular shrink-0 text-2xl font-light leading-none tracking-tight">{f1(cafe.avg)}</p>
           </div>
-          {status && (
-            <p className="mt-1.5 px-5 text-xs md:px-6">
+          {(status || distance != null) && (
+            <p className="mt-1.5 flex items-center gap-3 text-xs">
+              {distance != null && (
+                <span className="tabular flex items-center gap-1" style={{ color: C.ink }}>
+                  <Footprints size={12} aria-hidden="true" /> {walkMins(distance)} min
+                </span>
+              )}
               <OpenDot status={status} />
             </p>
           )}
         </button>
-        <ul className="mt-4 space-y-1 px-5 pb-5 md:px-6 md:pb-6">
+        <ul className="mt-4 space-y-1">
           {shown.map((it) => {
             const dim = drink !== "All Drinks" && !it.styles.includes(drink);
             return (
@@ -1711,9 +1717,6 @@ function MapPreview({ cafe, onOpen, onClose }) {
   return (
     <div data-morph className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: "0 20px 50px -24px rgba(42,38,35,.45)" }}>
       <div className="flex items-start justify-between gap-3">
-        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl">
-          <CafeArt cafe={cafe} />
-        </div>
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-base font-medium tracking-tight">
             {cafe.name} {cafe.pick && <PickBadge small />}
@@ -1789,6 +1792,35 @@ function CafeListRow({ cafe, selected, onSelect, onHover, onOpen, index, rowRef 
 
 const ROW_H = 80;
 
+// Podium styling for the top three, using the design-system colours only.
+const PODIUM = [
+  { bg: C.brand, fg: "#fff", tint: "rgba(62,87,0,.07)", label: "1st" },
+  { bg: C.matcha, fg: "#fff", tint: "rgba(122,139,90,.08)", label: "2nd" },
+  { bg: C.latte, fg: "#fff", tint: "rgba(196,154,116,.10)", label: "3rd" },
+];
+
+/** Rank marker: glossy medal for the podium, plain numeral after that. */
+function Medal({ place }) {
+  if (place > 2) {
+    return (
+      <span className="tabular relative w-9 shrink-0 text-center text-xl font-light" style={{ color: C.taupe }}>
+        {place + 1}
+      </span>
+    );
+  }
+  const m = PODIUM[place];
+  return (
+    <span
+      aria-label={`${m.label} place`}
+      className="tabular relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-medium"
+      style={{ background: m.bg, color: m.fg, boxShadow: `0 6px 14px -6px ${m.bg}` }}
+    >
+      <Gloss />
+      <span className="relative">{place + 1}</span>
+    </span>
+  );
+}
+
 function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, flash }) {
   const [tab, setTab] = useState("cafes");
   const rankedCafes = useMemo(() => [...cafes].filter((c) => c.items.length).sort((a, b) => b.avg - a.avg || b.total - a.total), [cafes]);
@@ -1838,12 +1870,9 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
               style={{ height: ROW_H, transform: `translate3d(0, ${i * ROW_H}px, 0)`, transition: `transform .8s ${EASE}` }}
             >
               {flashing && <span key={flash.t} aria-hidden="true" className="a-flash pointer-events-none absolute inset-0" style={{ background: C.latteSoft }} />}
-              <span className="tabular relative w-6 shrink-0 text-center text-2xl font-light" style={{ color: i === 0 ? C.sage : C.taupe }}>
-                {i + 1}
-              </span>
-              <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl">
-                <CafeArt cafe={cafe} />
-              </span>
+              {i < 3 && <span aria-hidden="true" className="pointer-events-none absolute inset-y-1.5 inset-x-2 rounded-2xl" style={{ background: PODIUM[i].tint }} />}
+              {i === 0 && <span aria-hidden="true" className="a-shine pointer-events-none absolute inset-y-1.5 inset-x-2 overflow-hidden rounded-2xl" />}
+              <Medal place={i} />
               <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="relative min-w-0 flex-1 text-left">
                 <span className="flex items-center gap-2">
                   <span className="truncate font-medium">{r.name}</span>
@@ -1986,11 +2015,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
 function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status }) {
   return (
     <div>
-    <div className="relative -mt-4 h-48 overflow-hidden md:mt-0 md:h-56">
-      <CafeArt cafe={cafe} />
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20" style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0), #fff)" }} />
-    </div>
-    <div className="px-5 pb-6 md:px-8">
+    <div className="px-5 pb-6 pt-3 md:px-8 md:pt-8">
       <p className="flex items-center gap-1.5 pr-12 text-sm" style={{ color: C.taupe }}>
         <MapPin size={13} aria-hidden="true" /> {cafe.hood}
       </p>
