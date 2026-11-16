@@ -111,6 +111,7 @@ const CSS = `
 @keyframes spNope{0%{transform:rotate(0) scale(1)}45%{transform:rotate(90deg) scale(.8)}100%{transform:rotate(90deg) scale(1)}}
 @keyframes spTrailR{0%{opacity:0;transform:translate3d(-30%,0,0) scaleX(.6)}35%{opacity:1}100%{opacity:0;transform:translate3d(25%,0,0) scaleX(1.1)}}
 @keyframes spTrailL{0%{opacity:0;transform:translate3d(30%,0,0) scaleX(.6)}35%{opacity:1}100%{opacity:0;transform:translate3d(-25%,0,0) scaleX(1.1)}}
+@keyframes spWiggle{0%,100%{transform:none}14%{transform:translate3d(18px,0,0) rotate(3deg)}30%{transform:translate3d(-14px,0,0) rotate(-2.4deg)}46%{transform:translate3d(8px,0,0) rotate(1.2deg)}60%{transform:translate3d(-3px,0,0) rotate(-.4deg)}72%{transform:none}}
 @keyframes spCardUp{from{opacity:0;transform:translate3d(0,24px,0) scale(.97)}to{opacity:1;transform:none}}
 
 .sp .a-fadeup{animation:spFadeUp .7s ${EASE} both}
@@ -127,6 +128,7 @@ const CSS = `
 .sp .a-nope{animation:spNope .45s ${SPRING} both}
 .sp .a-trail-r{transform-origin:100% 50%;animation:spTrailR .7s ${EASE} both}
 .sp .a-trail-l{transform-origin:0 50%;animation:spTrailL .7s ${EASE} both}
+.sp .a-wiggle{transform-origin:50% 90%;animation:spWiggle 1.3s cubic-bezier(.36,.07,.19,.97) both}
 .sp .a-cardup{animation:spCardUp .55s ${SPRING} both}
 .sp .ov-in{animation:spFade .35s ${EASE} both}
 .sp .ov-out{animation:spFadeOut .3s ${EASE} both}
@@ -313,6 +315,13 @@ const SEED_CAFES = [
   },
 ];
 
+// Featured / promoted listings. `promo.type` is "drop" (a limited-time item)
+// or "sponsored" (a paid showcase); both expire at `endsAt` and render as a
+// pinned, clearly labelled entry at the top of the café's menu.
+const DROP_ENDS = Date.now() + 52 * 3600000;
+const promoLive = (it) => !it.promo || !it.promo.endsAt || it.promo.endsAt > Date.now();
+const isNewItem = (it) => !it.count;
+
 // p = taste profile: [body, sweetness, brightness, milk, roast/cocoa, cold, pastry]
 const SEED_ITEMS = [
   { id: "mon-fw", cafeId: "monmouth", name: "Flat White", rating: 4.9, count: 64, pick: true, styles: ["Flat White"], flavours: ["Nutty", "Velvety Microfoam", "Chocolatey"], p: [0.75, 0.55, 0.3, 0.8, 0.7, 0, 0] },
@@ -320,6 +329,17 @@ const SEED_ITEMS = [
   { id: "mon-bun", cafeId: "monmouth", name: "Cinnamon Bun", rating: 4.7, count: 33, styles: ["Pastries"], flavours: ["Buttery", "Spiced", "Sticky"], p: [0.6, 0.9, 0.1, 0.2, 0.4, 0, 1] },
   { id: "wh-oat", cafeId: "watchhouse", name: "Oat Flat White", rating: 4.8, count: 52, styles: ["Flat White", "Oat Milk"], flavours: ["Oat-Friendly", "Velvety Microfoam", "Caramel"], p: [0.65, 0.65, 0.3, 0.85, 0.6, 0, 0] },
   { id: "wh-matcha", cafeId: "watchhouse", name: "Iced Matcha Latte", rating: 4.6, count: 38, styles: ["Matcha", "Oat Milk"], flavours: ["Grassy", "Creamy", "Refreshing"], p: [0.4, 0.55, 0.2, 0.8, 0.1, 1, 0] },
+  {
+    id: "wh-iced-cardamom",
+    cafeId: "watchhouse",
+    name: "Iced Cardamom Latte",
+    rating: 0,
+    count: 0,
+    styles: ["Oat Milk"],
+    flavours: ["Spiced", "Oat-Friendly", "Refreshing"],
+    p: [0.5, 0.75, 0.2, 0.85, 0.35, 1, 0],
+    promo: { type: "drop", label: "limited drop", partner: "WatchHouse × sam'spresso", endsAt: DROP_ENDS, journalId: "j-drop-cardamom" },
+  },
   { id: "wh-card", cafeId: "watchhouse", name: "Cardamom Bun", rating: 4.8, count: 29, pick: true, styles: ["Pastries"], flavours: ["Spiced", "Buttery", "Aromatic"], p: [0.6, 0.8, 0.15, 0.2, 0.3, 0, 1] },
   { id: "or-v60", cafeId: "origin", name: "V60 Pour Over", rating: 4.9, count: 36, pick: true, styles: ["Pour Over"], flavours: ["Floral", "Fruity", "Tea-like"], p: [0.25, 0.55, 0.85, 0, 0.15, 0, 0] },
   { id: "or-tonic", cafeId: "origin", name: "Espresso Tonic", rating: 4.7, count: 22, styles: [], flavours: ["Citrus", "Sparkling", "Bright"], p: [0.3, 0.45, 0.8, 0, 0.3, 1, 0] },
@@ -481,6 +501,19 @@ function useMediaQuery(q) {
     return () => (mq.removeEventListener ? mq.removeEventListener("change", h) : mq.removeListener(h));
   }, [q]);
   return m;
+}
+
+/** Calls `onSeen` each time `ref` becomes ≥60% visible (until `stop` is true). */
+function useInView(ref, onSeen, stop) {
+  const cb = useRef(onSeen);
+  cb.current = onSeen;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || stop || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && cb.current()), { threshold: 0.6 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref, stop]);
 }
 
 /** Window scroll position, throttled to one update per frame. */
@@ -832,7 +865,7 @@ function Logo({ height = 28, colors = LOGO_COLORS }) {
 
 /* ───────────────────────────── Sheet (slide-up drawer / modal) ───────────────────────────── */
 
-function Sheet({ data, onClose, label, children, bare = false, tone = "white", originEl = null }) {
+function Sheet({ data, onClose, label, children, bare = false, tone = "white", originEl = null, chromeOverlay = false }) {
   const open = data != null;
   const last = useRef(data);
   if (data != null) last.current = data;
@@ -959,18 +992,34 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
           <div ref={contentRef}>
           {!bare && (
             <>
-              <div data-sheet-handle className="sticky top-0 z-10 flex justify-center pb-1 pt-2 md:hidden" style={{ background: surface, touchAction: "none" }}>
-                <span className="h-1 w-9 rounded-full" style={{ background: "rgba(42,38,35,.18)" }} />
+              {/* zero-height sticky rail: keeps the close button on screen while the sheet scrolls */}
+              <div className="sticky top-0 z-30 h-0">
+                {chromeOverlay && (
+                  // grabber rides the same sticky rail, so it never scrolls away
+                  <div data-sheet-handle className="absolute inset-x-16 top-0 flex h-7 justify-center pt-2 md:hidden" style={{ touchAction: "none" }}>
+                    <span className="h-1 w-9 rounded-full" style={{ background: "rgba(42,38,35,.28)", boxShadow: "0 0 0 1px rgba(255,255,255,.35)" }} />
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="press absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full"
+                  style={{
+                    background: chromeOverlay ? "rgba(255,255,255,.72)" : C.stone,
+                    WebkitBackdropFilter: chromeOverlay ? "blur(14px) saturate(1.5)" : "none",
+                    backdropFilter: chromeOverlay ? "blur(14px) saturate(1.5)" : "none",
+                    boxShadow: "0 4px 14px -8px rgba(42,38,35,.35)",
+                  }}
+                >
+                  <X size={17} strokeWidth={2} />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close"
-                className="press absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full"
-                style={{ background: C.stone }}
-              >
-                <X size={17} strokeWidth={2} />
-              </button>
+              {!chromeOverlay && (
+                <div data-sheet-handle className="sticky top-0 z-20 flex justify-center pb-1 pt-2 md:hidden" style={{ background: surface, touchAction: "none" }}>
+                  <span className="h-1 w-9 rounded-full" style={{ background: "rgba(42,38,35,.18)" }} />
+                </div>
+              )}
             </>
           )}
           {children(last.current)}
@@ -1056,6 +1105,38 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   const [skipPop, setSkipPop] = useState(0);
   const [trail, setTrail] = useState({ dir: 0, n: 0 });
   const [justSaved, setJustSaved] = useState(false);
+  // "you can swipe this" hint: a little sideways wiggle of the top card
+  const deckRef = useRef(null);
+  const [hint, setHint] = useState(0);
+  const [touched, setTouched] = useState(false);
+  const hintTimer = useRef(null);
+  useInView(
+    deckRef,
+    () => {
+      if (hint >= 2 || hintTimer.current) return;
+      hintTimer.current = setTimeout(() => {
+        hintTimer.current = null;
+        setHint((h) => h + 1);
+      }, hint ? 6000 : 900);
+    },
+    touched || hint >= 2
+  );
+  useEffect(() => {
+    if (touched && hintTimer.current) {
+      clearTimeout(hintTimer.current);
+      hintTimer.current = null;
+    }
+  }, [touched]);
+  useEffect(() => () => hintTimer.current && clearTimeout(hintTimer.current), []);
+  // after the first wiggle, offer one more a few seconds later if still untouched
+  useEffect(() => {
+    if (hint !== 1 || touched) return;
+    hintTimer.current = setTimeout(() => {
+      hintTimer.current = null;
+      setHint(2);
+    }, 6000);
+    return () => hintTimer.current && clearTimeout(hintTimer.current);
+  }, [hint, touched]);
   useEffect(() => {
     if (!savedPop) return;
     setJustSaved(true);
@@ -1072,6 +1153,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   const dismiss = useCallback(
     (dir) => {
       if (leaving || index >= recs.length) return;
+      setTouched(true);
       // swipe right = like: save it to Want to Try (never un-saves)
       const r = recs[index];
       if (dir > 0 && r) {
@@ -1107,6 +1189,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
 
   const onPointerDown = (e) => {
     if (leaving || (e.pointerType === "mouse" && e.button !== 0)) return;
+    setTouched(true);
     const t = performance.now();
     start.current = { x: e.clientX, y: e.clientY, horiz: null, id: e.pointerId, el: e.currentTarget, lastX: e.clientX, lastT: t, prevX: e.clientX, prevT: t };
   };
@@ -1164,7 +1247,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   const progress = clamp(Math.abs(drag.x) / SWIPE_OUT, 0, 1);
 
   return (
-    <div className="mx-auto mt-8 max-w-md">
+    <div ref={deckRef} className="mx-auto mt-8 max-w-md">
       <div className="relative" style={{ height: STACK_H }}>
         {/* trailing colour wash: green streak for a save, grey for a skip */}
         {trail.dir !== 0 && (
@@ -1224,6 +1307,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
                 aria-hidden={!top}
               >
                 <div className="a-cardup h-full" style={{ animationDelay: deal ? `${depth * 70}ms` : "0ms" }}>
+                  <div key={top && !touched ? `hint-${hint}` : "still"} className={`h-full ${top && !touched && hint ? "a-wiggle" : ""}`}>
                   <div
                     className="relative h-full select-none"
                     style={{ transform, transition, opacity: depth > 2 ? 0 : top && leaving < 0 ? 0.55 : 1, filter: top && leaving < 0 ? "saturate(.4)" : "none", cursor: top ? (drag.active ? "grabbing" : "grab") : "default", willChange: "transform" }}
@@ -1249,6 +1333,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
                         }}
                       />
                     )}
+                  </div>
                   </div>
                 </div>
               </div>
@@ -1288,7 +1373,7 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
   const recs = useMemo(
     () =>
       items
-        .filter((i) => i.id !== src.id && i.cafeId !== src.cafeId)
+        .filter((i) => i.id !== src.id && i.cafeId !== src.cafeId && i.count > 0)
         .map((i) => ({ item: i, score: matchScore(src, i), why: reasonFor(src, i) }))
         .filter((r) => r.score >= MATCH_MIN)
         .sort((a, b) => b.score - a.score || b.item.rating - a.item.rating)
@@ -1324,7 +1409,7 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
             {cafes.map((c) => (
               <optgroup key={c.id} label={c.name}>
                 {items
-                  .filter((i) => i.cafeId === c.id)
+                  .filter((i) => i.cafeId === c.id && i.count > 0)
                   .map((i) => (
                     <option key={i.id} value={i.id}>
                       {i.name}
@@ -1477,6 +1562,26 @@ function Filters({ area, setArea, drink, setDrink, compact = false, glass = fals
   );
 }
 
+function PromoTag({ promo }) {
+  if (!promo) return null;
+  const sponsored = promo.type === "sponsored";
+  return (
+    <span
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium"
+      style={sponsored ? { background: C.stone, color: C.taupe } : { background: C.brand, color: "#fff" }}
+    >
+      {!sponsored && <span className="a-dot h-1.5 w-1.5 rounded-full bg-white" />}
+      {sponsored ? "sponsored" : promo.label}
+    </span>
+  );
+}
+
+// The pinned surface for a promoted item: latte wash with an olive hairline.
+const promoRowStyle = {
+  background: "linear-gradient(100deg, rgba(196,154,116,.20), rgba(122,139,90,.10))",
+  boxShadow: "inset 0 0 0 1px rgba(62,87,0,.22)",
+};
+
 function OpenDot({ status }) {
   if (!status) return null;
   return (
@@ -1490,7 +1595,7 @@ function OpenDot({ status }) {
 function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, status, distance }) {
   const shown = useMemo(() => {
     const list = [...cafe.items];
-    if (drink !== "All Drinks") list.sort((a, b) => b.styles.includes(drink) - a.styles.includes(drink));
+    if (drink !== "All Drinks") list.sort((a, b) => !!b.promo - !!a.promo || b.styles.includes(drink) - a.styles.includes(drink));
     return list.slice(0, 2);
   }, [cafe.items, drink]);
   return (
@@ -1529,12 +1634,13 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
           {shown.map((it) => {
             const dim = drink !== "All Drinks" && !it.styles.includes(drink);
             return (
-              <li key={it.id} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ background: C.bg, opacity: dim ? 0.45 : 1 }}>
+              <li key={it.id} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ ...(it.promo ? promoRowStyle : { background: C.bg }), opacity: dim && !it.promo ? 0.45 : 1 }}>
                 <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm">
                   <span className="truncate">{it.name}</span>
                   {it.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
+                  {it.promo && <PromoTag promo={it.promo} />}
                 </button>
-                <span className="tabular text-sm" style={{ color: C.taupe }}>{f1(it.rating)}</span>
+                <span className="tabular text-sm" style={{ color: C.taupe }}>{isNewItem(it) ? "new" : f1(it.rating)}</span>
                 <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
               </li>
             );
@@ -1907,6 +2013,9 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                     }}
                   >
                     <span className="relative flex flex-col items-center">
+                      {c.drop && vis && (
+                        <span aria-label="Live drop" className="absolute -right-1 -top-1 z-10 h-3 w-3 rounded-full" style={{ background: C.brand, boxShadow: "0 0 0 2px #fff" }} />
+                      )}
                       {c.pick && vis && !isSel && (
                         <span aria-hidden="true" className="a-pulse absolute inset-x-0 top-0 h-8 rounded-full" style={{ boxShadow: `0 0 0 2px ${C.clay}` }} />
                       )}
@@ -2100,7 +2209,7 @@ function Medal({ place }) {
 function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, flash }) {
   const [tab, setTab] = useState("cafes");
   const rankedCafes = useMemo(() => [...cafes].filter((c) => c.items.length).sort((a, b) => b.avg - a.avg || b.total - a.total), [cafes]);
-  const rankedItems = useMemo(() => [...items].sort((a, b) => b.rating - a.rating || b.count - a.count), [items]);
+  const rankedItems = useMemo(() => items.filter((i) => i.count > 0 && promoLive(i)).sort((a, b) => b.rating - a.rating || b.count - a.count), [items]);
   const bestOf = useMemo(() => {
     const m = {};
     const label = { "Flat White": "Flat White", Matcha: "Matcha", "Pour Over": "Pour Over", "Oat Milk": "Oat Drink", Pastries: "Pastry" };
@@ -2288,7 +2397,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
 
 /* ───────────────────────────── Café detail ───────────────────────────── */
 
-function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status }) {
+function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, onOpenStory }) {
   return (
     <div>
     <div className="px-5 pb-6 pt-3 md:px-8 md:pt-8">
@@ -2332,7 +2441,40 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status }
         Menu &amp; Ratings
       </h3>
       <ul className="space-y-2">
-        {cafe.items.map((it, i) => (
+        {cafe.items.map((it, i) =>
+          it.promo ? (
+            <li key={it.id} className="a-fadeup rounded-3xl p-4" style={{ ...promoRowStyle, animationDelay: `${120 + i * 60}ms` }}>
+              <div className="flex items-center gap-2">
+                <PromoTag promo={it.promo} />
+                <span className="text-xs" style={{ color: C.taupe }}>
+                  {it.promo.endsAt ? timeLeft(it.promo.endsAt - Date.now()) : ""}
+                </span>
+              </div>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="serif text-2xl leading-tight">{it.name.toLowerCase()}</p>
+                  <p className="mt-0.5 truncate text-xs" style={{ color: C.taupe }}>
+                    {it.promo.partner ? `${it.promo.partner} · ` : ""}
+                    {it.flavours.slice(0, 2).join(", ").toLowerCase()}
+                  </p>
+                </div>
+                <span className="tabular text-sm" style={{ color: C.taupe }}>
+                  {isNewItem(it) ? "new" : f2(it.rating)}
+                </span>
+                <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button type="button" onClick={() => onRate(cafe.id, it.name)} className="press rounded-full px-3.5 py-1.5 text-xs font-medium text-white" style={{ background: C.brand }}>
+                  {isNewItem(it) ? "be the first to rate" : "rate it"}
+                </button>
+                {it.promo.journalId && onOpenStory && (
+                  <button type="button" onClick={() => onOpenStory(it.promo.journalId)} className="press rounded-full bg-white px-3.5 py-1.5 text-xs font-medium" style={{ color: C.ink }}>
+                    read the story
+                  </button>
+                )}
+              </div>
+            </li>
+          ) : (
           <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-1" style={{ background: C.bg, animationDelay: `${120 + i * 60}ms` }}>
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-2 font-medium">
@@ -2345,7 +2487,8 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status }
             <span className="tabular text-base font-light">{f2(it.rating)}</span>
             <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
           </li>
-        ))}
+          )
+        )}
         {cafe.items.length === 0 && (
           <li className="rounded-2xl p-4 text-sm hair" style={{ color: C.taupe }}>
             No items rated yet.
@@ -2432,11 +2575,11 @@ function Chip({ on, onClick, children, className = "", small = false }) {
   );
 }
 
-function RateForm({ cafes, items, initialCafeId, onSubmit, onCancel }) {
+function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onCancel }) {
   const [selCafe, setSelCafe] = useState(initialCafeId || cafes[0].id);
   const [adding, setAdding] = useState(false);
   const [newCafe, setNewCafe] = useState({ name: "", area: "Soho" });
-  const [itemName, setItemName] = useState("");
+  const [itemName, setItemName] = useState(initialItem);
   const [rating, setRating] = useState(4.5);
   const [notes, setNotes] = useState([]);
   const [starPop, setStarPop] = useState({ n: 0, k: 0 });
@@ -2755,6 +2898,270 @@ function Toast({ toast }) {
 
 /* ───────────────────────────── Sort & "near me" ───────────────────────────── */
 
+/* ───────────────────────────── The journal ───────────────────────────── */
+
+const H_MS = 3600000;
+// Sample editorial content. Drops carry an end time and disappear once it passes.
+const JOURNAL = [
+  {
+    id: "j-drop-cardamom",
+    kind: "drop",
+    title: "the iced cardamom latte",
+    dek: "WatchHouse × sam'spresso. Cardamom-bun flavours, poured over ice. This weekend only.",
+    tone: ["#EFE3D6", "#D9BFA6"],
+    publishedAt: Date.now() - 20 * H_MS,
+    endsAt: DROP_ENDS,
+    read: 2,
+    body: [
+      { p: "We asked WatchHouse to bottle the thing everyone queues for: the cardamom bun. The answer is a spiced oat latte, shaken cold, with a cinnamon-sugar rim." },
+      { p: "It's on at Bermondsey and Soho until Sunday close, or until they run out of the syrup, which last time took about four hours." },
+      { cafe: "watchhouse", item: "wh-iced-cardamom", note: "Order it with an extra shot if you like it less sweet." },
+    ],
+  },
+  {
+    id: "j-edit-iced",
+    kind: "edit",
+    title: "the post-reformer iced edit",
+    dek: "Five cold, clean, oat-friendly cups for after class.",
+    tone: ["#E5EBDC", "#C9D3B4"],
+    publishedAt: Date.now() - 2 * 24 * H_MS,
+    read: 3,
+    body: [
+      { p: "Class done, cheeks pink, and you want something cold that doesn't taste like a milkshake. These are the ones we keep coming back to." },
+      { cafe: "hagen", item: "hg-iced", note: "Creamy, barely sweet, and right by South Ken station." },
+      { cafe: "commonbreads", item: "cb-iced", note: "The cult one. Samia's pick for a reason." },
+      { cafe: "storestreet", item: "ss-iced", note: "Mellow and big. Good for a slow walk through Bloomsbury." },
+      { cafe: "watchhouse", item: "wh-matcha", note: "Grassy, creamy, refreshing. The only matcha on the list." },
+      { cafe: "kaffeine", item: "ka-cold", note: "No milk, all chocolate. For the purists." },
+    ],
+  },
+  {
+    id: "j-spot-rosslyn",
+    kind: "spotlight",
+    title: "the tiny counter at the top",
+    dek: "How a standing-room spot by Bank became London's best-rated café.",
+    tone: ["#E9E5DD", "#D3CCC0"],
+    publishedAt: Date.now() - 4 * 24 * H_MS,
+    read: 4,
+    body: [
+      { p: "There are no tables at Rosslyn. There's a counter, a window and a queue of people in good coats who know exactly what they want." },
+      { p: "What they want is milk. The cortado is dense and chocolatey; the flat white is the smoothest in the Square Mile. Both sit at the top of our leaderboard." },
+      { cafe: "rosslyn", item: "ro-cort", note: "Start here. Two sips in, you'll get it." },
+    ],
+  },
+  {
+    id: "j-edit-grey",
+    kind: "edit",
+    title: "where to work when it's grey out",
+    dek: "Bright rooms, good Wi-Fi, no side-eye for staying a while.",
+    tone: ["#EAE4DA", "#D6C9B6"],
+    publishedAt: Date.now() - 6 * 24 * H_MS,
+    read: 3,
+    body: [
+      { p: "Some days the laptop has to leave the flat. These are the places that make that feel like a treat." },
+      { cafe: "prufrock", note: "Huge windows, long benches and a batch brew that keeps coming." },
+      { cafe: "origin", note: "Roastery energy. Get the V60 and stay for the afternoon." },
+      { cafe: "storestreet", note: "That skylight. Go before 10 for a table." },
+    ],
+  },
+  {
+    id: "j-news-areas",
+    kind: "news",
+    title: "new on the map",
+    dek: "Marylebone, Victoria and South Ken are in. Three new cafés to rate.",
+    tone: ["#E8EDE3", "#D3DCC6"],
+    publishedAt: Date.now() - 9 * 24 * H_MS,
+    read: 1,
+    body: [
+      { p: "We've stretched the map west and south. Say hello to three new spots, and tell us what we should add next." },
+      { cafe: "monocle" },
+      { cafe: "hagen" },
+      { cafe: "commonbreads" },
+    ],
+  },
+];
+
+const KIND_LABEL = { drop: "drop", edit: "samia's edit", spotlight: "spotlight", news: "new" };
+
+function timeLeft(ms) {
+  const h = Math.max(0, Math.round(ms / H_MS));
+  if (h < 1) return "ends soon";
+  if (h < 24) return `ends in ${h}h`;
+  const d = Math.round(h / 24);
+  return `ends in ${d} day${d === 1 ? "" : "s"}`;
+}
+
+/** Live drops (by café id), for badges elsewhere in the app. */
+const liveDrops = (now) => {
+  const m = {};
+  JOURNAL.forEach((j) => {
+    if (j.kind === "drop" && j.endsAt > now) j.body.forEach((b) => b.cafe && (m[b.cafe] = j));
+  });
+  return m;
+};
+
+function KindTag({ kind, light = false }) {
+  const drop = kind === "drop";
+  return (
+    <span
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
+      style={drop ? { background: C.brand, color: "#fff" } : { background: light ? "rgba(255,255,255,.7)" : C.stone, color: C.ink }}
+    >
+      {drop && <span className="a-dot h-1.5 w-1.5 rounded-full bg-white" />}
+      {KIND_LABEL[kind]}
+    </span>
+  );
+}
+
+/** "the journal": one row of tall editorial cards on Discover. */
+function JournalRow({ entries, readIds, onOpen }) {
+  // "this scrolls sideways" hint: glide right to reveal the next card, then back
+  const rowRef = useRef(null);
+  const [peeked, setPeeked] = useState(false);
+  const [moved, setMoved] = useState(false);
+  useInView(
+    rowRef,
+    () => {
+      const el = rowRef.current;
+      if (!el || peeked || moved || el.scrollLeft > 24 || el.scrollWidth <= el.clientWidth) return;
+      const from = el.scrollLeft;
+      setPeeked(true);
+      const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce) return;
+      // snap points would cancel the nudge, so lift them for the moment
+      el.style.scrollSnapType = "none";
+      setTimeout(() => el.scrollTo({ left: from + 72, behavior: "smooth" }), 500);
+      setTimeout(() => el.scrollTo({ left: from, behavior: "smooth" }), 1250);
+      setTimeout(() => (el.style.scrollSnapType = ""), 1900);
+    },
+    peeked || moved
+  );
+  if (!entries.length) return null;
+  return (
+    <section aria-labelledby="journal-title">
+      <div className="mb-4 flex items-end justify-between">
+        <div>
+          <p className="mb-1 text-sm" style={{ color: C.taupe }}>
+            from samia
+          </p>
+          <h2 id="journal-title" className="serif whitespace-nowrap text-3xl md:text-4xl">
+            the journal
+          </h2>
+        </div>
+        <p className="tabular pb-1 text-sm" style={{ color: C.taupe }}>
+          {entries.length} stories
+        </p>
+      </div>
+      <div
+        ref={rowRef}
+        onPointerDown={() => setMoved(true)}
+        onWheel={() => setMoved(true)}
+        className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0"
+        style={{ scrollPaddingLeft: 16 }}
+      >
+        {entries.map((j, i) => {
+          const unread = !readIds.has(j.id);
+          return (
+            <div key={j.id} className="a-fadeup shrink-0 snap-start" style={{ animationDelay: `${i * 60}ms` }}>
+              <button
+                type="button"
+                data-morph
+                onClick={(e) => onOpen(j.id, e.currentTarget)}
+                className="lift relative flex h-72 w-56 flex-col justify-between overflow-hidden rounded-3xl p-4 text-left soft md:w-60"
+                style={{ background: `linear-gradient(160deg, ${j.tone[0]}, ${j.tone[1]})` }}
+                aria-label={`${KIND_LABEL[j.kind]}: ${j.title}${unread ? ", new" : ""}`}
+              >
+                <span className="flex items-start justify-between gap-2">
+                  <KindTag kind={j.kind} light />
+                  {unread && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: C.brand, boxShadow: "0 0 0 3px rgba(255,255,255,.7)" }} aria-hidden="true" />}
+                </span>
+                <span>
+                  <span className="serif block text-3xl leading-none" style={{ color: C.ink }}>
+                    {j.title}
+                  </span>
+                  <span className="mt-2 block text-xs leading-relaxed" style={{ color: "rgba(42,38,35,.7)" }}>
+                    {j.kind === "drop" ? timeLeft(j.endsAt - Date.now()) : `${j.read} min read`}
+                  </span>
+                </span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** Full article in a sheet; café blocks are live, tappable and saveable. */
+function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe }) {
+  const itemsById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
+  return (
+    <article>
+      <div
+        data-sheet-handle
+        className="relative flex h-64 flex-col justify-end px-5 pb-4 md:h-72 md:px-8"
+        style={{
+          // runs under the grabber to the sheet's edge, then melts into the page
+          background: `linear-gradient(180deg, ${entry.tone[0]} 0%, ${entry.tone[1]} 58%, #fff 100%)`,
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <KindTag kind={entry.kind} light />
+          <span className="text-xs" style={{ color: "rgba(42,38,35,.7)" }}>
+            {entry.kind === "drop" ? timeLeft(entry.endsAt - Date.now()) : timeAgo(entry.publishedAt).toLowerCase()}
+          </span>
+        </div>
+        <h2 className="serif mt-2 text-4xl leading-none md:text-5xl">{entry.title}</h2>
+      </div>
+      <div className="px-5 pb-8 pt-5 md:px-8">
+        <p className="text-base leading-relaxed">{entry.dek}</p>
+        <p className="mt-2 text-xs" style={{ color: C.taupe }}>
+          samia · {entry.read} min read
+        </p>
+        <div className="mt-6 space-y-4">
+          {entry.body.map((b, i) => {
+            if (b.p) {
+              return (
+                <p key={i} className="a-fadeup text-sm leading-relaxed" style={{ color: C.ink, animationDelay: `${100 + i * 50}ms` }}>
+                  {b.p}
+                </p>
+              );
+            }
+            const cafe = cafesById[b.cafe];
+            if (!cafe) return null;
+            const it = b.item ? itemsById[b.item] : cafe.items[0];
+            return (
+              <div key={i} className="a-fadeup rounded-3xl p-4" style={{ background: C.bg, animationDelay: `${100 + i * 50}ms` }}>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => onOpenCafe(cafe.id)} className="min-w-0 flex-1 text-left">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate font-medium">{cafe.name}</span>
+                      {cafe.pick && <span style={{ color: C.latte }} aria-label="Samia's Pick">✦</span>}
+                    </span>
+                    <span className="block truncate text-xs" style={{ color: C.taupe }}>
+                      {cafe.areas[0].toLowerCase()}
+                      {it ? ` · ${it.name.toLowerCase()} ${isNewItem(it) ? "· new" : f1(it.rating)}` : ""}
+                    </span>
+                  </button>
+                  {it && <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />}
+                  <button type="button" onClick={() => onOpenCafe(cafe.id)} aria-label={`Open ${cafe.name}`} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white" style={{ color: C.taupe }}>
+                    <ArrowRight size={15} />
+                  </button>
+                </div>
+                {b.note && (
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: C.taupe }}>
+                    {b.note}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 /* ───────────────────────────── App icon ───────────────────────────── */
 
 // iOS-style app icon: the logo's "s" in white on deep olive (assets/app-icon.svg).
@@ -2830,11 +3237,15 @@ export default function Samspresso() {
     if (typeof window !== "undefined") window.scrollTo(0, 0);
   }, []);
 
+  const liveDropsNow = useMemo(() => liveDrops(Date.now()), []);
   const cafesFull = useMemo(
     () =>
       cafes.map((c) => {
-        const its = items.filter((i) => i.cafeId === c.id).sort((a, b) => b.rating - a.rating || b.count - a.count);
-        return { ...c, items: its, avg: avg(its.map((i) => i.rating)), total: its.reduce((s, i) => s + i.count, 0), pick: its.some((i) => i.pick) };
+        const its = items
+          .filter((i) => i.cafeId === c.id && promoLive(i))
+          .sort((a, b) => !!b.promo - !!a.promo || b.rating - a.rating || b.count - a.count);
+        const rated = its.filter((i) => i.count > 0);
+        return { ...c, drop: liveDropsNow[c.id] || null, items: its, avg: avg(rated.map((i) => i.rating)), total: rated.reduce((s, i) => s + i.count, 0), pick: its.some((i) => i.pick) };
       }),
     [cafes, items]
   );
@@ -2879,14 +3290,37 @@ export default function Samspresso() {
   }, []);
 
   const [detailOrigin, setDetailOrigin] = useState(null);
+  const [articleId, setArticleId] = useState(null);
+  const [articleOrigin, setArticleOrigin] = useState(null);
+  const [readIds, setReadIds] = useState(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem("sp-journal-read") || "[]"));
+    } catch (_) {
+      return new Set();
+    }
+  });
+  const journal = useMemo(() => JOURNAL.filter((j) => !j.endsAt || j.endsAt > Date.now()).sort((a, b) => (b.kind === "drop") - (a.kind === "drop") || b.publishedAt - a.publishedAt), []);
+  const openArticle = useCallback((id, el) => {
+    setArticleOrigin(el || null);
+    setArticleId(id);
+    setReadIds((r) => {
+      const n = new Set(r);
+      n.add(id);
+      try {
+        localStorage.setItem("sp-journal-read", JSON.stringify([...n]));
+      } catch (_) {}
+      return n;
+    });
+  }, []);
+  const closeArticle = useCallback(() => setArticleId(null), []);
   const openCafe = useCallback((id, el) => {
     setDetailOrigin(el || null);
     setDetailId(id);
   }, []);
   const closeDetail = useCallback(() => setDetailId(null), []);
-  const openRate = useCallback((cafeId) => {
+  const openRate = useCallback((cafeId, itemName) => {
     setDetailId(null);
-    setRate({ cafeId: cafeId || null, key: Date.now() });
+    setRate({ cafeId: cafeId || null, itemName: typeof itemName === "string" ? itemName : "", key: Date.now() });
   }, []);
   const closeRate = useCallback(() => setRate(null), []);
   const resetFilters = () => {
@@ -2968,6 +3402,7 @@ export default function Samspresso() {
   const discover = (
     <div className="space-y-8">
       <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} onRate={() => openRate()} />
+      <JournalRow entries={journal} readIds={readIds} onOpen={openArticle} />
       <section aria-labelledby="explore-title">
         <div className="mb-4 min-w-0">
           <p className="mb-1 text-sm" style={{ color: C.taupe }}>
@@ -3058,11 +3493,30 @@ export default function Samspresso() {
       <BottomNav tab={tab} setTab={setTab} onRate={openRate} />
 
       <Sheet data={detailCafe} onClose={closeDetail} label="Café details" originEl={detailOrigin}>
-        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} />}
+        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} onOpenStory={(id) => {
+          setDetailId(null);
+          setTimeout(() => openArticle(id), 320);
+        }} />}
+      </Sheet>
+
+      <Sheet data={articleId ? journal.find((j) => j.id === articleId) : null} onClose={closeArticle} label="Journal story" originEl={articleOrigin} chromeOverlay>
+        {(entry) => (
+          <JournalArticle
+            entry={entry}
+            cafesById={cafesById}
+            items={items}
+            saved={saved}
+            toggleSave={toggleSave}
+            onOpenCafe={(id) => {
+              setArticleId(null);
+              setTimeout(() => openCafe(id), 320);
+            }}
+          />
+        )}
       </Sheet>
 
       <Sheet data={rate} onClose={closeRate} label="Rate an item" bare tone="grouped">
-        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} initialCafeId={r.cafeId} onSubmit={submitRating} onCancel={closeRate} />}
+        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} initialCafeId={r.cafeId} initialItem={r.itemName} onSubmit={submitRating} onCancel={closeRate} />}
       </Sheet>
 
       <Toast toast={toast} />
