@@ -542,7 +542,10 @@ function Logo() {
       </span>
       <span className="text-lg font-semibold tracking-tight">
         <span className="sr-only">sam'spresso</span>
-        <span aria-hidden="true" style={{ color: C.brandLight }}>sam's</span>
+        <span aria-hidden="true" style={{ color: C.brandLight }}>
+          sam
+          <span style={{ fontSize: "0.6em", fontWeight: 500, verticalAlign: "0.45em", margin: "0 0.04em" }}>'</span>s
+        </span>
         <span aria-hidden="true" style={{ color: C.brandDark }}>presso</span>
         <span className="ml-1.5 align-middle text-xs font-medium uppercase tracking-widest" style={{ color: C.taupe }}>
           London
