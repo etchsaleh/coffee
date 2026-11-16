@@ -33,8 +33,9 @@ import {
 /* ───────────────────────────── Design tokens ───────────────────────────── */
 
 /*
- * sam'spresso design system: white first, one accent.
- *   bg / card  white surfaces
+ * sam'spresso design system: warm milk & oat neutrals, one brand colour.
+ *   bg         milk page background
+ *   card       white cards
  *   stone      the only grey fill (tracks, rows, chips)
  *   line       hairlines
  *   ink        text
@@ -46,22 +47,22 @@ import {
  * Map colours are quiet neutrals derived from the same set.
  */
 const C = {
-  bg: "#FFFFFF",
+  bg: "#F8F6F2",
   card: "#FFFFFF",
-  stone: "#F4F4F0",
-  line: "#EAEAE4",
-  ink: "#1C1E17",
-  taupe: "#7B7E72",
+  stone: "#F1EDE7",
+  line: "#EEEAE4",
+  ink: "#2A2623",
+  taupe: "#8D867E",
   brand: "#3E5700",
   brandSoft: "rgba(62,87,0,.08)",
   matcha: "#7A8B5A",
   matchaSoft: "rgba(122,139,90,.13)",
   latte: "#C49A74",
   latteSoft: "rgba(196,154,116,.15)",
-  land: "#F3F3EE",
-  river: "#E9ECEA",
-  park: "#ECF0E3",
-  mapLine: "#D7D9CF",
+  land: "#F4F1EB",
+  river: "#E4E9E8",
+  park: "#E5EBDC",
+  mapLine: "#D9D3CB",
 };
 // role aliases used throughout the components
 C.clay = C.latte; // Samia's Pick
@@ -73,7 +74,7 @@ const CSS = `
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap");
 .sp{font-family:"Manrope","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:${C.ink};background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
 .sp .serif{font-family:"Instrument Serif",ui-serif,Georgia,serif;font-style:italic;font-weight:400;letter-spacing:-.01em}
-.sp .soft{box-shadow:0 0 0 1px ${C.line},0 12px 32px -26px rgba(28,30,23,.25)}
+.sp .soft{box-shadow:0 1px 2px rgba(42,38,35,.03),0 14px 36px -24px rgba(42,38,35,.22)}
 .sp *{box-sizing:border-box}
 .sp fieldset{min-width:0;margin:0;padding:0;border:0}
 .sp button{font:inherit;cursor:pointer}
@@ -82,10 +83,10 @@ const CSS = `
 .sp .press{transition:transform .28s ${EASE},background-color .35s ${EASE},color .35s ${EASE},box-shadow .35s ${EASE},border-color .35s ${EASE},opacity .35s ${EASE}}
 .sp .press:active{transform:scale(.95)}
 .sp .lift{transition:transform .45s ${EASE},box-shadow .45s ${EASE},border-color .45s ${EASE}}
-@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 0 0 1px ${C.line},0 22px 44px -26px rgba(28,30,23,.3)}}
-.sp .glass{background:rgba(255,255,255,.82);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
+@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 2px 4px rgba(42,38,35,.03),0 22px 44px -24px rgba(42,38,35,.28)}}
+.sp .glass{background:rgba(250,249,246,.78);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
 .sp .glass-white{background:rgba(255,255,255,.78);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px)}
-.sp .hair{box-shadow:0 0 0 1px ${C.line},0 12px 32px -26px rgba(28,30,23,.22)}
+.sp .hair{box-shadow:0 1px 2px rgba(42,38,35,.03),0 12px 32px -22px rgba(42,38,35,.2)}
 .sp .no-scrollbar::-webkit-scrollbar{display:none}.sp .no-scrollbar{scrollbar-width:none}
 .sp :focus{outline:none}
 .sp :focus-visible{outline:2px solid ${C.brand};outline-offset:2px}
@@ -125,9 +126,9 @@ const CSS = `
 }
 
 .sp .sp-range{-webkit-appearance:none;appearance:none;height:6px;border-radius:999px;outline:none}
-.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(28,30,23,.35);transition:transform .3s ${SPRING};cursor:grab}
+.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(42,38,35,.35);transition:transform .3s ${SPRING};cursor:grab}
 .sp .sp-range:active::-webkit-slider-thumb{transform:scale(1.15);cursor:grabbing}
-.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(28,30,23,.35)}
+.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(42,38,35,.35)}
 .sp .sp-range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px ${C.ink}}
 
 @media (prefers-reduced-motion:reduce){
@@ -493,7 +494,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
       role="group"
       aria-label={label}
       className={`relative ${full ? "flex w-full" : "inline-flex"} items-center gap-0.5 rounded-full p-1 ${glass && !scroll ? "glass-white hair" : ""}`}
-      style={scroll ? undefined : glass ? { boxShadow: "0 6px 20px -12px rgba(28,30,23,.25)" } : { background: C.stone }}
+      style={scroll ? undefined : glass ? { boxShadow: "0 6px 20px -12px rgba(42,38,35,.25)" } : { background: C.stone }}
     >
       <span
         aria-hidden="true"
@@ -503,7 +504,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
           transform: `translate3d(${ind.x}px,0,0)`,
           opacity: ind.ready ? 1 : 0,
           background: ink ? C.brand : "#fff",
-          boxShadow: ink ? "0 4px 12px -6px rgba(28,30,23,.5)" : "0 1px 2px rgba(28,30,23,.08), 0 0 0 1px rgba(28,30,23,.04)",
+          boxShadow: ink ? "0 4px 12px -6px rgba(42,38,35,.5)" : "0 1px 2px rgba(42,38,35,.08), 0 0 0 1px rgba(42,38,35,.04)",
           transition: `transform .55s ${EASE}, width .55s ${EASE}, opacity .3s`,
           willChange: "transform",
         }}
@@ -535,7 +536,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
     <div
       ref={scrollRef}
       className={`no-scrollbar max-w-full overflow-x-auto rounded-full ${glass ? "glass-white hair" : ""}`}
-      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: "0 6px 20px -12px rgba(28,30,23,.25)" } : { background: C.stone }) }}
+      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: "0 6px 20px -12px rgba(42,38,35,.25)" } : { background: C.stone }) }}
     >
       {track}
     </div>
@@ -708,14 +709,14 @@ function Sheet({ data, onClose, label, children }) {
   if (!render || last.current == null) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal="true" aria-label={label}>
-      <div className={`absolute inset-0 ${open ? "ov-in" : "ov-out"}`} style={{ background: "rgba(28,30,23,.32)" }} onClick={onClose} />
+      <div className={`absolute inset-0 ${open ? "ov-in" : "ov-out"}`} style={{ background: "rgba(42,38,35,.32)" }} onClick={onClose} />
       <div
         className={`relative w-full md:max-w-xl ${open ? "sheet-in" : "sheet-out"}`}
         style={{ willChange: "transform" }}
       >
         <div
           className="no-scrollbar relative overflow-y-auto overflow-x-hidden rounded-t-3xl bg-white md:rounded-3xl"
-          style={{ maxHeight: "90vh", overscrollBehavior: "contain", boxShadow: "0 -10px 40px -20px rgba(28,30,23,.35)", paddingBottom: "env(safe-area-inset-bottom)" }}
+          style={{ maxHeight: "90vh", overscrollBehavior: "contain", boxShadow: "0 -10px 40px -20px rgba(42,38,35,.35)", paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           <div className="sticky top-0 z-10 flex justify-center bg-white pt-2.5 md:hidden">
             <span className="h-1 w-10 rounded-full" style={{ background: C.line }} />
@@ -778,7 +779,7 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
         your taste match
       </p>
       <h1 id="tm-title" className="flex flex-wrap items-center gap-x-3 gap-y-3">
-        <span className="serif text-4xl leading-tight md:text-5xl">If you love the</span>
+        <span className="serif whitespace-nowrap text-4xl leading-tight md:text-5xl">If you love the</span>
         {/* Native select for speed; styled as a pill. The visible label never wraps. */}
         <span className="focus-within-ring relative inline-flex max-w-full items-center gap-2 rounded-full bg-white py-2 pl-5 pr-2 soft">
           <span className="truncate whitespace-nowrap text-xl font-light tracking-tight md:text-3xl">
@@ -893,7 +894,7 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index }) {
           {shown.map((it) => {
             const dim = drink !== "All Drinks" && !it.styles.includes(drink);
             return (
-              <li key={it.id} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ background: C.stone, opacity: dim ? 0.45 : 1 }}>
+              <li key={it.id} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ background: C.bg, opacity: dim ? 0.45 : 1 }}>
                 <button type="button" onClick={() => onOpen(cafe.id)} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm">
                   <span className="truncate">{it.name}</span>
                   {it.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
@@ -1273,7 +1274,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                         style={{
                           background: isSel ? C.brand : "#fff",
                           color: isSel ? "#fff" : C.ink,
-                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.clay : isSel || isHov ? C.brand : C.line}, 0 6px 16px -6px rgba(28,30,23,.35)`,
+                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.clay : isSel || isHov ? C.brand : C.line}, 0 6px 16px -6px rgba(42,38,35,.35)`,
                           transition: `background-color .35s ${EASE}, color .35s ${EASE}, box-shadow .35s ${EASE}`,
                         }}
                       >
@@ -1308,7 +1309,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 
       {overlay && <div className="absolute inset-x-0 top-0 z-20 p-3">{overlay}</div>}
 
-      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: "0 8px 24px -14px rgba(28,30,23,.35)" }}>
+      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: "0 8px 24px -14px rgba(42,38,35,.35)" }}>
         <button type="button" aria-label="Zoom in" className="press flex h-10 w-10 items-center justify-center" onClick={() => zoomAt(center().x, center().y, 1.45)}>
           <Plus size={17} />
         </button>
@@ -1349,7 +1350,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 function MapPreview({ cafe, onOpen, onClose }) {
   const top = cafe.items[0];
   return (
-    <div className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: "0 20px 50px -24px rgba(28,30,23,.45)" }}>
+    <div className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: "0 20px 50px -24px rgba(42,38,35,.45)" }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 text-base font-medium tracking-tight">
@@ -1445,7 +1446,7 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
     <div>
       <SectionTitle
         eyebrow="live from the community"
-        title={<span className="serif text-3xl md:text-4xl">the leaderboard</span>}
+        title={<span className="serif whitespace-nowrap text-3xl md:text-4xl">the leaderboard</span>}
         right={<span className="a-dot mb-2 h-2 w-2 rounded-full" style={{ background: C.sage }} aria-label="Live" />}
       />
       <div className="mb-4">
@@ -1511,7 +1512,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
         <p className="text-sm" style={{ color: C.sage }}>
           your cup log
         </p>
-        <h1 className="serif mt-1 text-4xl md:text-5xl">sip, rate, repeat.</h1>
+        <h1 className="serif mt-1 whitespace-nowrap text-4xl md:text-5xl">sip, rate, repeat.</h1>
         <dl className="mt-6 grid grid-cols-3 gap-3">
           {stats.map((s) => (
             <div key={s.label} className="rounded-3xl bg-white px-4 py-4 soft">
@@ -1652,7 +1653,7 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap }) {
       </h3>
       <ul className="space-y-2">
         {cafe.items.map((it, i) => (
-          <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-1" style={{ background: C.stone, animationDelay: `${120 + i * 60}ms` }}>
+          <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-1" style={{ background: C.bg, animationDelay: `${120 + i * 60}ms` }}>
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-2 font-medium">
                 {it.name} {it.pick && <PickBadge small />}
@@ -1930,7 +1931,7 @@ function BottomNav({ tab, setTab, onRate }) {
             </button>
           ) : (
             <div key="rate" className="flex items-center justify-center">
-              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press -mt-6 flex h-14 w-14 items-center justify-center rounded-full text-white" style={{ background: C.brand, boxShadow: `0 10px 24px -10px rgba(28,30,23,.6), 0 0 0 4px ${C.bg}` }}>
+              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press -mt-6 flex h-14 w-14 items-center justify-center rounded-full text-white" style={{ background: C.brand, boxShadow: `0 10px 24px -10px rgba(42,38,35,.6), 0 0 0 4px ${C.bg}` }}>
                 <Plus size={24} strokeWidth={2.2} />
               </button>
             </div>
@@ -1945,7 +1946,7 @@ function Toast({ toast }) {
   if (!toast) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-auto md:top-20" role="status" aria-live="polite">
-      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-white" style={{ background: C.brand, boxShadow: "0 18px 40px -16px rgba(28,30,23,.55)" }}>
+      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-white" style={{ background: C.brand, boxShadow: "0 18px 40px -16px rgba(42,38,35,.55)" }}>
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,.12)" }}>
           <Sparkles size={17} aria-hidden="true" />
         </span>
@@ -2120,12 +2121,12 @@ export default function Samspresso() {
       <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} />
       <section aria-labelledby="explore-title">
         <div className="mb-4 flex items-end justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <p className="mb-1 text-sm" style={{ color: C.taupe }}>
               explore
             </p>
             <h2 id="explore-title" className="text-xl font-medium tracking-tight md:text-2xl">
-              <span className="serif text-3xl md:text-4xl">{area === "All London" ? "your london coffee edit" : `the ${area.toLowerCase()} edit`}</span>
+              <span className="serif block truncate whitespace-nowrap text-3xl md:text-4xl">{area === "All London" ? "the london edit" : `the ${area.toLowerCase()} edit`}</span>
             </h2>
             <p className="tabular mt-1 text-sm" style={{ color: C.taupe }}>
               {filtered.length} café{filtered.length === 1 ? "" : "s"}
