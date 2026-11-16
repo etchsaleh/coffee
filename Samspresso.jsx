@@ -84,6 +84,7 @@ const CSS = `
 @keyframes spDot{0%,100%{opacity:1}50%{opacity:.35}}
 @keyframes spToastIn{from{opacity:0;transform:translate3d(0,18px,0) scale(.95)}to{opacity:1;transform:none}}
 @keyframes spFlash{0%{opacity:1}100%{opacity:0}}
+@keyframes spPopIn{from{opacity:0;transform:translate3d(0,-8px,0) scale(.97)}to{opacity:1;transform:none}}
 @keyframes spCardUp{from{opacity:0;transform:translate3d(0,24px,0) scale(.97)}to{opacity:1;transform:none}}
 
 .sp .a-fadeup{animation:spFadeUp .7s ${EASE} both}
@@ -94,6 +95,7 @@ const CSS = `
 .sp .a-dot{animation:spDot 1.6s ease-in-out infinite}
 .sp .a-toast{animation:spToastIn .55s ${SPRING} both}
 .sp .a-flash{animation:spFlash 2.4s ${EASE} both}
+.sp .a-popin{transform-origin:20% 0;animation:spPopIn .4s ${EASE} both}
 .sp .a-cardup{animation:spCardUp .55s ${SPRING} both}
 .sp .ov-in{animation:spFade .35s ${EASE} both}
 .sp .ov-out{animation:spFadeOut .3s ${EASE} both}
@@ -438,7 +440,20 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
     if (typeof ResizeObserver === "undefined" || !trackRef.current) return;
     const ro = new ResizeObserver(() => measure());
     ro.observe(trackRef.current);
-    return () => ro.disconnect();
+    // Labels change width when the web font swaps in; remeasure so the pill stays aligned.
+    const fonts = typeof document !== "undefined" && document.fonts;
+    let alive = true;
+    if (fonts) {
+      fonts.ready.then(() => alive && measure());
+      fonts.addEventListener && fonts.addEventListener("loadingdone", measure);
+    }
+    window.addEventListener("resize", measure);
+    return () => {
+      alive = false;
+      ro.disconnect();
+      fonts && fonts.removeEventListener && fonts.removeEventListener("loadingdone", measure);
+      window.removeEventListener("resize", measure);
+    };
   }, [measure]);
 
   const mounted = useRef(false);
@@ -725,7 +740,111 @@ function MatchBar({ score, delay }) {
   );
 }
 
-function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, toggleSave, onOpenCafe }) {
+function DrinkOptions({ items, cafes, value, onPick }) {
+  const selRef = useRef(null);
+  useEffect(() => {
+    selRef.current && selRef.current.focus({ preventScroll: false });
+  }, []);
+  return (
+    <div role="listbox" aria-label="Drinks" className="space-y-5">
+      {cafes.map((c) => {
+        const its = items.filter((i) => i.cafeId === c.id);
+        if (!its.length) return null;
+        return (
+          <div key={c.id} role="group" aria-label={c.name}>
+            <p className="mb-2 text-xs" style={{ color: C.taupe }}>
+              {c.name.toLowerCase()} · {c.areas[0].toLowerCase()}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {its.map((i) => {
+                const on = i.id === value;
+                return (
+                  <button
+                    key={i.id}
+                    ref={on ? selRef : undefined}
+                    type="button"
+                    role="option"
+                    aria-selected={on}
+                    onClick={() => onPick(i.id)}
+                    className="press flex items-center gap-1.5 rounded-full px-4 py-2 text-sm"
+                    style={{ background: on ? C.ink : C.stone, color: on ? "#fff" : C.ink }}
+                  >
+                    {i.name}
+                    {i.pick && <span style={{ color: on ? "#fff" : C.clay }}>✦</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Custom drink picker: a popover on desktop, a slide-up sheet on phones. */
+function DrinkPicker({ items, cafes, value, onChange, isDesktop, label }) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  const btnRef = useRef(null);
+  const close = useCallback(() => {
+    setOpen(false);
+    btnRef.current && btnRef.current.focus();
+  }, []);
+  const pick = (id) => {
+    onChange(id);
+    close();
+  };
+
+  useEffect(() => {
+    if (!open || !isDesktop) return;
+    const onDown = (e) => wrapRef.current && !wrapRef.current.contains(e.target) && setOpen(false);
+    const onKey = (e) => e.key === "Escape" && close();
+    document.addEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, isDesktop, close]);
+
+  return (
+    <div ref={wrapRef} className="relative mt-4 inline-block max-w-full">
+      <button
+        ref={btnRef}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={`Drink you love: ${label}. Change`}
+        onClick={() => setOpen((o) => !o)}
+        className="press flex max-w-full items-center gap-3 rounded-full bg-white py-2.5 pl-5 pr-3 text-left soft md:py-3 md:pl-6"
+      >
+        <span className="truncate text-xl font-light tracking-tight md:text-3xl">{label}</span>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full md:h-10 md:w-10" style={{ background: C.stone }}>
+          <ChevronDown size={18} strokeWidth={1.6} aria-hidden="true" style={{ transform: open ? "rotate(180deg)" : "none", transition: `transform .4s ${EASE}` }} />
+        </span>
+      </button>
+      {isDesktop && open && (
+        <div className="a-popin absolute left-0 top-full z-30 mt-3 overflow-y-auto rounded-3xl bg-white p-5 soft" style={{ width: 460, maxHeight: "60vh", boxShadow: "0 24px 60px -24px rgba(42,38,35,.35)" }}>
+          <p className="serif mb-4 text-2xl">what are you sipping?</p>
+          <DrinkOptions items={items} cafes={cafes} value={value} onPick={pick} />
+        </div>
+      )}
+      {!isDesktop && (
+        <Sheet data={open ? true : null} onClose={close} label="Choose a drink you love">
+          {() => (
+            <div className="px-5 pb-8 pt-3">
+              <p className="serif mb-5 pr-12 text-3xl">what are you sipping?</p>
+              <DrinkOptions items={items} cafes={cafes} value={value} onPick={pick} />
+            </div>
+          )}
+        </Sheet>
+      )}
+    </div>
+  );
+}
+
+function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, toggleSave, onOpenCafe, isDesktop }) {
   const src = items.find((i) => i.id === sourceId) || items[0];
   const srcCafe = cafesById[src.cafeId];
   const recs = useMemo(
@@ -744,34 +863,10 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
       <p className="mb-4 text-sm" style={{ color: C.sage }}>
         your taste match
       </p>
-      <h1 id="tm-title" className="text-3xl font-light leading-tight tracking-tight md:text-5xl md:leading-tight">
-        <span className="serif">If you love the</span>{" "}
-        <span className="focus-within-ring relative mr-1 mt-1 inline-flex items-center gap-1.5 rounded-full px-4 py-1 align-baseline text-2xl font-normal soft md:mt-0 md:text-5xl" style={{ background: "#fff" }}>
-          <span>
-            {src.name} <span style={{ color: C.taupe }}>at {short(srcCafe ? srcCafe.name : "")}</span>
-          </span>
-          <ChevronDown size={18} strokeWidth={1.6} aria-hidden="true" />
-          <select
-            aria-label="Choose a drink you love"
-            value={src.id}
-            onChange={(e) => setSourceId(e.target.value)}
-            className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-          >
-            {cafes.map((c) => (
-              <optgroup key={c.id} label={c.name}>
-                {items
-                  .filter((i) => i.cafeId === c.id)
-                  .map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name} at {short(c.name)}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-          </select>
-        </span>
-        <span aria-hidden="true" className="hidden md:inline">…</span>
+      <h1 id="tm-title" className="serif text-4xl leading-tight md:text-6xl">
+        If you love the…
       </h1>
+      <DrinkPicker items={items} cafes={cafes} value={src.id} onChange={setSourceId} isDesktop={isDesktop} label={`${src.name} at ${short(srcCafe ? srcCafe.name : "")}`} />
       <p className="mt-3 text-sm md:text-base" style={{ color: C.taupe }}>
         you'll probably love these too.
       </p>
@@ -1878,18 +1973,22 @@ function BottomNav({ tab, setTab, onRate }) {
   return (
     <nav aria-label="Primary" className="glass fixed inset-x-0 bottom-0 z-40 border-t md:hidden" style={{ borderColor: C.line, paddingBottom: "env(safe-area-inset-bottom)" }}>
       <div className="relative grid h-16 grid-cols-5">
-        <span aria-hidden="true" className="pointer-events-none absolute left-0 top-0 flex h-full w-1/5 items-center justify-center" style={{ transform: `translate3d(${idx * 100}%,0,0)`, transition: `transform .55s ${EASE}` }}>
-          <span className="mb-4 h-8 w-14 rounded-full" style={{ background: C.stone }} />
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-1.5 left-0 flex w-1/5 justify-center"
+          style={{ transform: `translate3d(${idx * 100}%,0,0)`, opacity: idx < 0 ? 0 : 1, transition: `transform .55s ${EASE}, opacity .3s` }}
+        >
+          <span className="h-1 w-1 rounded-full" style={{ background: C.ink }} />
         </span>
         {slots.map((s, i) =>
           s ? (
-            <button key={s.value} type="button" onClick={() => setTab(s.value)} aria-current={tab === s.value ? "page" : undefined} className="press relative flex flex-col items-center justify-center gap-1 text-xs font-medium" style={{ color: tab === s.value ? C.ink : C.taupe }}>
-              <s.icon size={20} strokeWidth={tab === s.value ? 2.2 : 1.8} aria-hidden="true" />
+            <button key={s.value} type="button" onClick={() => setTab(s.value)} aria-current={tab === s.value ? "page" : undefined} className="press relative flex flex-col items-center justify-center gap-1 pb-1 text-xs" style={{ color: tab === s.value ? C.ink : C.taupe }}>
+              <s.icon size={20} strokeWidth={tab === s.value ? 2 : 1.5} aria-hidden="true" />
               {s.label === "Leaderboard" ? "Ranks" : s.label}
             </button>
           ) : (
             <div key="rate" className="flex items-center justify-center">
-              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press -mt-6 flex h-14 w-14 items-center justify-center rounded-full text-white" style={{ background: C.ink, boxShadow: "0 10px 24px -10px rgba(42,38,35,.6), 0 0 0 4px #FAF9F6" }}>
+              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press -mt-6 flex h-14 w-14 items-center justify-center rounded-full text-white" style={{ background: C.ink, boxShadow: `0 10px 24px -10px rgba(42,38,35,.6), 0 0 0 4px ${C.bg}` }}>
                 <Plus size={24} strokeWidth={2.2} />
               </button>
             </div>
@@ -2076,7 +2175,7 @@ export default function Samspresso() {
 
   const discover = (
     <div className="space-y-8">
-      <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} />
+      <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} isDesktop={isDesktop} />
       <section aria-labelledby="explore-title">
         <div className="mb-4 flex items-end justify-between gap-3">
           <div>
