@@ -620,10 +620,10 @@ const LOGO_GLYPHS = [
  * glossy highlight on every letter.
  */
 const LOGO_COLORS = {
-  sam: "#CDAA88",
-  sFrom: "#CDAA88",
-  sTo: "#5A4434",
-  presso: "#5A4434",
+  sam: "#3E5700",
+  sFrom: "#3E5700",
+  sTo: "#3E5700",
+  presso: "#3E5700",
   shine: "#FFFBF5",
 };
 
