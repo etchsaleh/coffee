@@ -73,6 +73,7 @@ const CSS = `
 .sp{font-family:"Manrope","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:${C.ink};background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
 .sp .serif{font-family:"Instrument Serif",ui-serif,Georgia,serif;font-style:italic;font-weight:400;letter-spacing:-.01em}
 .sp .soft{box-shadow:0 1px 2px rgba(42,38,35,.03),0 14px 36px -24px rgba(42,38,35,.22)}
+.sp{overflow-x:clip;max-width:100vw}
 .sp *{box-sizing:border-box}
 .sp fieldset{min-width:0;margin:0;padding:0;border:0}
 .sp button{font:inherit;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -107,6 +108,9 @@ const CSS = `
 @keyframes spDraw{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
 @keyframes spTick{0%{opacity:.4;transform:translate3d(0,6px,0)}100%{opacity:1;transform:none}}
 @keyframes spShine{0%{transform:translate3d(-120%,0,0)}60%,100%{transform:translate3d(220%,0,0)}}
+@keyframes spNope{0%{transform:rotate(0) scale(1)}45%{transform:rotate(90deg) scale(.8)}100%{transform:rotate(90deg) scale(1)}}
+@keyframes spTrailR{0%{opacity:0;transform:translate3d(-30%,0,0) scaleX(.6)}35%{opacity:1}100%{opacity:0;transform:translate3d(25%,0,0) scaleX(1.1)}}
+@keyframes spTrailL{0%{opacity:0;transform:translate3d(30%,0,0) scaleX(.6)}35%{opacity:1}100%{opacity:0;transform:translate3d(-25%,0,0) scaleX(1.1)}}
 @keyframes spCardUp{from{opacity:0;transform:translate3d(0,24px,0) scale(.97)}to{opacity:1;transform:none}}
 
 .sp .a-fadeup{animation:spFadeUp .7s ${EASE} both}
@@ -120,6 +124,9 @@ const CSS = `
 .sp .a-draw{stroke-dasharray:24;animation:spDraw .55s ${EASE} .25s both}
 .sp .a-tick{animation:spTick .3s ${EASE} both}
 .sp .a-shine::after{content:"";position:absolute;inset:0;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:spShine 3.6s ${EASE} 1s infinite}
+.sp .a-nope{animation:spNope .45s ${SPRING} both}
+.sp .a-trail-r{transform-origin:100% 50%;animation:spTrailR .7s ${EASE} both}
+.sp .a-trail-l{transform-origin:0 50%;animation:spTrailL .7s ${EASE} both}
 .sp .a-cardup{animation:spCardUp .55s ${SPRING} both}
 .sp .ov-in{animation:spFade .35s ${EASE} both}
 .sp .ov-out{animation:spFadeOut .3s ${EASE} both}
@@ -481,17 +488,20 @@ function useScrollY() {
   const [y, setY] = useState(0);
   useEffect(() => {
     let raf = 0;
+    const read = () =>
+      Math.max(window.scrollY || 0, (document.scrollingElement && document.scrollingElement.scrollTop) || 0, document.documentElement.scrollTop || 0, document.body.scrollTop || 0);
     const on = () => {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        setY(window.scrollY || 0);
+        setY(read());
       });
     };
     on();
-    window.addEventListener("scroll", on, { passive: true });
+    // capture: also hears scrolls of body/html when iOS makes them the scroller
+    document.addEventListener("scroll", on, { passive: true, capture: true });
     return () => {
-      window.removeEventListener("scroll", on);
+      document.removeEventListener("scroll", on, { capture: true });
       cancelAnimationFrame(raf);
     };
   }, []);
@@ -993,6 +1003,282 @@ function MatchBar({ score, delay }) {
   );
 }
 
+/* ───────────────────────────── Swipe stack ───────────────────────────── */
+
+const SWIPE_OUT = 110; // px past which a release dismisses the card
+const STACK_H = 300;
+
+/** One recommendation card's contents (shared by every layer of the stack). */
+function RecCard({ r, cafe, saved, toggleSave, onOpenCafe, live }) {
+  return (
+    <article data-morph className="flex h-full flex-col rounded-3xl bg-white p-5 soft">
+      <div className="flex items-start justify-between gap-2">
+        <button
+          type="button"
+          tabIndex={live ? 0 : -1}
+          onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))}
+          className="min-w-0 flex-1 text-left"
+        >
+          <p className="truncate text-xs font-medium" style={{ color: C.taupe }}>
+            {cafe.name}
+          </p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-lg font-medium tracking-tight">
+            {r.item.name}
+            {r.item.pick && <PickBadge small />}
+          </p>
+        </button>
+        <span onPointerDown={(e) => e.stopPropagation()}>
+          <BookmarkButton saved={saved.has(r.item.id)} onToggle={() => toggleSave(r.item.id)} />
+        </span>
+      </div>
+      <div className="mt-4">
+        <MatchBar score={r.score} delay={150} />
+      </div>
+      <p className="mt-4 flex-1 text-sm leading-relaxed" style={{ color: C.taupe }}>
+        {r.why}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        {r.item.flavours.slice(0, 2).map((f) => (
+          <Tag key={f}>{f.toLowerCase()}</Tag>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+/**
+ * Tinder-style deck: drag the top card left or right past a threshold to
+ * dismiss it; the cards behind rise to take its place. When the deck is
+ * empty, a Rewind button deals them all back.
+ */
+function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
+  const [savedPop, setSavedPop] = useState(0);
+  const [skipPop, setSkipPop] = useState(0);
+  const [trail, setTrail] = useState({ dir: 0, n: 0 });
+  const [justSaved, setJustSaved] = useState(false);
+  useEffect(() => {
+    if (!savedPop) return;
+    setJustSaved(true);
+    const t = setTimeout(() => setJustSaved(false), 900);
+    return () => clearTimeout(t);
+  }, [savedPop]);
+  const [index, setIndex] = useState(0);
+  const [deal, setDeal] = useState(0); // bumps on rewind to replay the deal-in
+  const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
+  const [leaving, setLeaving] = useState(0); // -1 left, 1 right, 0 none
+  const start = useRef(null);
+  const left = recs.length - index;
+
+  const dismiss = useCallback(
+    (dir) => {
+      if (leaving || index >= recs.length) return;
+      // swipe right = like: save it to Want to Try (never un-saves)
+      const r = recs[index];
+      if (dir > 0 && r) {
+        if (!saved.has(r.item.id)) toggleSave(r.item.id);
+        setSavedPop((n) => n + 1);
+      }
+      if (dir < 0) setSkipPop((n) => n + 1);
+      setTrail((t) => ({ dir, n: t.n + 1 }));
+      setLeaving(dir);
+      setTimeout(() => {
+        setIndex((i) => i + 1);
+        setLeaving(0);
+        setDrag({ x: 0, y: 0, active: false });
+      }, 280);
+    },
+    [leaving, index, recs.length, recs, saved, toggleSave]
+  );
+
+  const rewind = () => {
+    setIndex(0);
+    setDeal((d) => d + 1);
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.closest && e.target.closest("input,select,textarea,[role=dialog]")) return;
+      if (e.key === "ArrowLeft") dismiss(-1);
+      if (e.key === "ArrowRight") dismiss(1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dismiss]);
+
+  const onPointerDown = (e) => {
+    if (leaving || (e.pointerType === "mouse" && e.button !== 0)) return;
+    const t = performance.now();
+    start.current = { x: e.clientX, y: e.clientY, horiz: null, id: e.pointerId, el: e.currentTarget, lastX: e.clientX, lastT: t, prevX: e.clientX, prevT: t };
+  };
+  const onPointerMove = (e) => {
+    const s0 = start.current;
+    if (!s0 || e.pointerId !== s0.id) return;
+    const dx = e.clientX - s0.x;
+    const dy = e.clientY - s0.y;
+    if (s0.horiz === null) {
+      if (Math.abs(dx) + Math.abs(dy) < 6) return;
+      s0.horiz = Math.abs(dx) > Math.abs(dy);
+      if (!s0.horiz) {
+        start.current = null; // vertical: let the page scroll
+        return;
+      }
+      try {
+        s0.el.setPointerCapture(s0.id);
+      } catch (_) {}
+    }
+    // keep the last two samples for a release velocity
+    const now = performance.now();
+    if (now - s0.lastT > 16) {
+      s0.prevX = s0.lastX;
+      s0.prevT = s0.lastT;
+    }
+    s0.lastX = e.clientX;
+    s0.lastT = now;
+    setDrag({ x: dx, y: dy * 0.25, active: true });
+  };
+  // Decide from the last real move, never from the end event's coordinates:
+  // iOS Safari often fires pointercancel with clientX = 0, which used to read
+  // as a huge leftward swipe and fling a right swipe to the left.
+  const onPointerUp = (e) => {
+    const s0 = start.current;
+    if (!s0 || e.pointerId !== s0.id) return;
+    start.current = null;
+    if (!s0.horiz) return;
+    const dx = s0.lastX - s0.x;
+    const v = (s0.lastX - s0.prevX) / Math.max(1, s0.lastT - s0.prevT); // px/ms
+    let dir = 0;
+    if (Math.abs(dx) > SWIPE_OUT) dir = Math.sign(dx);
+    else if (e.type === "pointerup" && Math.abs(v) > 0.6 && Math.sign(v) === Math.sign(dx) && Math.abs(dx) > 40) dir = Math.sign(v);
+    if (dir) dismiss(dir);
+    else setDrag({ x: 0, y: 0, active: false });
+  };
+  // swallow the click that ends a drag so it doesn't open the café
+  const onClickCapture = (e) => {
+    if (drag.active && Math.abs(drag.x) > 6) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+
+  const visible = recs.slice(index, index + 3);
+  const progress = clamp(Math.abs(drag.x) / SWIPE_OUT, 0, 1);
+
+  return (
+    <div className="mx-auto mt-8 max-w-md">
+      <div className="relative" style={{ height: STACK_H }}>
+        {/* trailing colour wash: green streak for a save, grey for a skip */}
+        {trail.dir !== 0 && (
+          <span
+            key={`trail-${trail.n}`}
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-y-6 ${trail.dir > 0 ? "a-trail-r left-1/4 right-0" : "a-trail-l left-0 right-1/4"} rounded-full`}
+            style={{
+              background: trail.dir > 0 ? `linear-gradient(90deg, rgba(122,139,90,0), rgba(122,139,90,.55))` : `linear-gradient(270deg, rgba(141,134,126,0), rgba(141,134,126,.45))`,
+              filter: "blur(28px)",
+              zIndex: 0,
+            }}
+          />
+        )}
+        {left === 0 && (
+          <div key={`done-${deal}`} className="a-fadeup absolute inset-0 flex flex-col items-center justify-center rounded-3xl text-center" style={{ background: C.stone }}>
+            <p className="serif text-3xl">that's the lot</p>
+            <p className="mt-1 text-sm" style={{ color: C.taupe }}>
+              you've seen every match for this drink
+            </p>
+            <button
+              type="button"
+              onClick={rewind}
+              className="press relative mt-5 flex items-center gap-2 overflow-hidden rounded-full py-2.5 pl-4 pr-5 text-sm font-medium text-white"
+              style={{ background: C.brand, boxShadow: "0 10px 24px -12px rgba(62,87,0,.7)" }}
+            >
+              <RotateCcw size={16} /> Rewind
+            </button>
+          </div>
+        )}
+        {visible
+          .map((r, depth) => {
+            const cafe = cafesById[r.item.cafeId];
+            const top = depth === 0;
+            // cards behind sit lower and smaller, and rise as the top card is dragged away
+            const lift = top ? 0 : progress;
+            const d = depth - lift;
+            let transform = `translate3d(0, ${d * 14}px, 0) scale(${1 - d * 0.05})`;
+            let transition = `transform .5s ${SPRING}, opacity .3s`;
+            if (top) {
+              if (leaving) {
+                transform =
+                  leaving > 0
+                    ? `translate3d(520px, ${drag.y - 40}px, 0) rotate(22deg) scale(1.02)`
+                    : `translate3d(-480px, ${drag.y + 10}px, 0) rotate(-18deg) scale(.96)`;
+                transition = `transform .3s cubic-bezier(.4,0,.6,1), opacity .3s ease-in, filter .3s`;
+              } else {
+                transform = `translate3d(${drag.x}px, ${drag.y}px, 0) rotate(${drag.x / 18}deg)`;
+                transition = drag.active ? "none" : `transform .55s ${SPRING}`;
+              }
+            }
+            return (
+              <div
+                key={`${r.item.id}-${deal}`}
+                className="absolute inset-0"
+                style={{ zIndex: 10 - depth, touchAction: top ? "pan-y" : "auto", pointerEvents: top ? "auto" : "none" }}
+                aria-hidden={!top}
+              >
+                <div className="a-cardup h-full" style={{ animationDelay: deal ? `${depth * 70}ms` : "0ms" }}>
+                  <div
+                    className="relative h-full select-none"
+                    style={{ transform, transition, opacity: depth > 2 ? 0 : top && leaving < 0 ? 0.55 : 1, filter: top && leaving < 0 ? "saturate(.4)" : "none", cursor: top ? (drag.active ? "grabbing" : "grab") : "default", willChange: "transform" }}
+                    onPointerDown={top ? onPointerDown : undefined}
+                    onPointerMove={top ? onPointerMove : undefined}
+                    onPointerUp={top ? onPointerUp : undefined}
+                    onPointerCancel={top ? onPointerUp : undefined}
+                    onClickCapture={top ? onClickCapture : undefined}
+                  >
+                    <RecCard r={r} cafe={cafe} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} live={top} />
+                    {top && (
+                      // colour trails in from the edge the card is moving away from
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 rounded-3xl"
+                        style={{
+                          background:
+                            (leaving || Math.sign(drag.x)) > 0
+                              ? `linear-gradient(90deg, rgba(122,139,90,${0.32 * (leaving > 0 ? 1 : progress)}), rgba(122,139,90,0) 70%)`
+                              : `linear-gradient(270deg, rgba(141,134,126,${0.3 * (leaving < 0 ? 1 : progress)}), rgba(141,134,126,0) 70%)`,
+                          opacity: leaving || drag.x ? 1 : 0,
+                          transition: drag.active ? "none" : "opacity .3s",
+                        }}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+          .reverse()}
+      </div>
+
+      <div className="relative z-20 mt-6 flex items-center justify-center gap-5" style={{ opacity: left ? 1 : 0, transition: `opacity .3s ${EASE}`, pointerEvents: left ? "auto" : "none" }}>
+        <button type="button" aria-label="Skip this match" onClick={() => dismiss(-1)} className="press flex h-12 w-12 items-center justify-center rounded-full bg-white soft" style={{ color: C.taupe }}>
+          <span key={skipPop} className={`inline-flex ${skipPop ? "a-nope" : ""}`}>
+            <X size={18} />
+          </span>
+        </button>
+        <span className="tabular w-14 text-center text-sm" style={{ color: C.taupe }}>
+          {Math.min(index + 1, recs.length)} / {recs.length}
+        </span>
+        <span className="relative">
+          <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: "0 10px 22px -12px rgba(62,87,0,.7)" }}>
+            <Gloss />
+            <span key={savedPop} className={`relative inline-flex ${savedPop ? "a-pop" : ""}`}>
+              <Bookmark size={18} fill={justSaved ? "#fff" : "none"} style={{ transition: `fill .25s ${EASE}` }} />
+            </span>
+          </button>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, toggleSave, onOpenCafe }) {
   const src = items.find((i) => i.id === sourceId) || items[0];
   const srcCafe = cafesById[src.cafeId];
@@ -1002,7 +1288,7 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
         .filter((i) => i.id !== src.id && i.cafeId !== src.cafeId)
         .map((i) => ({ item: i, score: matchScore(src, i), why: reasonFor(src, i) }))
         .sort((a, b) => b.score - a.score || b.item.rating - a.item.rating)
-        .slice(0, 3),
+        .slice(0, 6),
     [items, src]
   );
   const short = (name) => name.replace(/ (Coffee|Espresso Bar|Espresso|Café)$/, "");
@@ -1050,40 +1336,7 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
         you'll probably love these too.
       </p>
 
-      <div key={src.id} className="mt-8 grid gap-4 md:grid-cols-3">
-        {recs.map((r, i) => {
-          const cafe = cafesById[r.item.cafeId];
-          return (
-            <div key={r.item.id} className="a-fadeup" style={{ animationDelay: `${i * 90}ms` }}>
-              <article data-morph className="lift flex h-full flex-col rounded-3xl bg-white p-5 soft">
-                <div className="flex items-start justify-between gap-2">
-                  <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="min-w-0 flex-1 text-left">
-                    <p className="truncate text-xs font-medium" style={{ color: C.taupe }}>
-                      {cafe.name}
-                    </p>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-lg font-medium tracking-tight">
-                      {r.item.name}
-                      {r.item.pick && <PickBadge small />}
-                    </p>
-                  </button>
-                  <BookmarkButton saved={saved.has(r.item.id)} onToggle={() => toggleSave(r.item.id)} />
-                </div>
-                <div className="mt-4">
-                  <MatchBar score={r.score} delay={200 + i * 120} />
-                </div>
-                <p className="mt-4 flex-1 text-sm leading-relaxed" style={{ color: C.taupe }}>
-                  {r.why}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {r.item.flavours.slice(0, 2).map((f) => (
-                    <Tag key={f}>{f.toLowerCase()}</Tag>
-                  ))}
-                </div>
-              </article>
-            </div>
-          );
-        })}
-      </div>
+      <SwipeStack key={src.id} recs={recs} src={src} cafesById={cafesById} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} />
     </section>
   );
 }
