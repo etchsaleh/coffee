@@ -559,9 +559,6 @@ function Logo() {
           s
         </span>
         <span aria-hidden="true" style={{ color: C.brandDark }}>presso</span>
-        <span className="ml-1.5 align-middle text-xs font-medium uppercase tracking-widest" style={{ color: C.taupe }}>
-          London
-        </span>
       </span>
     </div>
   );
