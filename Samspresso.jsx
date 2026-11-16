@@ -3101,8 +3101,8 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
         data-sheet-handle
         className="relative flex h-64 flex-col justify-end px-5 pb-4 md:h-72 md:px-8"
         style={{
-          // fades in from the white grabber strip and back out into the page
-          background: `linear-gradient(180deg, #fff 0%, ${entry.tone[0]} 24%, ${entry.tone[1]} 60%, #fff 100%)`,
+          // runs under the grabber to the sheet's edge, then melts into the page
+          background: `linear-gradient(180deg, ${entry.tone[0]} 0%, ${entry.tone[1]} 58%, #fff 100%)`,
         }}
       >
         <div className="flex items-center gap-2">
@@ -3499,7 +3499,7 @@ export default function Samspresso() {
         }} />}
       </Sheet>
 
-      <Sheet data={articleId ? journal.find((j) => j.id === articleId) : null} onClose={closeArticle} label="Journal story" originEl={articleOrigin}>
+      <Sheet data={articleId ? journal.find((j) => j.id === articleId) : null} onClose={closeArticle} label="Journal story" originEl={articleOrigin} chromeOverlay>
         {(entry) => (
           <JournalArticle
             entry={entry}
