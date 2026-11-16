@@ -44,6 +44,8 @@ const C = {
   land: "#F4F1EA",
   river: "#E3E8EA",
   park: "#E8EDE9",
+  brandLight: "#B98A64",
+  brandDark: "#4A2F1E",
 };
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
@@ -363,7 +365,7 @@ function useCountUp(target, delay = 0, dur = 1100) {
 /* ───────────────────────────── Primitives ───────────────────────────── */
 
 /** Segmented control / pill row with a sliding indicator (transform-driven). */
-function Segmented({ options, value, onChange, label, variant = "white", size = "md", scroll = false, full = false, glass = false, scrollPad = "px-4 -mx-4 md:mx-0 md:px-0" }) {
+function Segmented({ options, value, onChange, label, variant = "white", size = "md", scroll = false, full = false, glass = false }) {
   const opts = options.map((o) => (typeof o === "string" ? { value: o, label: o } : o));
   const sig = opts.map((o) => o.value).join("|");
   const refs = useRef({});
@@ -408,8 +410,8 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
       ref={trackRef}
       role="group"
       aria-label={label}
-      className={`relative ${full ? "flex w-full" : "inline-flex"} items-center gap-0.5 rounded-full p-1 ${glass ? "glass-white hair" : ""}`}
-      style={glass ? { boxShadow: "0 6px 20px -12px rgba(30,28,26,.25)" } : { background: C.stone }}
+      className={`relative ${full ? "flex w-full" : "inline-flex"} items-center gap-0.5 rounded-full p-1 ${glass && !scroll ? "glass-white hair" : ""}`}
+      style={scroll ? undefined : glass ? { boxShadow: "0 6px 20px -12px rgba(30,28,26,.25)" } : { background: C.stone }}
     >
       <span
         aria-hidden="true"
@@ -445,8 +447,14 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
     </div>
   );
   if (!scroll) return track;
+  // Scrolling rows: the rounded bar itself is capped at the available width and
+  // the pills scroll inside it, so the bar's ends never run off screen.
   return (
-    <div ref={scrollRef} className={`no-scrollbar overflow-x-auto ${scrollPad}`}>
+    <div
+      ref={scrollRef}
+      className={`no-scrollbar max-w-full overflow-x-auto rounded-full ${glass ? "glass-white hair" : ""}`}
+      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: "0 6px 20px -12px rgba(30,28,26,.25)" } : { background: C.stone }) }}
+    >
       {track}
     </div>
   );
@@ -529,11 +537,13 @@ function SectionTitle({ eyebrow, title, right }) {
 function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex h-9 w-9 items-center justify-center rounded-2xl" style={{ background: C.ink }}>
+      <span className="flex h-9 w-9 items-center justify-center rounded-2xl" style={{ background: C.brandDark }}>
         <Coffee size={18} color="#fff" strokeWidth={2} aria-hidden="true" />
       </span>
       <span className="text-lg font-semibold tracking-tight">
-        Samspresso
+        <span className="sr-only">sam'spresso</span>
+        <span aria-hidden="true" style={{ color: C.brandLight }}>sam's</span>
+        <span aria-hidden="true" style={{ color: C.brandDark }}>presso</span>
         <span className="ml-1.5 align-middle text-xs font-medium uppercase tracking-widest" style={{ color: C.taupe }}>
           London
         </span>
@@ -681,7 +691,7 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
             ))}
           </select>
         </span>
-        <span aria-hidden="true">…</span>
+        <span aria-hidden="true" className="hidden md:inline">…</span>
       </h1>
       <p className="mt-2 text-sm md:text-base" style={{ color: C.taupe }}>
         …you'll probably love these across London.
@@ -735,11 +745,11 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
 
 /* ───────────────────────────── Filters & café cards ───────────────────────────── */
 
-function Filters({ area, setArea, drink, setDrink, compact = false, glass = false, scrollPad }) {
+function Filters({ area, setArea, drink, setDrink, compact = false, glass = false }) {
   return (
     <div className={compact ? "space-y-2" : "space-y-3"}>
-      <Segmented label="Filter by neighbourhood" options={AREAS} value={area} onChange={setArea} variant="ink" size={compact ? "sm" : "md"} scroll glass={glass} scrollPad={scrollPad} />
-      <Segmented label="Filter by drink style" options={DRINKS} value={drink} onChange={setDrink} variant="ink" size={compact ? "sm" : "md"} scroll glass={glass} scrollPad={scrollPad} />
+      <Segmented label="Filter by neighbourhood" options={AREAS} value={area} onChange={setArea} variant="ink" size={compact ? "sm" : "md"} scroll glass={glass} />
+      <Segmented label="Filter by drink style" options={DRINKS} value={drink} onChange={setDrink} variant="ink" size={compact ? "sm" : "md"} scroll glass={glass} />
     </div>
   );
 }
@@ -1683,7 +1693,6 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
           variant="ink"
           size="sm"
           scroll
-          scrollPad="-mx-5 px-5 md:-mx-8 md:px-8"
           value={cafeId}
           onChange={(v) => {
             setCafeId(v);
@@ -1839,7 +1848,7 @@ function TopNav({ tab, setTab, onRate, savedCount }) {
   return (
     <header className="glass sticky top-0 z-40 hidden border-b md:block" style={{ borderColor: C.line }}>
       <div className="mx-auto flex h-16 max-w-5xl items-center justify-between gap-4 px-6">
-        <button type="button" onClick={() => setTab("discover")} aria-label="Samspresso home">
+        <button type="button" onClick={() => setTab("discover")} aria-label="sam'spresso home">
           <Logo />
         </button>
         <nav aria-label="Primary">
@@ -2062,7 +2071,7 @@ export default function Samspresso() {
   };
 
   const mapOverlay = (
-    <Filters area={area} setArea={setArea} drink={drink} setDrink={setDrink} compact glass scrollPad="-mx-3 px-3 pr-16" />
+    <Filters area={area} setArea={setArea} drink={drink} setDrink={setDrink} compact glass />
   );
 
   const discover = (
