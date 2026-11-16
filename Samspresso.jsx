@@ -850,7 +850,7 @@ function Logo({ height = 28, colors = LOGO_COLORS }) {
 
 /* ───────────────────────────── Sheet (slide-up drawer / modal) ───────────────────────────── */
 
-function Sheet({ data, onClose, label, children, bare = false, tone = "white", originEl = null }) {
+function Sheet({ data, onClose, label, children, bare = false, tone = "white", originEl = null, chromeOverlay = false }) {
   const open = data != null;
   const last = useRef(data);
   if (data != null) last.current = data;
@@ -977,18 +977,30 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
           <div ref={contentRef}>
           {!bare && (
             <>
-              <div data-sheet-handle className="sticky top-0 z-10 flex justify-center pb-1 pt-2 md:hidden" style={{ background: surface, touchAction: "none" }}>
-                <span className="h-1 w-9 rounded-full" style={{ background: "rgba(42,38,35,.18)" }} />
+              {/* zero-height sticky rail: keeps the close button on screen while the sheet scrolls */}
+              <div className="sticky top-0 z-30 h-0">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Close"
+                  className="press absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full"
+                  style={{
+                    background: chromeOverlay ? "rgba(255,255,255,.72)" : C.stone,
+                    WebkitBackdropFilter: chromeOverlay ? "blur(14px) saturate(1.5)" : "none",
+                    backdropFilter: chromeOverlay ? "blur(14px) saturate(1.5)" : "none",
+                    boxShadow: "0 4px 14px -8px rgba(42,38,35,.35)",
+                  }}
+                >
+                  <X size={17} strokeWidth={2} />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close"
-                className="press absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full"
-                style={{ background: C.stone }}
+              <div
+                data-sheet-handle
+                className={`${chromeOverlay ? "absolute inset-x-0" : "sticky"} top-0 z-20 flex justify-center pb-1 pt-2 md:hidden`}
+                style={{ background: chromeOverlay ? "transparent" : surface, touchAction: "none" }}
               >
-                <X size={17} strokeWidth={2} />
-              </button>
+                <span className="h-1 w-9 rounded-full" style={{ background: chromeOverlay ? "rgba(42,38,35,.25)" : "rgba(42,38,35,.18)" }} />
+              </div>
             </>
           )}
           {children(last.current)}
@@ -3003,7 +3015,14 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
   const itemsById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
   return (
     <article>
-      <div className="relative -mt-4 flex h-52 flex-col justify-end px-5 pb-5 md:mt-0 md:px-8" style={{ background: `linear-gradient(160deg, ${entry.tone[0]}, ${entry.tone[1]})` }}>
+      <div
+        data-sheet-handle
+        className="relative flex h-64 flex-col justify-end px-5 pb-4 md:h-72 md:px-8"
+        style={{
+          // runs under the grabber to the sheet's edge, then melts into the page
+          background: `linear-gradient(180deg, ${entry.tone[0]} 0%, ${entry.tone[1]} 58%, #fff 100%)`,
+        }}
+      >
         <div className="flex items-center gap-2">
           <KindTag kind={entry.kind} light />
           <span className="text-xs" style={{ color: "rgba(42,38,35,.7)" }}>
@@ -3398,7 +3417,7 @@ export default function Samspresso() {
         }} />}
       </Sheet>
 
-      <Sheet data={articleId ? journal.find((j) => j.id === articleId) : null} onClose={closeArticle} label="Journal story" originEl={articleOrigin}>
+      <Sheet data={articleId ? journal.find((j) => j.id === articleId) : null} onClose={closeArticle} label="Journal story" originEl={articleOrigin} chromeOverlay>
         {(entry) => (
           <JournalArticle
             entry={entry}
