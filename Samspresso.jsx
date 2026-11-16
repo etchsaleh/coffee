@@ -544,7 +544,19 @@ function Logo() {
         <span className="sr-only">sam'spresso</span>
         <span aria-hidden="true" style={{ color: C.brandLight }}>
           sam
-          <span style={{ fontSize: "0.6em", fontWeight: 500, verticalAlign: "0.45em", margin: "0 0.04em" }}>'</span>s
+          <span style={{ fontSize: "0.75em", fontWeight: 500, verticalAlign: "0.3em", margin: "0 0.03em" }}>'</span>
+        </span>
+        <span
+          aria-hidden="true"
+          style={{
+            backgroundImage: `linear-gradient(90deg, ${C.brandLight}, ${C.brandDark})`,
+            WebkitBackgroundClip: "text",
+            backgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            color: "transparent",
+          }}
+        >
+          s
         </span>
         <span aria-hidden="true" style={{ color: C.brandDark }}>presso</span>
         <span className="ml-1.5 align-middle text-xs font-medium uppercase tracking-widest" style={{ color: C.taupe }}>
