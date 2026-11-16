@@ -1910,6 +1910,17 @@ function TopNav({ tab, setTab, onRate, savedCount }) {
   );
 }
 
+/** Glossy highlight in the style of the logo's bubble letters: a curved
+ *  shine along the top-left edge and a small glint lower down. */
+function Gloss() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 56 56" className="pointer-events-none absolute inset-0 h-full w-full">
+      <path d="M8.6 23.5 C9.8 15.8 15.8 9.8 23.5 8.6" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" opacity=".85" />
+      <path d="M8.4 29.2 L8.4 29.4" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" opacity=".85" />
+    </svg>
+  );
+}
+
 function BottomNav({ tab, setTab, onRate }) {
   const slots = [TABS[0], TABS[1], null, TABS[2], TABS[3]];
   const idx = slots.findIndex((s) => s && s.value === tab);
@@ -1931,8 +1942,9 @@ function BottomNav({ tab, setTab, onRate }) {
             </button>
           ) : (
             <div key="rate" className="flex items-center justify-center">
-              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press -mt-6 flex h-14 w-14 items-center justify-center rounded-full text-white" style={{ background: C.brand, boxShadow: `0 10px 24px -10px rgba(42,38,35,.6), 0 0 0 4px ${C.bg}` }}>
-                <Plus size={24} strokeWidth={2.2} />
+              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press relative -mt-6 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: `0 10px 24px -10px rgba(42,38,35,.6), 0 0 0 4px ${C.bg}` }}>
+                <Gloss />
+                <Plus size={24} strokeWidth={2.2} className="relative" />
               </button>
             </div>
           )
