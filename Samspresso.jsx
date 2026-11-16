@@ -1092,11 +1092,12 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
 
   const onPointerDown = (e) => {
     if (leaving || (e.pointerType === "mouse" && e.button !== 0)) return;
-    start.current = { x: e.clientX, y: e.clientY, t: performance.now(), horiz: null, id: e.pointerId, el: e.currentTarget };
+    const t = performance.now();
+    start.current = { x: e.clientX, y: e.clientY, horiz: null, id: e.pointerId, el: e.currentTarget, lastX: e.clientX, lastT: t, prevX: e.clientX, prevT: t };
   };
   const onPointerMove = (e) => {
     const s0 = start.current;
-    if (!s0) return;
+    if (!s0 || e.pointerId !== s0.id) return;
     const dx = e.clientX - s0.x;
     const dy = e.clientY - s0.y;
     if (s0.horiz === null) {
@@ -1110,15 +1111,30 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
         s0.el.setPointerCapture(s0.id);
       } catch (_) {}
     }
+    // keep the last two samples for a release velocity
+    const now = performance.now();
+    if (now - s0.lastT > 16) {
+      s0.prevX = s0.lastX;
+      s0.prevT = s0.lastT;
+    }
+    s0.lastX = e.clientX;
+    s0.lastT = now;
     setDrag({ x: dx, y: dy * 0.25, active: true });
   };
+  // Decide from the last real move, never from the end event's coordinates:
+  // iOS Safari often fires pointercancel with clientX = 0, which used to read
+  // as a huge leftward swipe and fling a right swipe to the left.
   const onPointerUp = (e) => {
     const s0 = start.current;
+    if (!s0 || e.pointerId !== s0.id) return;
     start.current = null;
-    if (!s0 || !s0.horiz) return;
-    const dx = e.clientX - s0.x;
-    const v = dx / Math.max(1, performance.now() - s0.t);
-    if (Math.abs(dx) > SWIPE_OUT || Math.abs(v) > 0.6) dismiss(dx > 0 ? 1 : -1);
+    if (!s0.horiz) return;
+    const dx = s0.lastX - s0.x;
+    const v = (s0.lastX - s0.prevX) / Math.max(1, s0.lastT - s0.prevT); // px/ms
+    let dir = 0;
+    if (Math.abs(dx) > SWIPE_OUT) dir = Math.sign(dx);
+    else if (e.type === "pointerup" && Math.abs(v) > 0.6 && Math.sign(v) === Math.sign(dx) && Math.abs(dx) > 40) dir = Math.sign(v);
+    if (dir) dismiss(dir);
     else setDrag({ x: 0, y: 0, active: false });
   };
   // swallow the click that ends a drag so it doesn't open the café
