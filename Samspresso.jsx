@@ -111,6 +111,7 @@ const CSS = `
 @keyframes spNope{0%{transform:rotate(0) scale(1)}45%{transform:rotate(90deg) scale(.8)}100%{transform:rotate(90deg) scale(1)}}
 @keyframes spTrailR{0%{opacity:0;transform:translate3d(-30%,0,0) scaleX(.6)}35%{opacity:1}100%{opacity:0;transform:translate3d(25%,0,0) scaleX(1.1)}}
 @keyframes spTrailL{0%{opacity:0;transform:translate3d(30%,0,0) scaleX(.6)}35%{opacity:1}100%{opacity:0;transform:translate3d(-25%,0,0) scaleX(1.1)}}
+@keyframes spWiggle{0%,100%{transform:none}14%{transform:translate3d(18px,0,0) rotate(3deg)}30%{transform:translate3d(-14px,0,0) rotate(-2.4deg)}46%{transform:translate3d(8px,0,0) rotate(1.2deg)}60%{transform:translate3d(-3px,0,0) rotate(-.4deg)}72%{transform:none}}
 @keyframes spCardUp{from{opacity:0;transform:translate3d(0,24px,0) scale(.97)}to{opacity:1;transform:none}}
 
 .sp .a-fadeup{animation:spFadeUp .7s ${EASE} both}
@@ -127,6 +128,7 @@ const CSS = `
 .sp .a-nope{animation:spNope .45s ${SPRING} both}
 .sp .a-trail-r{transform-origin:100% 50%;animation:spTrailR .7s ${EASE} both}
 .sp .a-trail-l{transform-origin:0 50%;animation:spTrailL .7s ${EASE} both}
+.sp .a-wiggle{transform-origin:50% 90%;animation:spWiggle 1.3s cubic-bezier(.36,.07,.19,.97) both}
 .sp .a-cardup{animation:spCardUp .55s ${SPRING} both}
 .sp .ov-in{animation:spFade .35s ${EASE} both}
 .sp .ov-out{animation:spFadeOut .3s ${EASE} both}
@@ -499,6 +501,19 @@ function useMediaQuery(q) {
     return () => (mq.removeEventListener ? mq.removeEventListener("change", h) : mq.removeListener(h));
   }, [q]);
   return m;
+}
+
+/** Calls `onSeen` each time `ref` becomes ≥60% visible (until `stop` is true). */
+function useInView(ref, onSeen, stop) {
+  const cb = useRef(onSeen);
+  cb.current = onSeen;
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || stop || typeof IntersectionObserver === "undefined") return;
+    const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && cb.current()), { threshold: 0.6 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [ref, stop]);
 }
 
 /** Window scroll position, throttled to one update per frame. */
@@ -1090,6 +1105,38 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   const [skipPop, setSkipPop] = useState(0);
   const [trail, setTrail] = useState({ dir: 0, n: 0 });
   const [justSaved, setJustSaved] = useState(false);
+  // "you can swipe this" hint: a little sideways wiggle of the top card
+  const deckRef = useRef(null);
+  const [hint, setHint] = useState(0);
+  const [touched, setTouched] = useState(false);
+  const hintTimer = useRef(null);
+  useInView(
+    deckRef,
+    () => {
+      if (hint >= 2 || hintTimer.current) return;
+      hintTimer.current = setTimeout(() => {
+        hintTimer.current = null;
+        setHint((h) => h + 1);
+      }, hint ? 6000 : 900);
+    },
+    touched || hint >= 2
+  );
+  useEffect(() => {
+    if (touched && hintTimer.current) {
+      clearTimeout(hintTimer.current);
+      hintTimer.current = null;
+    }
+  }, [touched]);
+  useEffect(() => () => hintTimer.current && clearTimeout(hintTimer.current), []);
+  // after the first wiggle, offer one more a few seconds later if still untouched
+  useEffect(() => {
+    if (hint !== 1 || touched) return;
+    hintTimer.current = setTimeout(() => {
+      hintTimer.current = null;
+      setHint(2);
+    }, 6000);
+    return () => hintTimer.current && clearTimeout(hintTimer.current);
+  }, [hint, touched]);
   useEffect(() => {
     if (!savedPop) return;
     setJustSaved(true);
@@ -1106,6 +1153,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   const dismiss = useCallback(
     (dir) => {
       if (leaving || index >= recs.length) return;
+      setTouched(true);
       // swipe right = like: save it to Want to Try (never un-saves)
       const r = recs[index];
       if (dir > 0 && r) {
@@ -1141,6 +1189,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
 
   const onPointerDown = (e) => {
     if (leaving || (e.pointerType === "mouse" && e.button !== 0)) return;
+    setTouched(true);
     const t = performance.now();
     start.current = { x: e.clientX, y: e.clientY, horiz: null, id: e.pointerId, el: e.currentTarget, lastX: e.clientX, lastT: t, prevX: e.clientX, prevT: t };
   };
@@ -1198,7 +1247,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   const progress = clamp(Math.abs(drag.x) / SWIPE_OUT, 0, 1);
 
   return (
-    <div className="mx-auto mt-8 max-w-md">
+    <div ref={deckRef} className="mx-auto mt-8 max-w-md">
       <div className="relative" style={{ height: STACK_H }}>
         {/* trailing colour wash: green streak for a save, grey for a skip */}
         {trail.dir !== 0 && (
@@ -1258,6 +1307,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
                 aria-hidden={!top}
               >
                 <div className="a-cardup h-full" style={{ animationDelay: deal ? `${depth * 70}ms` : "0ms" }}>
+                  <div key={top && !touched ? `hint-${hint}` : "still"} className={`h-full ${top && !touched && hint ? "a-wiggle" : ""}`}>
                   <div
                     className="relative h-full select-none"
                     style={{ transform, transition, opacity: depth > 2 ? 0 : top && leaving < 0 ? 0.55 : 1, filter: top && leaving < 0 ? "saturate(.4)" : "none", cursor: top ? (drag.active ? "grabbing" : "grab") : "default", willChange: "transform" }}
@@ -1283,6 +1333,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
                         }}
                       />
                     )}
+                  </div>
                   </div>
                 </div>
               </div>
@@ -2964,6 +3015,27 @@ function KindTag({ kind, light = false }) {
 
 /** "the journal": one row of tall editorial cards on Discover. */
 function JournalRow({ entries, readIds, onOpen }) {
+  // "this scrolls sideways" hint: glide right to reveal the next card, then back
+  const rowRef = useRef(null);
+  const [peeked, setPeeked] = useState(false);
+  const [moved, setMoved] = useState(false);
+  useInView(
+    rowRef,
+    () => {
+      const el = rowRef.current;
+      if (!el || peeked || moved || el.scrollLeft > 24 || el.scrollWidth <= el.clientWidth) return;
+      const from = el.scrollLeft;
+      setPeeked(true);
+      const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduce) return;
+      // snap points would cancel the nudge, so lift them for the moment
+      el.style.scrollSnapType = "none";
+      setTimeout(() => el.scrollTo({ left: from + 72, behavior: "smooth" }), 500);
+      setTimeout(() => el.scrollTo({ left: from, behavior: "smooth" }), 1250);
+      setTimeout(() => (el.style.scrollSnapType = ""), 1900);
+    },
+    peeked || moved
+  );
   if (!entries.length) return null;
   return (
     <section aria-labelledby="journal-title">
@@ -2980,7 +3052,13 @@ function JournalRow({ entries, readIds, onOpen }) {
           {entries.length} stories
         </p>
       </div>
-      <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
+      <div
+        ref={rowRef}
+        onPointerDown={() => setMoved(true)}
+        onWheel={() => setMoved(true)}
+        className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0"
+        style={{ scrollPaddingLeft: 16 }}
+      >
         {entries.map((j, i) => {
           const unread = !readIds.has(j.id);
           return (
