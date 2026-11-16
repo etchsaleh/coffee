@@ -25,7 +25,6 @@ import {
   Check,
   ArrowRight,
   Coffee,
-  List,
   Store,
   LocateFixed,
 } from "lucide-react";
@@ -2479,9 +2478,15 @@ function Toast({ toast }) {
 
 /* ───────────────────────────── Sort & "near me" ───────────────────────────── */
 
-function SortBar({ sort, setSort, openOnly, setOpenOnly, origin, setOrigin, notify }) {
+/**
+ * The "10 cafés · top rated ▾ · open now" line under the explore title.
+ * One native select covers both sorting and the "nearest to…" origin.
+ */
+function SortLine({ count, drink, sort, setSort, openOnly, setOpenOnly, origin, setOrigin, notify }) {
   const [locating, setLocating] = useState(false);
-  const useMyLocation = () => {
+  const stations = useMemo(() => [...TUBE_STATIONS].sort((a, b) => a[0].localeCompare(b[0])), []);
+
+  const locate = () => {
     const fail = (msg) => {
       setLocating(false);
       notify({ t: Date.now(), title: "Location unavailable", sub: msg });
@@ -2500,61 +2505,66 @@ function SortBar({ sort, setSort, openOnly, setOpenOnly, origin, setOrigin, noti
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
     );
   };
-  const stations = [...TUBE_STATIONS].sort((a, b) => a[0].localeCompare(b[0]));
+
+  const value = sort === "top" ? "top" : origin.label === "my location" ? "me" : `st:${origin.label}`;
+  const label = locating ? "locating…" : sort === "top" ? "top rated" : origin.label === "my location" ? "nearest to you" : `near ${origin.label}`;
+
   return (
-    <div className="no-scrollbar -mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
-      <div className="shrink-0">
-        <Segmented
-          label="Sort cafés"
-          size="sm"
-          value={sort}
-          onChange={setSort}
-          options={[
-            { value: "top", label: "top rated" },
-            { value: "near", label: "nearest", icon: Footprints },
-          ]}
-        />
-      </div>
-      <Chip small on={openOnly} onClick={() => setOpenOnly((o) => !o)}>
-        open now
-      </Chip>
-      <div
-        className="flex shrink-0 items-center gap-1"
-        style={{ opacity: sort === "near" ? 1 : 0, transform: sort === "near" ? "none" : "translate3d(-8px,0,0)", pointerEvents: sort === "near" ? "auto" : "none", transition: `opacity .35s ${EASE}, transform .45s ${EASE}` }}
-      >
-        <span className="relative flex items-center gap-1 rounded-full px-3.5 py-2 text-xs" style={{ background: C.stone }}>
-          from {origin.label}
-          <ChevronDown size={13} aria-hidden="true" />
-          <select
-            aria-label="Measure distance from"
-            tabIndex={sort === "near" ? 0 : -1}
-            value={origin.label === "my location" ? "" : origin.label}
-            onChange={(e) => {
-              const st = TUBE_STATIONS.find((x) => x[0] === e.target.value);
-              if (st) setOrigin({ label: st[0], x: st[1], y: st[2] });
-            }}
-            className="absolute inset-0 cursor-pointer opacity-0"
-            style={{ fontSize: 16 }}
-          >
-            {origin.label === "my location" && <option value="">my location</option>}
+    <div className="no-scrollbar mt-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-sm" style={{ color: C.taupe }}>
+      <span className="tabular shrink-0">
+        {count} café{count === 1 ? "" : "s"}
+        {drink !== "All Drinks" ? ` · ${drink.toLowerCase()}` : ""}
+      </span>
+      <span aria-hidden="true">·</span>
+      <span className="press relative inline-flex shrink-0 items-center gap-1" style={{ color: C.brand }}>
+        {sort === "near" && <Footprints size={13} aria-hidden="true" />}
+        {label}
+        <ChevronDown size={14} aria-hidden="true" />
+        <select
+          aria-label="Sort cafés"
+          value={value}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === "top") setSort("top");
+            else if (v === "me") locate();
+            else {
+              const st = TUBE_STATIONS.find((x) => `st:${x[0]}` === v);
+              if (st) {
+                setOrigin({ label: st[0], x: st[1], y: st[2] });
+                setSort("near");
+              }
+            }
+          }}
+          className="absolute inset-0 cursor-pointer opacity-0"
+          style={{ fontSize: 16 }}
+        >
+          <option value="top">Top rated</option>
+          <optgroup label="Nearest to…">
+            <option value="me">My location</option>
             {stations.map(([n]) => (
-              <option key={n} value={n}>
+              <option key={n} value={`st:${n}`}>
                 {n}
               </option>
             ))}
-          </select>
+          </optgroup>
+        </select>
+      </span>
+      <span aria-hidden="true">·</span>
+      <button
+        type="button"
+        aria-pressed={openOnly}
+        onClick={() => setOpenOnly((o) => !o)}
+        className="press inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1"
+        style={{ background: openOnly ? C.matchaSoft : "transparent", color: openOnly ? C.matcha : C.taupe, transition: `background-color .3s ${EASE}, color .3s ${EASE}` }}
+      >
+        <span className="relative inline-block h-3.5 w-6 rounded-full" style={{ background: openOnly ? C.matcha : C.line, transition: `background-color .3s ${EASE}` }}>
+          <span
+            className="absolute top-0.5 h-2.5 w-2.5 rounded-full bg-white"
+            style={{ left: 2, transform: openOnly ? "translate3d(10px,0,0)" : "none", transition: `transform .35s ${SPRING}`, boxShadow: "0 1px 2px rgba(42,38,35,.25)" }}
+          />
         </span>
-        <button
-          type="button"
-          aria-label="Use my location"
-          tabIndex={sort === "near" ? 0 : -1}
-          onClick={useMyLocation}
-          className="press flex h-8 w-8 items-center justify-center rounded-full"
-          style={{ background: origin.label === "my location" ? C.brand : C.stone, color: origin.label === "my location" ? "#fff" : C.brand }}
-        >
-          <LocateFixed size={15} className={locating ? "a-dot" : ""} />
-        </button>
-      </div>
+        open now
+      </button>
     </div>
   );
 }
@@ -2570,7 +2580,6 @@ export default function Samspresso() {
   const [area, setArea] = useState("All London");
   const [drink, setDrink] = useState("All Drinks");
   const [sourceId, setSourceId] = useState("mon-fw");
-  const [discoverMode, setDiscoverMode] = useState("list");
   const [selectedId, setSelectedId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
   const [detailId, setDetailId] = useState(null);
@@ -2591,7 +2600,7 @@ export default function Samspresso() {
 
   const setTab = useCallback((t) => {
     setTabRaw(t);
-    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
+    if (typeof window !== "undefined") window.scrollTo(0, 0);
   }, []);
 
   const cafesFull = useMemo(
@@ -2733,56 +2742,42 @@ export default function Samspresso() {
     <div className="space-y-8">
       <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} />
       <section aria-labelledby="explore-title">
-        <div className="mb-4 flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="mb-1 text-sm" style={{ color: C.taupe }}>
-              explore
-            </p>
-            <h2 id="explore-title" className="text-xl font-medium tracking-tight md:text-2xl">
-              <span className="serif block truncate whitespace-nowrap text-3xl md:text-4xl">{area === "All London" ? "the london edit" : `the ${area.toLowerCase()} edit`}</span>
-            </h2>
-            <p className="tabular mt-1 text-sm" style={{ color: C.taupe }}>
-              {filtered.length} café{filtered.length === 1 ? "" : "s"}
-              {drink !== "All Drinks" ? ` serving ${drink.toLowerCase()}` : ""}
-            </p>
-          </div>
-          <Segmented
-            label="View mode"
-            size="sm"
-            value={discoverMode}
-            onChange={setDiscoverMode}
-            options={[
-              { value: "list", label: "List", icon: List },
-              { value: "map", label: "Map", icon: MapIcon },
-            ]}
+        <div className="mb-4 min-w-0">
+          <p className="mb-1 text-sm" style={{ color: C.taupe }}>
+            explore
+          </p>
+          <h2 id="explore-title" className="text-xl font-medium tracking-tight md:text-2xl">
+            <span className="serif block truncate whitespace-nowrap text-3xl md:text-4xl">{area === "All London" ? "the london edit" : `the ${area.toLowerCase()} edit`}</span>
+          </h2>
+          <SortLine
+            count={filtered.length}
+            drink={drink}
+            sort={sort}
+            setSort={setSort}
+            openOnly={openOnly}
+            setOpenOnly={setOpenOnly}
+            origin={origin}
+            setOrigin={setOrigin}
+            notify={setToast}
           />
         </div>
-        {discoverMode === "list" ? (
-          <>
-            <Filters area={area} setArea={setArea} drink={drink} setDrink={setDrink} />
-            <SortBar sort={sort} setSort={setSort} openOnly={openOnly} setOpenOnly={setOpenOnly} origin={origin} setOrigin={setOrigin} notify={setToast} />
-            <div key={`${area}|${drink}|${sort}|${openOnly}|${origin.label}`} className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {filtered.map((c, i) => (
-                <CafeCard
-                  key={c.id}
-                  cafe={c}
-                  drink={drink}
-                  saved={saved}
-                  toggleSave={toggleSave}
-                  onOpen={openCafe}
-                  index={i}
-                  status={statusOf(c)}
-                  distance={sort === "near" && c.x != null ? metresBetween(c, origin) : null}
-                />
-              ))}
-            </div>
-            {filtered.length === 0 && <EmptyState onReset={resetFilters} />}
-          </>
-        ) : (
-          <div className="a-fade" style={{ height: isDesktop ? 560 : "68vh" }}>
-            <LondonMap cafes={cafesFull} visibleIds={visibleIds} selectedId={selectedId} onSelect={setSelectedId} hoveredId={hoveredId} onOpen={openCafe} overlay={mapOverlay} here={sort === "near" ? origin : null} />
-          </div>
-        )}
+        <Filters area={area} setArea={setArea} drink={drink} setDrink={setDrink} />
+        <div key={`${area}|${drink}|${sort}|${openOnly}|${origin.label}`} className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((c, i) => (
+            <CafeCard
+              key={c.id}
+              cafe={c}
+              drink={drink}
+              saved={saved}
+              toggleSave={toggleSave}
+              onOpen={openCafe}
+              index={i}
+              status={statusOf(c)}
+              distance={sort === "near" && c.x != null ? metresBetween(c, origin) : null}
+            />
+          ))}
+        </div>
+        {filtered.length === 0 && <EmptyState onReset={resetFilters} />}
       </section>
     </div>
   );
@@ -2817,7 +2812,7 @@ export default function Samspresso() {
       </div>
     </div>
   ) : (
-    <div className="-mx-4 -mt-4" style={{ height: "calc(100dvh - 57px - 64px - env(safe-area-inset-bottom))" }}>
+    <div className="fixed inset-x-0 z-10" style={{ top: 56, bottom: "calc(64px + env(safe-area-inset-bottom))" }}>
       <LondonMap cafes={cafesFull} visibleIds={visibleIds} selectedId={selectedId} onSelect={setSelectedId} hoveredId={null} onOpen={openCafe} overlay={mapOverlay} here={sort === "near" ? origin : null} rounded={false} focusTopRatio={0.38} />
     </div>
   );
@@ -2831,7 +2826,8 @@ export default function Samspresso() {
       <MobileHeader tab={tab} savedCount={saved.size} onSaved={() => setTab("profile")} />
 
       <main className={`mx-auto max-w-5xl px-4 md:px-6 ${tab === "map" ? "pt-4 md:py-8 pb-0 md:pb-8" : "pb-28 pt-4 md:py-8"}`}>
-        <div key={tab} className="a-fadeup">
+        {/* the phone map is position:fixed, so its wrapper must not animate transform */}
+        <div key={tab} className={tab === "map" && !isDesktop ? "a-fade" : "a-fadeup"}>
           {tab === "discover" && discover}
           {tab === "map" && mapView}
           {tab === "leaderboard" && <Leaderboard cafes={cafesFull} items={items} cafesById={cafesById} onOpenCafe={openCafe} saved={saved} toggleSave={toggleSave} flash={flash} />}
