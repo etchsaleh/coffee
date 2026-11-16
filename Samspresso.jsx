@@ -73,6 +73,7 @@ const CSS = `
 .sp{font-family:"Manrope","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:${C.ink};background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
 .sp .serif{font-family:"Instrument Serif",ui-serif,Georgia,serif;font-style:italic;font-weight:400;letter-spacing:-.01em}
 .sp .soft{box-shadow:0 1px 2px rgba(42,38,35,.03),0 14px 36px -24px rgba(42,38,35,.22)}
+.sp{overflow-x:hidden;overflow-x:clip;max-width:100vw}
 .sp *{box-sizing:border-box}
 .sp fieldset{min-width:0;margin:0;padding:0;border:0}
 .sp button{font:inherit;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -109,6 +110,8 @@ const CSS = `
 @keyframes spShine{0%{transform:translate3d(-120%,0,0)}60%,100%{transform:translate3d(220%,0,0)}}
 @keyframes spFloatUp{0%{opacity:0;transform:translate3d(0,6px,0) scale(.7)}25%{opacity:1;transform:translate3d(0,-6px,0) scale(1)}100%{opacity:0;transform:translate3d(0,-30px,0) scale(1)}}
 @keyframes spNope{0%{transform:rotate(0) scale(1)}45%{transform:rotate(90deg) scale(.8)}100%{transform:rotate(90deg) scale(1)}}
+@keyframes spTrailR{0%{opacity:0;transform:translate3d(-30%,0,0) scaleX(.6)}35%{opacity:1}100%{opacity:0;transform:translate3d(25%,0,0) scaleX(1.1)}}
+@keyframes spTrailL{0%{opacity:0;transform:translate3d(30%,0,0) scaleX(.6)}35%{opacity:1}100%{opacity:0;transform:translate3d(-25%,0,0) scaleX(1.1)}}
 @keyframes spCardUp{from{opacity:0;transform:translate3d(0,24px,0) scale(.97)}to{opacity:1;transform:none}}
 
 .sp .a-fadeup{animation:spFadeUp .7s ${EASE} both}
@@ -124,6 +127,8 @@ const CSS = `
 .sp .a-shine::after{content:"";position:absolute;inset:0;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:spShine 3.6s ${EASE} 1s infinite}
 .sp .a-floatup{animation:spFloatUp .9s ${EASE} both}
 .sp .a-nope{animation:spNope .45s ${SPRING} both}
+.sp .a-trail-r{transform-origin:100% 50%;animation:spTrailR .7s ${EASE} both}
+.sp .a-trail-l{transform-origin:0 50%;animation:spTrailL .7s ${EASE} both}
 .sp .a-cardup{animation:spCardUp .55s ${SPRING} both}
 .sp .ov-in{animation:spFade .35s ${EASE} both}
 .sp .ov-out{animation:spFadeOut .3s ${EASE} both}
@@ -1048,6 +1053,7 @@ function RecCard({ r, cafe, saved, toggleSave, onOpenCafe, live }) {
 function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   const [savedPop, setSavedPop] = useState(0);
   const [skipPop, setSkipPop] = useState(0);
+  const [trail, setTrail] = useState({ dir: 0, n: 0 });
   const [index, setIndex] = useState(0);
   const [deal, setDeal] = useState(0); // bumps on rewind to replay the deal-in
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
@@ -1065,6 +1071,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
         setSavedPop((n) => n + 1);
       }
       if (dir < 0) setSkipPop((n) => n + 1);
+      setTrail((t) => ({ dir, n: t.n + 1 }));
       setLeaving(dir);
       setTimeout(() => {
         setIndex((i) => i + 1);
@@ -1151,6 +1158,19 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   return (
     <div className="mx-auto mt-8 max-w-md">
       <div className="relative" style={{ height: STACK_H }}>
+        {/* trailing colour wash: green streak for a save, grey for a skip */}
+        {trail.dir !== 0 && (
+          <span
+            key={`trail-${trail.n}`}
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-y-6 ${trail.dir > 0 ? "a-trail-r left-1/4 right-0" : "a-trail-l left-0 right-1/4"} rounded-full`}
+            style={{
+              background: trail.dir > 0 ? `linear-gradient(90deg, rgba(122,139,90,0), rgba(122,139,90,.55))` : `linear-gradient(270deg, rgba(141,134,126,0), rgba(141,134,126,.45))`,
+              filter: "blur(28px)",
+              zIndex: 0,
+            }}
+          />
+        )}
         {left === 0 && (
           <div key={`done-${deal}`} className="a-fadeup absolute inset-0 flex flex-col items-center justify-center rounded-3xl text-center" style={{ background: C.stone }}>
             <p className="serif text-3xl">that's the lot</p>
@@ -1207,32 +1227,19 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
                   >
                     <RecCard r={r} cafe={cafe} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} live={top} />
                     {top && (
-                      <>
-                        {/* soft olive glow as a liked card leaves */}
-                        <span
-                          aria-hidden="true"
-                          className="pointer-events-none absolute inset-0 rounded-3xl"
-                          style={{
-                            boxShadow: `inset 0 0 0 2px rgba(62,87,0,${leaving > 0 ? 0.55 : drag.x > 0 ? progress * 0.35 : 0}), 0 18px 40px -18px rgba(62,87,0,${leaving > 0 ? 0.55 : drag.x > 0 ? progress * 0.3 : 0})`,
-                            background: `rgba(62,87,0,${leaving > 0 ? 0.06 : drag.x > 0 ? progress * 0.04 : 0})`,
-                            transition: drag.active ? "none" : "box-shadow .25s, background-color .25s",
-                          }}
-                        />
-                        <span
-                          aria-hidden="true"
-                          className="pointer-events-none absolute left-5 top-5 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-white"
-                          style={{ background: C.brand, opacity: leaving > 0 ? 1 : drag.x > 0 ? progress : 0, transform: `rotate(-8deg) scale(${0.85 + 0.15 * (leaving > 0 ? 1 : drag.x > 0 ? progress : 0)})` }}
-                        >
-                          <Bookmark size={14} fill="#fff" /> want to try
-                        </span>
-                        <span
-                          aria-hidden="true"
-                          className="pointer-events-none absolute right-5 top-5 rounded-full px-3 py-1.5 text-sm font-medium"
-                          style={{ background: C.stone, color: C.taupe, opacity: leaving < 0 ? 1 : drag.x < 0 ? progress : 0, transform: `rotate(8deg) scale(${0.85 + 0.15 * (leaving < 0 ? 1 : drag.x < 0 ? progress : 0)})` }}
-                        >
-                          skip
-                        </span>
-                      </>
+                      // colour trails in from the edge the card is moving away from
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-0 rounded-3xl"
+                        style={{
+                          background:
+                            (leaving || Math.sign(drag.x)) > 0
+                              ? `linear-gradient(90deg, rgba(122,139,90,${0.32 * (leaving > 0 ? 1 : progress)}), rgba(122,139,90,0) 70%)`
+                              : `linear-gradient(270deg, rgba(141,134,126,${0.3 * (leaving < 0 ? 1 : progress)}), rgba(141,134,126,0) 70%)`,
+                          opacity: leaving || drag.x ? 1 : 0,
+                          transition: drag.active ? "none" : "opacity .3s",
+                        }}
+                      />
                     )}
                   </div>
                 </div>
