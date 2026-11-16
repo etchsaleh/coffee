@@ -313,6 +313,13 @@ const SEED_CAFES = [
   },
 ];
 
+// Featured / promoted listings. `promo.type` is "drop" (a limited-time item)
+// or "sponsored" (a paid showcase); both expire at `endsAt` and render as a
+// pinned, clearly labelled entry at the top of the café's menu.
+const DROP_ENDS = Date.now() + 52 * 3600000;
+const promoLive = (it) => !it.promo || !it.promo.endsAt || it.promo.endsAt > Date.now();
+const isNewItem = (it) => !it.count;
+
 // p = taste profile: [body, sweetness, brightness, milk, roast/cocoa, cold, pastry]
 const SEED_ITEMS = [
   { id: "mon-fw", cafeId: "monmouth", name: "Flat White", rating: 4.9, count: 64, pick: true, styles: ["Flat White"], flavours: ["Nutty", "Velvety Microfoam", "Chocolatey"], p: [0.75, 0.55, 0.3, 0.8, 0.7, 0, 0] },
@@ -320,6 +327,17 @@ const SEED_ITEMS = [
   { id: "mon-bun", cafeId: "monmouth", name: "Cinnamon Bun", rating: 4.7, count: 33, styles: ["Pastries"], flavours: ["Buttery", "Spiced", "Sticky"], p: [0.6, 0.9, 0.1, 0.2, 0.4, 0, 1] },
   { id: "wh-oat", cafeId: "watchhouse", name: "Oat Flat White", rating: 4.8, count: 52, styles: ["Flat White", "Oat Milk"], flavours: ["Oat-Friendly", "Velvety Microfoam", "Caramel"], p: [0.65, 0.65, 0.3, 0.85, 0.6, 0, 0] },
   { id: "wh-matcha", cafeId: "watchhouse", name: "Iced Matcha Latte", rating: 4.6, count: 38, styles: ["Matcha", "Oat Milk"], flavours: ["Grassy", "Creamy", "Refreshing"], p: [0.4, 0.55, 0.2, 0.8, 0.1, 1, 0] },
+  {
+    id: "wh-iced-cardamom",
+    cafeId: "watchhouse",
+    name: "Iced Cardamom Latte",
+    rating: 0,
+    count: 0,
+    styles: ["Oat Milk"],
+    flavours: ["Spiced", "Oat-Friendly", "Refreshing"],
+    p: [0.5, 0.75, 0.2, 0.85, 0.35, 1, 0],
+    promo: { type: "drop", label: "limited drop", partner: "WatchHouse × sam'spresso", endsAt: DROP_ENDS, journalId: "j-drop-cardamom" },
+  },
   { id: "wh-card", cafeId: "watchhouse", name: "Cardamom Bun", rating: 4.8, count: 29, pick: true, styles: ["Pastries"], flavours: ["Spiced", "Buttery", "Aromatic"], p: [0.6, 0.8, 0.15, 0.2, 0.3, 0, 1] },
   { id: "or-v60", cafeId: "origin", name: "V60 Pour Over", rating: 4.9, count: 36, pick: true, styles: ["Pour Over"], flavours: ["Floral", "Fruity", "Tea-like"], p: [0.25, 0.55, 0.85, 0, 0.15, 0, 0] },
   { id: "or-tonic", cafeId: "origin", name: "Espresso Tonic", rating: 4.7, count: 22, styles: [], flavours: ["Citrus", "Sparkling", "Bright"], p: [0.3, 0.45, 0.8, 0, 0.3, 1, 0] },
@@ -1288,7 +1306,7 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
   const recs = useMemo(
     () =>
       items
-        .filter((i) => i.id !== src.id && i.cafeId !== src.cafeId)
+        .filter((i) => i.id !== src.id && i.cafeId !== src.cafeId && i.count > 0)
         .map((i) => ({ item: i, score: matchScore(src, i), why: reasonFor(src, i) }))
         .filter((r) => r.score >= MATCH_MIN)
         .sort((a, b) => b.score - a.score || b.item.rating - a.item.rating)
@@ -1324,7 +1342,7 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
             {cafes.map((c) => (
               <optgroup key={c.id} label={c.name}>
                 {items
-                  .filter((i) => i.cafeId === c.id)
+                  .filter((i) => i.cafeId === c.id && i.count > 0)
                   .map((i) => (
                     <option key={i.id} value={i.id}>
                       {i.name}
@@ -1477,6 +1495,26 @@ function Filters({ area, setArea, drink, setDrink, compact = false, glass = fals
   );
 }
 
+function PromoTag({ promo }) {
+  if (!promo) return null;
+  const sponsored = promo.type === "sponsored";
+  return (
+    <span
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium"
+      style={sponsored ? { background: C.stone, color: C.taupe } : { background: C.brand, color: "#fff" }}
+    >
+      {!sponsored && <span className="a-dot h-1.5 w-1.5 rounded-full bg-white" />}
+      {sponsored ? "sponsored" : promo.label}
+    </span>
+  );
+}
+
+// The pinned surface for a promoted item: latte wash with an olive hairline.
+const promoRowStyle = {
+  background: "linear-gradient(100deg, rgba(196,154,116,.20), rgba(122,139,90,.10))",
+  boxShadow: "inset 0 0 0 1px rgba(62,87,0,.22)",
+};
+
 function OpenDot({ status }) {
   if (!status) return null;
   return (
@@ -1490,7 +1528,7 @@ function OpenDot({ status }) {
 function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, status, distance }) {
   const shown = useMemo(() => {
     const list = [...cafe.items];
-    if (drink !== "All Drinks") list.sort((a, b) => b.styles.includes(drink) - a.styles.includes(drink));
+    if (drink !== "All Drinks") list.sort((a, b) => !!b.promo - !!a.promo || b.styles.includes(drink) - a.styles.includes(drink));
     return list.slice(0, 2);
   }, [cafe.items, drink]);
   return (
@@ -1507,7 +1545,6 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
               <h3 className="flex items-center gap-2 truncate text-lg font-medium tracking-tight">
                 {cafe.name}
                 {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
-                {cafe.drop && <KindTag kind="drop" />}
               </h3>
               <p className="truncate text-sm" style={{ color: C.taupe }}>
                 {cafe.areas[0].toLowerCase()} · {cafe.tube}
@@ -1530,12 +1567,13 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
           {shown.map((it) => {
             const dim = drink !== "All Drinks" && !it.styles.includes(drink);
             return (
-              <li key={it.id} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ background: C.bg, opacity: dim ? 0.45 : 1 }}>
+              <li key={it.id} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ ...(it.promo ? promoRowStyle : { background: C.bg }), opacity: dim && !it.promo ? 0.45 : 1 }}>
                 <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm">
                   <span className="truncate">{it.name}</span>
                   {it.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
+                  {it.promo && <PromoTag promo={it.promo} />}
                 </button>
-                <span className="tabular text-sm" style={{ color: C.taupe }}>{f1(it.rating)}</span>
+                <span className="tabular text-sm" style={{ color: C.taupe }}>{isNewItem(it) ? "new" : f1(it.rating)}</span>
                 <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
               </li>
             );
@@ -2104,7 +2142,7 @@ function Medal({ place }) {
 function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, flash }) {
   const [tab, setTab] = useState("cafes");
   const rankedCafes = useMemo(() => [...cafes].filter((c) => c.items.length).sort((a, b) => b.avg - a.avg || b.total - a.total), [cafes]);
-  const rankedItems = useMemo(() => [...items].sort((a, b) => b.rating - a.rating || b.count - a.count), [items]);
+  const rankedItems = useMemo(() => items.filter((i) => i.count > 0 && promoLive(i)).sort((a, b) => b.rating - a.rating || b.count - a.count), [items]);
   const bestOf = useMemo(() => {
     const m = {};
     const label = { "Flat White": "Flat White", Matcha: "Matcha", "Pour Over": "Pour Over", "Oat Milk": "Oat Drink", Pastries: "Pastry" };
@@ -2292,7 +2330,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
 
 /* ───────────────────────────── Café detail ───────────────────────────── */
 
-function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status }) {
+function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, onOpenStory }) {
   return (
     <div>
     <div className="px-5 pb-6 pt-3 md:px-8 md:pt-8">
@@ -2336,7 +2374,40 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status }
         Menu &amp; Ratings
       </h3>
       <ul className="space-y-2">
-        {cafe.items.map((it, i) => (
+        {cafe.items.map((it, i) =>
+          it.promo ? (
+            <li key={it.id} className="a-fadeup rounded-3xl p-4" style={{ ...promoRowStyle, animationDelay: `${120 + i * 60}ms` }}>
+              <div className="flex items-center gap-2">
+                <PromoTag promo={it.promo} />
+                <span className="text-xs" style={{ color: C.taupe }}>
+                  {it.promo.endsAt ? timeLeft(it.promo.endsAt - Date.now()) : ""}
+                </span>
+              </div>
+              <div className="mt-2 flex items-center gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="serif text-2xl leading-tight">{it.name.toLowerCase()}</p>
+                  <p className="mt-0.5 truncate text-xs" style={{ color: C.taupe }}>
+                    {it.promo.partner ? `${it.promo.partner} · ` : ""}
+                    {it.flavours.slice(0, 2).join(", ").toLowerCase()}
+                  </p>
+                </div>
+                <span className="tabular text-sm" style={{ color: C.taupe }}>
+                  {isNewItem(it) ? "new" : f2(it.rating)}
+                </span>
+                <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button type="button" onClick={() => onRate(cafe.id, it.name)} className="press rounded-full px-3.5 py-1.5 text-xs font-medium text-white" style={{ background: C.brand }}>
+                  {isNewItem(it) ? "be the first to rate" : "rate it"}
+                </button>
+                {it.promo.journalId && onOpenStory && (
+                  <button type="button" onClick={() => onOpenStory(it.promo.journalId)} className="press rounded-full bg-white px-3.5 py-1.5 text-xs font-medium" style={{ color: C.ink }}>
+                    read the story
+                  </button>
+                )}
+              </div>
+            </li>
+          ) : (
           <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-1" style={{ background: C.bg, animationDelay: `${120 + i * 60}ms` }}>
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-2 font-medium">
@@ -2349,7 +2420,8 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status }
             <span className="tabular text-base font-light">{f2(it.rating)}</span>
             <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
           </li>
-        ))}
+          )
+        )}
         {cafe.items.length === 0 && (
           <li className="rounded-2xl p-4 text-sm hair" style={{ color: C.taupe }}>
             No items rated yet.
@@ -2436,11 +2508,11 @@ function Chip({ on, onClick, children, className = "", small = false }) {
   );
 }
 
-function RateForm({ cafes, items, initialCafeId, onSubmit, onCancel }) {
+function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onCancel }) {
   const [selCafe, setSelCafe] = useState(initialCafeId || cafes[0].id);
   const [adding, setAdding] = useState(false);
   const [newCafe, setNewCafe] = useState({ name: "", area: "Soho" });
-  const [itemName, setItemName] = useState("");
+  const [itemName, setItemName] = useState(initialItem);
   const [rating, setRating] = useState(4.5);
   const [notes, setNotes] = useState([]);
   const [starPop, setStarPop] = useState({ n: 0, k: 0 });
@@ -2771,12 +2843,12 @@ const JOURNAL = [
     dek: "WatchHouse × sam'spresso. Cardamom-bun flavours, poured over ice. This weekend only.",
     tone: ["#EFE3D6", "#D9BFA6"],
     publishedAt: Date.now() - 20 * H_MS,
-    endsAt: Date.now() + 52 * H_MS,
+    endsAt: DROP_ENDS,
     read: 2,
     body: [
       { p: "We asked WatchHouse to bottle the thing everyone queues for: the cardamom bun. The answer is a spiced oat latte, shaken cold, with a cinnamon-sugar rim." },
       { p: "It's on at Bermondsey and Soho until Sunday close, or until they run out of the syrup, which last time took about four hours." },
-      { cafe: "watchhouse", note: "Order it with an extra shot if you like it less sweet." },
+      { cafe: "watchhouse", item: "wh-iced-cardamom", note: "Order it with an extra shot if you like it less sweet." },
     ],
   },
   {
@@ -2967,7 +3039,7 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
                     </span>
                     <span className="block truncate text-xs" style={{ color: C.taupe }}>
                       {cafe.areas[0].toLowerCase()}
-                      {it ? ` · ${it.name.toLowerCase()} ${f1(it.rating)}` : ""}
+                      {it ? ` · ${it.name.toLowerCase()} ${isNewItem(it) ? "· new" : f1(it.rating)}` : ""}
                     </span>
                   </button>
                   {it && <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />}
@@ -3068,8 +3140,11 @@ export default function Samspresso() {
   const cafesFull = useMemo(
     () =>
       cafes.map((c) => {
-        const its = items.filter((i) => i.cafeId === c.id).sort((a, b) => b.rating - a.rating || b.count - a.count);
-        return { ...c, drop: liveDropsNow[c.id] || null, items: its, avg: avg(its.map((i) => i.rating)), total: its.reduce((s, i) => s + i.count, 0), pick: its.some((i) => i.pick) };
+        const its = items
+          .filter((i) => i.cafeId === c.id && promoLive(i))
+          .sort((a, b) => !!b.promo - !!a.promo || b.rating - a.rating || b.count - a.count);
+        const rated = its.filter((i) => i.count > 0);
+        return { ...c, drop: liveDropsNow[c.id] || null, items: its, avg: avg(rated.map((i) => i.rating)), total: rated.reduce((s, i) => s + i.count, 0), pick: its.some((i) => i.pick) };
       }),
     [cafes, items]
   );
@@ -3142,9 +3217,9 @@ export default function Samspresso() {
     setDetailId(id);
   }, []);
   const closeDetail = useCallback(() => setDetailId(null), []);
-  const openRate = useCallback((cafeId) => {
+  const openRate = useCallback((cafeId, itemName) => {
     setDetailId(null);
-    setRate({ cafeId: cafeId || null, key: Date.now() });
+    setRate({ cafeId: cafeId || null, itemName: typeof itemName === "string" ? itemName : "", key: Date.now() });
   }, []);
   const closeRate = useCallback(() => setRate(null), []);
   const resetFilters = () => {
@@ -3317,7 +3392,10 @@ export default function Samspresso() {
       <BottomNav tab={tab} setTab={setTab} onRate={openRate} />
 
       <Sheet data={detailCafe} onClose={closeDetail} label="Café details" originEl={detailOrigin}>
-        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} />}
+        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} onOpenStory={(id) => {
+          setDetailId(null);
+          setTimeout(() => openArticle(id), 320);
+        }} />}
       </Sheet>
 
       <Sheet data={articleId ? journal.find((j) => j.id === articleId) : null} onClose={closeArticle} label="Journal story" originEl={articleOrigin}>
@@ -3337,7 +3415,7 @@ export default function Samspresso() {
       </Sheet>
 
       <Sheet data={rate} onClose={closeRate} label="Rate an item" bare tone="grouped">
-        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} initialCafeId={r.cafeId} onSubmit={submitRating} onCancel={closeRate} />}
+        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} initialCafeId={r.cafeId} initialItem={r.itemName} onSubmit={submitRating} onCancel={closeRate} />}
       </Sheet>
 
       <Toast toast={toast} />
