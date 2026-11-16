@@ -1279,7 +1279,10 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   );
 }
 
-function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, toggleSave, onOpenCafe }) {
+// Only recommend genuinely close matches; how many depends on the drink.
+const MATCH_MIN = 75;
+
+function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, toggleSave, onOpenCafe, onRate }) {
   const src = items.find((i) => i.id === sourceId) || items[0];
   const srcCafe = cafesById[src.cafeId];
   const recs = useMemo(
@@ -1287,8 +1290,9 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
       items
         .filter((i) => i.id !== src.id && i.cafeId !== src.cafeId)
         .map((i) => ({ item: i, score: matchScore(src, i), why: reasonFor(src, i) }))
+        .filter((r) => r.score >= MATCH_MIN)
         .sort((a, b) => b.score - a.score || b.item.rating - a.item.rating)
-        .slice(0, 6),
+        .slice(0, 10),
     [items, src]
   );
   const short = (name) => name.replace(/ (Coffee|Espresso Bar|Espresso|Café)$/, "");
@@ -1333,10 +1337,31 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
         </span>
       </h1>
       <p className="mt-3 text-sm md:text-base" style={{ color: C.taupe }}>
-        you'll probably love these too.
+        {recs.length === 0
+          ? "nothing on the list tastes quite like it yet."
+          : recs.length === 1
+          ? "you'll probably love this one too."
+          : `you'll probably love these ${recs.length} too.`}
       </p>
 
-      <SwipeStack key={src.id} recs={recs} src={src} cafesById={cafesById} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} />
+      {recs.length ? (
+        <SwipeStack key={src.id} recs={recs} src={src} cafesById={cafesById} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} />
+      ) : (
+        <div key={src.id} className="a-fadeup mx-auto mt-8 flex max-w-md flex-col items-center rounded-3xl px-6 py-10 text-center" style={{ background: C.stone }}>
+          <p className="serif text-3xl">a one-of-a-kind cup</p>
+          <p className="mt-1 text-sm" style={{ color: C.taupe }}>
+            found something similar? rate it and it'll show up here.
+          </p>
+          <button
+            type="button"
+            onClick={() => onRate && onRate()}
+            className="press relative mt-5 flex items-center gap-2 overflow-hidden rounded-full py-2.5 pl-4 pr-5 text-sm font-medium text-white"
+            style={{ background: C.brand, boxShadow: "0 10px 24px -12px rgba(62,87,0,.7)" }}
+          >
+            <Plus size={16} /> Rate a drink
+          </button>
+        </div>
+      )}
     </section>
   );
 }
@@ -2942,7 +2967,7 @@ export default function Samspresso() {
 
   const discover = (
     <div className="space-y-8">
-      <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} />
+      <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} onRate={() => openRate()} />
       <section aria-labelledby="explore-title">
         <div className="mb-4 min-w-0">
           <p className="mb-1 text-sm" style={{ color: C.taupe }}>
