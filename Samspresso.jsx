@@ -81,6 +81,10 @@ const CSS = `
 .sp .tr{transition-property:transform,opacity,background-color,color,border-color,box-shadow;transition-duration:.45s;transition-timing-function:${EASE}}
 .sp .press{transition:transform .28s ${EASE},background-color .35s ${EASE},color .35s ${EASE},box-shadow .35s ${EASE},border-color .35s ${EASE},opacity .35s ${EASE}}
 .sp .press:active{transform:scale(.95)}
+.sp .tab-halo{opacity:0;transform:scale(.6);transition:opacity .25s ${EASE},transform .35s ${EASE}}
+.sp .tab-icon{transition:transform .3s ${SPRING}}
+.sp .tab-btn:active .tab-halo{opacity:1;transform:scale(1)}
+.sp .tab-btn:active .tab-icon{transform:scale(.9)}
 .sp .lift{transition:transform .45s ${EASE},box-shadow .45s ${EASE},border-color .45s ${EASE}}
 @media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 2px 4px rgba(42,38,35,.03),0 22px 44px -24px rgba(42,38,35,.28)}}
 .sp .glass{background:rgba(250,249,246,.78);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
@@ -2846,23 +2850,39 @@ function BottomNav({ tab, setTab, onRate }) {
   const idx = slots.findIndex((s) => s && s.value === tab);
   return (
     <nav aria-label="Primary" className="glass fixed inset-x-0 bottom-0 z-40 border-t md:hidden" style={{ borderColor: C.line, paddingBottom: "env(safe-area-inset-bottom)" }}>
-      <div className="relative grid h-16 grid-cols-5">
+      <div className="relative grid h-14 grid-cols-5">
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-1.5 left-0 flex w-1/5 justify-center"
+          className="pointer-events-none absolute bottom-1 left-0 flex w-1/5 justify-center"
           style={{ transform: `translate3d(${idx * 100}%,0,0)`, opacity: idx < 0 ? 0 : 1, transition: `transform .55s ${EASE}, opacity .3s` }}
         >
           <span className="h-1 w-1 rounded-full" style={{ background: C.brand }} />
         </span>
         {slots.map((s, i) =>
           s ? (
-            <button key={s.value} type="button" onClick={() => setTab(s.value)} aria-current={tab === s.value ? "page" : undefined} className="press relative flex flex-col items-center justify-center gap-1 pb-1 text-xs" style={{ color: tab === s.value ? C.brand : C.taupe }}>
-              <s.icon size={20} strokeWidth={tab === s.value ? 2 : 1.5} aria-hidden="true" />
-              {s.label === "Leaderboard" ? "Ranks" : s.label}
+            // icon-only tabs: the name lives in aria-label; the active tab turns olive with a soft fill
+            <button
+              key={s.value}
+              type="button"
+              onClick={() => setTab(s.value)}
+              aria-label={s.label === "Leaderboard" ? "Ranks" : s.label}
+              aria-current={tab === s.value ? "page" : undefined}
+              className="tab-btn relative flex items-center justify-center"
+              style={{ color: tab === s.value ? C.brand : C.taupe, transition: `color .35s ${EASE}` }}
+            >
+              <span aria-hidden="true" className="tab-halo absolute h-11 w-11 rounded-full" style={{ background: C.stone }} />
+              <span className="tab-icon relative inline-flex">
+                <s.icon
+                  size={24}
+                  strokeWidth={tab === s.value ? 1.8 : 1.4}
+                  fill={tab === s.value ? "rgba(62,87,0,.12)" : "none"}
+                  style={{ transition: `stroke-width .3s ${EASE}` }}
+                />
+              </span>
             </button>
           ) : (
             <div key="rate" className="flex items-center justify-center">
-              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press relative -mt-6 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: `0 10px 24px -10px rgba(42,38,35,.6), 0 0 0 4px ${C.bg}` }}>
+              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press relative -mt-7 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: `0 10px 24px -10px rgba(42,38,35,.6), 0 0 0 4px ${C.bg}` }}>
                 <Gloss />
                 <Plus size={24} strokeWidth={2.2} className="relative" />
               </button>
@@ -3466,7 +3486,7 @@ export default function Samspresso() {
       </div>
     </div>
   ) : (
-    <div className="fixed inset-x-0 z-10" style={{ top: 56, bottom: "calc(64px + env(safe-area-inset-bottom))" }}>
+    <div className="fixed inset-x-0 z-10" style={{ top: 56, bottom: "calc(56px + env(safe-area-inset-bottom))" }}>
       <LondonMap cafes={cafesFull} visibleIds={visibleIds} selectedId={selectedId} onSelect={setSelectedId} hoveredId={null} onOpen={openCafe} overlay={mapOverlay} here={sort === "near" ? origin : null} rounded={false} focusTopRatio={0.38} />
     </div>
   );
