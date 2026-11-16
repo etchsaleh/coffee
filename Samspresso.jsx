@@ -27,6 +27,7 @@ import {
   Coffee,
   List,
   Store,
+  LocateFixed,
 } from "lucide-react";
 
 /* ───────────────────────────── Design tokens ───────────────────────────── */
@@ -89,7 +90,7 @@ const CSS = `
 .sp .no-scrollbar::-webkit-scrollbar{display:none}.sp .no-scrollbar{scrollbar-width:none}
 .sp :focus{outline:none}
 .sp :focus-visible{outline:2px solid ${C.brand};outline-offset:2px}
-.sp input:focus-visible,.sp select:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(62,87,0,.28)}
+.sp input:not([type=range]):focus-visible,.sp select:focus-visible{outline:none;box-shadow:inset 0 0 0 1.5px rgba(62,87,0,.45)}
 .sp .focus-within-ring:focus-within{box-shadow:0 0 0 2px ${C.brand}}
 
 @keyframes spFadeUp{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:none}}
@@ -163,6 +164,7 @@ const AREA_POS = {
 const SEED_CAFES = [
   {
     id: "monmouth",
+    hours: [[7.5, 18], [8, 18], null], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Monmouth Coffee",
     hood: "Borough Market · Covent Garden",
     areas: ["Borough"],
@@ -177,6 +179,7 @@ const SEED_CAFES = [
   },
   {
     id: "watchhouse",
+    hours: [[7, 18], [8, 18], [8, 17]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "WatchHouse",
     hood: "Bermondsey · Soho",
     areas: ["Borough", "Soho"],
@@ -191,6 +194,7 @@ const SEED_CAFES = [
   },
   {
     id: "origin",
+    hours: [[7.5, 17.5], [9, 17], [9, 17]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Origin Coffee",
     hood: "Shoreditch · Southwark",
     areas: ["Shoreditch"],
@@ -204,6 +208,7 @@ const SEED_CAFES = [
   },
   {
     id: "rosslyn",
+    hours: [[7, 16], null, null], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Rosslyn Coffee",
     hood: "City of London",
     areas: ["City"],
@@ -217,6 +222,7 @@ const SEED_CAFES = [
   },
   {
     id: "prufrock",
+    hours: [[7.5, 16.5], [9, 16], null], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Prufrock Coffee",
     hood: "Leather Lane · Holborn",
     areas: ["City"],
@@ -230,6 +236,7 @@ const SEED_CAFES = [
   },
   {
     id: "kaffeine",
+    hours: [[7.5, 17], [8.5, 17], [9, 17]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Kaffeine",
     hood: "Fitzrovia",
     areas: ["Fitzrovia"],
@@ -243,6 +250,7 @@ const SEED_CAFES = [
   },
   {
     id: "storestreet",
+    hours: [[7.5, 18], [9, 17], [9, 17]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Store Street Espresso",
     hood: "Bloomsbury",
     areas: ["Bloomsbury"],
@@ -256,6 +264,7 @@ const SEED_CAFES = [
   },
   {
     id: "monocle",
+    hours: [[7, 19], [8, 19], [8, 19]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Monocle Café",
     hood: "Chiltern Street · Marylebone",
     areas: ["Marylebone"],
@@ -269,6 +278,7 @@ const SEED_CAFES = [
   },
   {
     id: "hagen",
+    hours: [[7, 18], [8, 18], [8, 18]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Hagen Espresso Bar",
     hood: "Old Brompton Road · South Ken",
     areas: ["South Ken"],
@@ -282,6 +292,7 @@ const SEED_CAFES = [
   },
   {
     id: "commonbreads",
+    hours: [[7, 17], [8, 17], [8, 16]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Common Breads",
     hood: "Victoria",
     areas: ["Victoria"],
@@ -403,6 +414,53 @@ function reasonFor(src, rec) {
   if (tw) return `A complementary pick: ${tw.replace(/^(and it's |but |with )/, "")}.`;
   return `Similar balance and body to your ${src.name.toLowerCase()}.`;
 }
+
+/** Current day/time in London (Mon = 0). */
+function londonNow() {
+  try {
+    const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", weekday: "short", hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(new Date());
+    const get = (t) => (parts.find((p) => p.type === t) || {}).value;
+    const day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(get("weekday"));
+    return { day: day < 0 ? 0 : day, h: parseInt(get("hour"), 10) + parseInt(get("minute"), 10) / 60 };
+  } catch (_) {
+    const d = new Date();
+    return { day: (d.getDay() + 6) % 7, h: d.getHours() + d.getMinutes() / 60 };
+  }
+}
+
+function fmtHour(h) {
+  const hr = Math.floor(h);
+  const m = Math.round((h - hr) * 60);
+  const h12 = hr % 12 === 0 ? 12 : hr % 12;
+  return `${h12}${m ? `:${String(m).padStart(2, "0")}` : ""}${hr < 12 ? "am" : "pm"}`;
+}
+
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const hoursFor = (cafe, day) => cafe.hours && cafe.hours[day < 5 ? 0 : day === 5 ? 1 : 2];
+
+/** { open, label } for a café at London time `now`, or null when hours are unknown. */
+function openStatus(cafe, now) {
+  if (!cafe.hours) return null;
+  const today = hoursFor(cafe, now.day);
+  if (today && now.h >= today[0] && now.h < today[1]) {
+    const soon = today[1] - now.h <= 0.75;
+    return { open: true, label: soon ? `closes soon · ${fmtHour(today[1])}` : `open · until ${fmtHour(today[1])}` };
+  }
+  if (today && now.h < today[0]) return { open: false, label: `opens ${fmtHour(today[0])}` };
+  for (let k = 1; k <= 7; k++) {
+    const d = (now.day + k) % 7;
+    const hrs = hoursFor(cafe, d);
+    if (hrs) return { open: false, label: `closed · opens ${k === 1 ? "tomorrow" : DAY_NAMES[d]} ${fmtHour(hrs[0])}` };
+  }
+  return { open: false, label: "closed" };
+}
+
+// Map units → metres (map spans ~0.125° lon × 0.04° lat at 51.5°N).
+const M_PER_X = 8.68;
+const M_PER_Y = 6.36;
+const metresBetween = (a, b) => Math.hypot((a.x - b.x) * M_PER_X, (a.y - b.y) * M_PER_Y);
+const walkMins = (m) => Math.max(1, Math.round(m / 80));
+const lonLatToMap = (lon, lat) => ({ x: ((lon + 0.19) / 0.125) * 1000, y: ((51.535 - lat) / 0.04) * 700 });
 
 function useMediaQuery(q) {
   const get = () => (typeof window !== "undefined" && window.matchMedia ? window.matchMedia(q).matches : false);
@@ -1023,6 +1081,106 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
   );
 }
 
+/* ───────────────────────────── Café art ───────────────────────────── */
+
+const ART_PALETTES = [
+  ["#EADFD2", "#D9C3AE"], // oat → latte
+  ["#E3E8D8", "#C9D3B4"], // matcha milk
+  ["#EFE3DC", "#DCC2B4"], // blush clay
+  ["#E9E5DD", "#D3CCC0"], // stone
+  ["#E6E1D3", "#CFC3A6"], // honey
+];
+const hashStr = (str) => [...str].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
+
+/**
+ * Illustrated cover for a café: an overhead cup with latte art on a soft,
+ * café-specific backdrop. Pass `cafe.photo` (an image URL or data: URI) to
+ * use a real photograph instead.
+ */
+const CafeArt = memo(function CafeArt({ cafe, className = "", rounded = "" }) {
+  if (cafe.photo) {
+    return <img src={cafe.photo} alt="" className={`h-full w-full object-cover ${rounded} ${className}`} loading="lazy" decoding="async" />;
+  }
+  const h = hashStr(cafe.id);
+  const [c1, c2] = ART_PALETTES[h % ART_PALETTES.length];
+  const top = cafe.items && cafe.items[0];
+  const matcha = top && top.styles.includes("Matcha");
+  const pastry = top && top.styles.includes("Pastries");
+  const coffee = matcha ? "#9DB06A" : "#8A5A3B";
+  const crema = matcha ? "#C9D69E" : "#B07A52";
+  const art = h % 3; // 0 heart, 1 tulip, 2 rosetta
+  const cx = 230 + (h % 5) * 18;
+  const cy = 108 + ((h >> 3) % 3) * 6;
+  const rot = ((h >> 5) % 40) - 20;
+  const id = `art-${cafe.id}`;
+  return (
+    <svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice" className={`block h-full w-full ${rounded} ${className}`} aria-hidden="true">
+      <defs>
+        <linearGradient id={`${id}-bg`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={c1} />
+          <stop offset="1" stopColor={c2} />
+        </linearGradient>
+        <radialGradient id={`${id}-cup`} cx=".5" cy=".45" r=".55">
+          <stop offset="0" stopColor={crema} />
+          <stop offset="1" stopColor={coffee} />
+        </radialGradient>
+        <radialGradient id={`${id}-light`} cx=".2" cy=".1" r=".9">
+          <stop offset="0" stopColor="#fff" stopOpacity=".55" />
+          <stop offset=".6" stopColor="#fff" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <rect width="400" height="220" fill={`url(#${id}-bg)`} />
+      {/* table grain */}
+      <g stroke="#fff" strokeOpacity=".18" strokeWidth="1.2" fill="none">
+        <path d={`M-10 ${40 + (h % 20)} C 120 ${20 + (h % 30)}, 260 ${70 - (h % 25)}, 420 ${45 + (h % 15)}`} />
+        <path d={`M-10 ${170 + (h % 15)} C 140 ${150 + (h % 20)}, 280 ${200 - (h % 20)}, 420 ${175 + (h % 10)}`} />
+      </g>
+      {pastry && (
+        <g transform={`translate(${cx - 150} ${cy + 20}) rotate(${-rot})`}>
+          <ellipse cx="0" cy="8" rx="46" ry="12" fill="#000" opacity=".07" />
+          <path d="M-42 0 C-30 -26 30 -26 42 0 C30 10 -30 10 -42 0Z" fill="#D9A46A" />
+          <path d="M-26 -12 C-14 -4 -6 -4 4 -16 M6 -16 C14 -4 22 -4 30 -10" stroke="#B9844C" strokeWidth="3" fill="none" strokeLinecap="round" />
+        </g>
+      )}
+      <g transform={`translate(${cx} ${cy}) scale(.72) translate(${-cx} ${-cy}) rotate(${rot} ${cx} ${cy})`}>
+        <ellipse cx={cx + 6} cy={cy + 12} rx="86" ry="80" fill="#000" opacity=".08" />
+        <circle cx={cx} cy={cy} r="82" fill="#FBF9F5" />
+        <circle cx={cx} cy={cy} r="82" fill="none" stroke="#000" strokeOpacity=".05" />
+        {/* handle */}
+        <rect x={cx + 52} y={cy - 9} width="40" height="18" rx="9" fill="#FBF9F5" />
+        <circle cx={cx} cy={cy} r="56" fill="#fff" />
+        <circle cx={cx} cy={cy} r="49" fill={`url(#${id}-cup)`} />
+        <g fill="#F6EBDD" opacity=".95">
+          {art === 0 && <path d={`M${cx} ${cy + 22} C ${cx - 34} ${cy} ${cx - 22} ${cy - 26} ${cx} ${cy - 10} C ${cx + 22} ${cy - 26} ${cx + 34} ${cy} ${cx} ${cy + 22}Z`} />}
+          {art === 1 && (
+            <>
+              <path d={`M${cx - 20} ${cy - 18} C ${cx - 8} ${cy - 30} ${cx + 8} ${cy - 30} ${cx + 20} ${cy - 18} C ${cx + 8} ${cy - 22} ${cx - 8} ${cy - 22} ${cx - 20} ${cy - 18}Z`} />
+              <path d={`M${cx - 24} ${cy - 2} C ${cx - 10} ${cy - 16} ${cx + 10} ${cy - 16} ${cx + 24} ${cy - 2} C ${cx + 10} ${cy - 7} ${cx - 10} ${cy - 7} ${cx - 24} ${cy - 2}Z`} />
+              <path d={`M${cx} ${cy + 26} C ${cx - 26} ${cy + 14} ${cx - 22} ${cy - 2} ${cx} ${cy + 6} C ${cx + 22} ${cy - 2} ${cx + 26} ${cy + 14} ${cx} ${cy + 26}Z`} />
+              <rect x={cx - 1.2} y={cy - 30} width="2.4" height="56" rx="1.2" />
+            </>
+          )}
+          {art === 2 && (
+            <>
+              {[-24, -14, -4, 6, 16].map((dy, i) => (
+                <path key={i} d={`M${cx - (20 - i * 2)} ${cy + dy} C ${cx - 6} ${cy + dy - 9} ${cx + 6} ${cy + dy - 9} ${cx + (20 - i * 2)} ${cy + dy} C ${cx + 6} ${cy + dy - 4} ${cx - 6} ${cy + dy - 4} ${cx - (20 - i * 2)} ${cy + dy}Z`} />
+              ))}
+              <path d={`M${cx} ${cy + 30} C ${cx - 14} ${cy + 22} ${cx - 12} ${cy + 12} ${cx} ${cy + 18} C ${cx + 12} ${cy + 12} ${cx + 14} ${cy + 22} ${cx} ${cy + 30}Z`} />
+              <rect x={cx - 1} y={cy - 30} width="2" height="58" rx="1" />
+            </>
+          )}
+        </g>
+        {/* spoon */}
+        <g transform={`rotate(${30 + (h % 30)} ${cx} ${cy})`}>
+          <rect x={cx - 3} y={cy + 60} width="6" height="54" rx="3" fill="#E7E2DA" />
+          <ellipse cx={cx} cy={cy + 62} rx="8" ry="11" fill="#EEE9E1" />
+        </g>
+      </g>
+      <rect width="400" height="220" fill={`url(#${id}-light)`} />
+    </svg>
+  );
+});
+
 /* ───────────────────────────── Filters & café cards ───────────────────────────── */
 
 function Filters({ area, setArea, drink, setDrink, compact = false, glass = false }) {
@@ -1034,7 +1192,17 @@ function Filters({ area, setArea, drink, setDrink, compact = false, glass = fals
   );
 }
 
-function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index }) {
+function OpenDot({ status }) {
+  if (!status) return null;
+  return (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap" style={{ color: status.open ? C.matcha : C.taupe }}>
+      <span className={`h-1.5 w-1.5 rounded-full ${status.open ? "a-dot" : ""}`} style={{ background: status.open ? C.matcha : C.line }} />
+      {status.label}
+    </span>
+  );
+}
+
+function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, status, distance }) {
   const shown = useMemo(() => {
     const list = [...cafe.items];
     if (drink !== "All Drinks") list.sort((a, b) => b.styles.includes(drink) - a.styles.includes(drink));
@@ -1044,12 +1212,20 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index }) {
     <div className="a-fadeup" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
       <article
         data-morph
-        className="lift flex h-full flex-col rounded-3xl bg-white p-5 soft md:p-6"
+        className="lift flex h-full flex-col overflow-hidden rounded-3xl bg-white soft"
         onMouseEnter={() => onHover && onHover(cafe.id)}
         onMouseLeave={() => onHover && onHover(null)}
       >
         <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} className="w-full text-left" aria-label={`Open ${cafe.name}`}>
-          <div className="flex items-start justify-between gap-3">
+          <div className="relative h-32 overflow-hidden md:h-36">
+            <CafeArt cafe={cafe} />
+            {distance != null && (
+              <span className="glass-white tabular absolute left-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-1 text-xs" style={{ color: C.ink }}>
+                <Footprints size={12} aria-hidden="true" /> {walkMins(distance)} min
+              </span>
+            )}
+          </div>
+          <div className="flex items-start justify-between gap-3 px-5 pt-4 md:px-6">
             <div className="min-w-0">
               <h3 className="flex items-center gap-2 truncate text-lg font-medium tracking-tight">
                 {cafe.name}
@@ -1061,8 +1237,13 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index }) {
             </div>
             <p className="tabular shrink-0 text-2xl font-light leading-none tracking-tight">{f1(cafe.avg)}</p>
           </div>
+          {status && (
+            <p className="mt-1.5 px-5 text-xs md:px-6">
+              <OpenDot status={status} />
+            </p>
+          )}
         </button>
-        <ul className="mt-5 space-y-1">
+        <ul className="mt-4 space-y-1 px-5 pb-5 md:px-6 md:pb-6">
           {shown.map((it) => {
             const dim = drink !== "All Drinks" && !it.styles.includes(drink);
             return (
@@ -1231,7 +1412,7 @@ const MapBase = memo(function MapBase() {
   );
 });
 
-function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen, overlay, focusTopRatio = 0.42, rounded = true }) {
+function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen, overlay, focusTopRatio = 0.42, rounded = true, here = null }) {
   const wrapRef = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [view, setView] = useState(null);
@@ -1402,6 +1583,12 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
             }}
           >
             <MapBase />
+            {here && (
+              <div className="pointer-events-none absolute" style={{ left: here.x, top: here.y, zIndex: 9, transform: `scale(${1 / k})`, transformOrigin: "0 0", transition: anim ? `transform .7s ${EASE}` : "none" }}>
+                <span className="absolute -left-2 -top-2 h-4 w-4 rounded-full" style={{ background: C.brand, boxShadow: "0 0 0 3px #fff, 0 4px 12px rgba(42,38,35,.3)" }} />
+                <span className="a-pulse absolute -left-2 -top-2 h-4 w-4 rounded-full" style={{ boxShadow: `0 0 0 3px ${C.brand}` }} />
+              </div>
+            )}
             {cafes.map((c) => {
               if (c.x == null) return null;
               const vis = visibleIds.has(c.id);
@@ -1524,7 +1711,10 @@ function MapPreview({ cafe, onOpen, onClose }) {
   return (
     <div data-morph className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: "0 20px 50px -24px rgba(42,38,35,.45)" }}>
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-2xl">
+          <CafeArt cafe={cafe} />
+        </div>
+        <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-base font-medium tracking-tight">
             {cafe.name} {cafe.pick && <PickBadge small />}
           </p>
@@ -1650,6 +1840,9 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
               {flashing && <span key={flash.t} aria-hidden="true" className="a-flash pointer-events-none absolute inset-0" style={{ background: C.latteSoft }} />}
               <span className="tabular relative w-6 shrink-0 text-center text-2xl font-light" style={{ color: i === 0 ? C.sage : C.taupe }}>
                 {i + 1}
+              </span>
+              <span className="relative h-11 w-11 shrink-0 overflow-hidden rounded-2xl">
+                <CafeArt cafe={cafe} />
               </span>
               <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="relative min-w-0 flex-1 text-left">
                 <span className="flex items-center gap-2">
@@ -1790,9 +1983,14 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
 
 /* ───────────────────────────── Café detail ───────────────────────────── */
 
-function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap }) {
+function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status }) {
   return (
-    <div className="px-5 pb-6 pt-3 md:px-8 md:pt-8">
+    <div>
+    <div className="relative -mt-4 h-48 overflow-hidden md:mt-0 md:h-56">
+      <CafeArt cafe={cafe} />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20" style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0), #fff)" }} />
+    </div>
+    <div className="px-5 pb-6 md:px-8">
       <p className="flex items-center gap-1.5 pr-12 text-sm" style={{ color: C.taupe }}>
         <MapPin size={13} aria-hidden="true" /> {cafe.hood}
       </p>
@@ -1817,6 +2015,11 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap }) {
         )}
         <span>{cafe.price}</span>
       </div>
+      {status && (
+        <p className="mt-2 text-sm">
+          <OpenDot status={status} />
+        </p>
+      )}
       {cafe.blurb && <p className="mt-4 text-sm leading-relaxed">{cafe.blurb}</p>}
       <div className="mt-4 flex flex-wrap gap-1.5">
         {cafe.vibes.map((v) => (
@@ -1859,6 +2062,7 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap }) {
         )}
       </div>
     </div>
+    </div>
   );
 }
 
@@ -1900,7 +2104,7 @@ function FormSection({ title, aside, children }) {
   );
 }
 
-function Chip({ on, onClick, children, className = "" }) {
+function Chip({ on, onClick, children, className = "", small = false }) {
   const [pop, setPop] = useState(0);
   return (
     <button
@@ -1910,7 +2114,7 @@ function Chip({ on, onClick, children, className = "" }) {
         setPop((p) => p + 1);
         onClick();
       }}
-      className={`press flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-sm ${className}`}
+      className={`press flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${small ? "px-3 py-1.5 text-xs" : "px-3.5 py-2 text-sm"} ${className}`}
       style={{ background: on ? C.brand : C.stone, color: on ? "#fff" : C.ink }}
     >
       <span
@@ -2073,8 +2277,8 @@ function RateForm({ cafes, items, initialCafeId, onSubmit, onCancel }) {
           <h3 className="mb-2 px-1 text-sm" style={{ color: C.taupe }}>
             your rating
           </h3>
-          {/* The original rating card: big popping number, word, large stars, slider with scale */}
-          <div className="rounded-3xl p-5" style={{ background: C.stone }}>
+          {/* Big popping number, word, large stars and slider, in the same white card as the other sections */}
+          <div className="rounded-3xl bg-white p-5 soft">
             <div className="flex items-end justify-between">
               <div>
                 <span key={f1(rating)} className="a-pop tabular inline-block text-6xl font-light leading-none tracking-tight">
@@ -2103,7 +2307,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit, onCancel }) {
                     className="press relative h-10 w-10"
                   >
                     <span key={starPop.n === n ? starPop.k : 0} className={`absolute inset-0 ${starPop.n === n && starPop.k ? "a-pop" : ""}`}>
-                      <Star size={34} strokeWidth={1.2} color={C.line} fill={C.bg} className="absolute inset-0 m-auto" />
+                      <Star size={34} strokeWidth={1.2} color={C.line} fill={C.stone} className="absolute inset-0 m-auto" />
                       <span className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - fill * 100}% 0 0)`, transition: `clip-path .45s ${EASE}` }}>
                         <Star size={34} strokeWidth={1.2} color={C.brand} fill={C.brand} className="absolute inset-0 m-auto" />
                       </span>
@@ -2122,7 +2326,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit, onCancel }) {
               aria-label="Rating from 1.0 to 5.0"
               onChange={(e) => setRating(parseFloat(e.target.value))}
               className="sp-range mt-6 w-full"
-              style={{ background: `linear-gradient(to right, ${C.brand} ${pct}%, ${C.line} ${pct}%)` }}
+              style={{ background: `linear-gradient(to right, ${C.brand} ${pct}%, ${C.stone} ${pct}%)` }}
             />
             <div className="tabular mt-2 flex justify-between text-xs" style={{ color: C.taupe }}>
               <span>1.0</span>
@@ -2248,6 +2452,88 @@ function Toast({ toast }) {
   );
 }
 
+/* ───────────────────────────── Sort & "near me" ───────────────────────────── */
+
+function SortBar({ sort, setSort, openOnly, setOpenOnly, origin, setOrigin, notify }) {
+  const [locating, setLocating] = useState(false);
+  const useMyLocation = () => {
+    const fail = (msg) => {
+      setLocating(false);
+      notify({ t: Date.now(), title: "Location unavailable", sub: msg });
+    };
+    if (!navigator.geolocation) return fail("Pick the nearest Tube station instead.");
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const p = lonLatToMap(pos.coords.longitude, pos.coords.latitude);
+        setLocating(false);
+        if (p.x < -400 || p.x > 1400 || p.y < -400 || p.y > 1200) return fail("You look outside central London, so pick a station.");
+        setOrigin({ label: "my location", x: p.x, y: p.y });
+        setSort("near");
+      },
+      () => fail("Location access was blocked. Pick the nearest Tube station instead."),
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
+    );
+  };
+  const stations = [...TUBE_STATIONS].sort((a, b) => a[0].localeCompare(b[0]));
+  return (
+    <div className="no-scrollbar -mx-4 mt-3 flex items-center gap-2 overflow-x-auto px-4 md:mx-0 md:px-0">
+      <div className="shrink-0">
+        <Segmented
+          label="Sort cafés"
+          size="sm"
+          value={sort}
+          onChange={setSort}
+          options={[
+            { value: "top", label: "top rated" },
+            { value: "near", label: "nearest", icon: Footprints },
+          ]}
+        />
+      </div>
+      <Chip small on={openOnly} onClick={() => setOpenOnly((o) => !o)}>
+        open now
+      </Chip>
+      <div
+        className="flex shrink-0 items-center gap-1"
+        style={{ opacity: sort === "near" ? 1 : 0, transform: sort === "near" ? "none" : "translate3d(-8px,0,0)", pointerEvents: sort === "near" ? "auto" : "none", transition: `opacity .35s ${EASE}, transform .45s ${EASE}` }}
+      >
+        <span className="relative flex items-center gap-1 rounded-full px-3.5 py-2 text-xs" style={{ background: C.stone }}>
+          from {origin.label}
+          <ChevronDown size={13} aria-hidden="true" />
+          <select
+            aria-label="Measure distance from"
+            tabIndex={sort === "near" ? 0 : -1}
+            value={origin.label === "my location" ? "" : origin.label}
+            onChange={(e) => {
+              const st = TUBE_STATIONS.find((x) => x[0] === e.target.value);
+              if (st) setOrigin({ label: st[0], x: st[1], y: st[2] });
+            }}
+            className="absolute inset-0 cursor-pointer opacity-0"
+            style={{ fontSize: 16 }}
+          >
+            {origin.label === "my location" && <option value="">my location</option>}
+            {stations.map(([n]) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </span>
+        <button
+          type="button"
+          aria-label="Use my location"
+          tabIndex={sort === "near" ? 0 : -1}
+          onClick={useMyLocation}
+          className="press flex h-8 w-8 items-center justify-center rounded-full"
+          style={{ background: origin.label === "my location" ? C.brand : C.stone, color: origin.label === "my location" ? "#fff" : C.brand }}
+        >
+          <LocateFixed size={15} className={locating ? "a-dot" : ""} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ───────────────────────────── App ───────────────────────────── */
 
 export default function Samspresso() {
@@ -2266,6 +2552,15 @@ export default function Samspresso() {
   const [rate, setRate] = useState(null); // { cafeId, key }
   const [toast, setToast] = useState(null);
   const [flash, setFlash] = useState(null);
+  const [now, setNow] = useState(londonNow);
+  const [sort, setSort] = useState("top"); // "top" | "near"
+  const [openOnly, setOpenOnly] = useState(false);
+  const [origin, setOrigin] = useState({ label: "Oxford Circus", x: 388, y: 350 });
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(londonNow()), 60000);
+    return () => clearInterval(t);
+  }, []);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const rowRefs = useRef({});
 
@@ -2293,9 +2588,11 @@ export default function Samspresso() {
     () =>
       cafesFull
         .filter((c) => (area === "All London" || c.areas.includes(area)) && (drink === "All Drinks" || c.items.some((i) => i.styles.includes(drink))))
-        .sort((a, b) => b.avg - a.avg),
-    [cafesFull, area, drink]
+        .filter((c) => !openOnly || (openStatus(c, now) || {}).open)
+        .sort((a, b) => (sort === "near" && a.x != null && b.x != null ? metresBetween(a, origin) - metresBetween(b, origin) : b.avg - a.avg)),
+    [cafesFull, area, drink, openOnly, now, sort, origin]
   );
+  const statusOf = useCallback((c) => openStatus(c, now), [now]);
   const visibleIds = useMemo(() => new Set(filtered.map((c) => c.id)), [filtered]);
 
   useEffect(() => {
@@ -2438,16 +2735,27 @@ export default function Samspresso() {
         {discoverMode === "list" ? (
           <>
             <Filters area={area} setArea={setArea} drink={drink} setDrink={setDrink} />
-            <div key={`${area}|${drink}`} className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <SortBar sort={sort} setSort={setSort} openOnly={openOnly} setOpenOnly={setOpenOnly} origin={origin} setOrigin={setOrigin} notify={setToast} />
+            <div key={`${area}|${drink}|${sort}|${openOnly}|${origin.label}`} className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {filtered.map((c, i) => (
-                <CafeCard key={c.id} cafe={c} drink={drink} saved={saved} toggleSave={toggleSave} onOpen={openCafe} index={i} />
+                <CafeCard
+                  key={c.id}
+                  cafe={c}
+                  drink={drink}
+                  saved={saved}
+                  toggleSave={toggleSave}
+                  onOpen={openCafe}
+                  index={i}
+                  status={statusOf(c)}
+                  distance={sort === "near" && c.x != null ? metresBetween(c, origin) : null}
+                />
               ))}
             </div>
             {filtered.length === 0 && <EmptyState onReset={resetFilters} />}
           </>
         ) : (
           <div className="a-fade" style={{ height: isDesktop ? 560 : "68vh" }}>
-            <LondonMap cafes={cafesFull} visibleIds={visibleIds} selectedId={selectedId} onSelect={setSelectedId} hoveredId={hoveredId} onOpen={openCafe} overlay={mapOverlay} />
+            <LondonMap cafes={cafesFull} visibleIds={visibleIds} selectedId={selectedId} onSelect={setSelectedId} hoveredId={hoveredId} onOpen={openCafe} overlay={mapOverlay} here={sort === "near" ? origin : null} />
           </div>
         )}
       </section>
@@ -2480,12 +2788,12 @@ export default function Samspresso() {
         </div>
       </aside>
       <div className="min-h-0">
-        <LondonMap cafes={cafesFull} visibleIds={visibleIds} selectedId={selectedId} onSelect={setSelectedId} hoveredId={hoveredId} onOpen={openCafe} overlay={mapOverlay} focusTopRatio={0.45} />
+        <LondonMap cafes={cafesFull} visibleIds={visibleIds} selectedId={selectedId} onSelect={setSelectedId} hoveredId={hoveredId} onOpen={openCafe} overlay={mapOverlay} here={sort === "near" ? origin : null} focusTopRatio={0.45} />
       </div>
     </div>
   ) : (
     <div className="-mx-4 -mt-4" style={{ height: "calc(100dvh - 57px - 64px - env(safe-area-inset-bottom))" }}>
-      <LondonMap cafes={cafesFull} visibleIds={visibleIds} selectedId={selectedId} onSelect={setSelectedId} hoveredId={null} onOpen={openCafe} overlay={mapOverlay} rounded={false} focusTopRatio={0.38} />
+      <LondonMap cafes={cafesFull} visibleIds={visibleIds} selectedId={selectedId} onSelect={setSelectedId} hoveredId={null} onOpen={openCafe} overlay={mapOverlay} here={sort === "near" ? origin : null} rounded={false} focusTopRatio={0.38} />
     </div>
   );
 
@@ -2509,7 +2817,7 @@ export default function Samspresso() {
       <BottomNav tab={tab} setTab={setTab} onRate={openRate} />
 
       <Sheet data={detailCafe} onClose={closeDetail} label="Café details" originEl={detailOrigin}>
-        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} />}
+        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} />}
       </Sheet>
 
       <Sheet data={rate} onClose={closeRate} label="Rate an item" bare tone="grouped">
