@@ -107,6 +107,8 @@ const CSS = `
 @keyframes spDraw{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
 @keyframes spTick{0%{opacity:.4;transform:translate3d(0,6px,0)}100%{opacity:1;transform:none}}
 @keyframes spShine{0%{transform:translate3d(-120%,0,0)}60%,100%{transform:translate3d(220%,0,0)}}
+@keyframes spFloatUp{0%{opacity:0;transform:translate3d(0,6px,0) scale(.7)}25%{opacity:1;transform:translate3d(0,-6px,0) scale(1)}100%{opacity:0;transform:translate3d(0,-30px,0) scale(1)}}
+@keyframes spNope{0%{transform:rotate(0) scale(1)}45%{transform:rotate(90deg) scale(.8)}100%{transform:rotate(90deg) scale(1)}}
 @keyframes spCardUp{from{opacity:0;transform:translate3d(0,24px,0) scale(.97)}to{opacity:1;transform:none}}
 
 .sp .a-fadeup{animation:spFadeUp .7s ${EASE} both}
@@ -120,6 +122,8 @@ const CSS = `
 .sp .a-draw{stroke-dasharray:24;animation:spDraw .55s ${EASE} .25s both}
 .sp .a-tick{animation:spTick .3s ${EASE} both}
 .sp .a-shine::after{content:"";position:absolute;inset:0;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:spShine 3.6s ${EASE} 1s infinite}
+.sp .a-floatup{animation:spFloatUp .9s ${EASE} both}
+.sp .a-nope{animation:spNope .45s ${SPRING} both}
 .sp .a-cardup{animation:spCardUp .55s ${SPRING} both}
 .sp .ov-in{animation:spFade .35s ${EASE} both}
 .sp .ov-out{animation:spFadeOut .3s ${EASE} both}
@@ -1021,7 +1025,9 @@ function RecCard({ r, cafe, saved, toggleSave, onOpenCafe, live }) {
           <BookmarkButton saved={saved.has(r.item.id)} onToggle={() => toggleSave(r.item.id)} />
         </span>
       </div>
-      <div className="mt-4">{live ? <MatchBar score={r.score} delay={150} /> : <MatchBar score={r.score} delay={0} />}</div>
+      <div className="mt-4">
+        <MatchBar score={r.score} delay={150} />
+      </div>
       <p className="mt-4 flex-1 text-sm leading-relaxed" style={{ color: C.taupe }}>
         {r.why}
       </p>
@@ -1041,6 +1047,7 @@ function RecCard({ r, cafe, saved, toggleSave, onOpenCafe, live }) {
  */
 function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   const [savedPop, setSavedPop] = useState(0);
+  const [skipPop, setSkipPop] = useState(0);
   const [index, setIndex] = useState(0);
   const [deal, setDeal] = useState(0); // bumps on rewind to replay the deal-in
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
@@ -1057,6 +1064,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
         toggleSave(r.item.id);
         setSavedPop((n) => n + 1);
       }
+      if (dir < 0) setSkipPop((n) => n + 1);
       setLeaving(dir);
       setTimeout(() => {
         setIndex((i) => i + 1);
@@ -1154,8 +1162,11 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
             let transition = `transform .5s ${SPRING}, opacity .3s`;
             if (top) {
               if (leaving) {
-                transform = `translate3d(${leaving * 520}px, ${drag.y - 30}px, 0) rotate(${leaving * 24}deg)`;
-                transition = `transform .3s cubic-bezier(.4,0,.6,1)`;
+                transform =
+                  leaving > 0
+                    ? `translate3d(520px, ${drag.y - 40}px, 0) rotate(22deg) scale(1.02)`
+                    : `translate3d(-480px, ${drag.y + 10}px, 0) rotate(-18deg) scale(.96)`;
+                transition = `transform .3s cubic-bezier(.4,0,.6,1), opacity .3s ease-in, filter .3s`;
               } else {
                 transform = `translate3d(${drag.x}px, ${drag.y}px, 0) rotate(${drag.x / 18}deg)`;
                 transition = drag.active ? "none" : `transform .55s ${SPRING}`;
@@ -1171,7 +1182,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
                 <div className="a-cardup h-full" style={{ animationDelay: deal ? `${depth * 70}ms` : "0ms" }}>
                   <div
                     className="relative h-full select-none"
-                    style={{ transform, transition, opacity: depth > 2 ? 0 : 1, cursor: top ? (drag.active ? "grabbing" : "grab") : "default", willChange: "transform" }}
+                    style={{ transform, transition, opacity: depth > 2 ? 0 : top && leaving < 0 ? 0.55 : 1, filter: top && leaving < 0 ? "saturate(.4)" : "none", cursor: top ? (drag.active ? "grabbing" : "grab") : "default", willChange: "transform" }}
                     onPointerDown={top ? onPointerDown : undefined}
                     onPointerMove={top ? onPointerMove : undefined}
                     onPointerUp={top ? onPointerUp : undefined}
@@ -1181,6 +1192,16 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
                     <RecCard r={r} cafe={cafe} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} live={top} />
                     {top && (
                       <>
+                        {/* soft olive glow as a liked card leaves */}
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-0 rounded-3xl"
+                          style={{
+                            boxShadow: `inset 0 0 0 2px rgba(62,87,0,${leaving > 0 ? 0.55 : drag.x > 0 ? progress * 0.35 : 0}), 0 18px 40px -18px rgba(62,87,0,${leaving > 0 ? 0.55 : drag.x > 0 ? progress * 0.3 : 0})`,
+                            background: `rgba(62,87,0,${leaving > 0 ? 0.06 : drag.x > 0 ? progress * 0.04 : 0})`,
+                            transition: drag.active ? "none" : "box-shadow .25s, background-color .25s",
+                          }}
+                        />
                         <span
                           aria-hidden="true"
                           className="pointer-events-none absolute left-5 top-5 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-white"
@@ -1205,19 +1226,28 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
           .reverse()}
       </div>
 
-      <div className="mt-6 flex items-center justify-center gap-5" style={{ opacity: left ? 1 : 0, transition: `opacity .3s ${EASE}`, pointerEvents: left ? "auto" : "none" }}>
+      <div className="relative z-20 mt-6 flex items-center justify-center gap-5" style={{ opacity: left ? 1 : 0, transition: `opacity .3s ${EASE}`, pointerEvents: left ? "auto" : "none" }}>
         <button type="button" aria-label="Skip this match" onClick={() => dismiss(-1)} className="press flex h-12 w-12 items-center justify-center rounded-full bg-white soft" style={{ color: C.taupe }}>
-          <X size={18} />
+          <span key={skipPop} className={`inline-flex ${skipPop ? "a-nope" : ""}`}>
+            <X size={18} />
+          </span>
         </button>
         <span className="tabular w-14 text-center text-sm" style={{ color: C.taupe }}>
           {Math.min(index + 1, recs.length)} / {recs.length}
         </span>
-        <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: "0 10px 22px -12px rgba(62,87,0,.7)" }}>
-          <Gloss />
-          <span key={savedPop} className={`relative inline-flex ${savedPop ? "a-pop" : ""}`}>
-            <Bookmark size={18} />
-          </span>
-        </button>
+        <span className="relative">
+          <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: "0 10px 22px -12px rgba(62,87,0,.7)" }}>
+            <Gloss />
+            <span key={savedPop} className={`relative inline-flex ${savedPop ? "a-pop" : ""}`}>
+              <Bookmark size={18} />
+            </span>
+          </button>
+          {savedPop > 0 && (
+            <span key={`fly-${savedPop}`} aria-hidden="true" className="a-floatup pointer-events-none absolute -top-2 left-1/2 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: C.brandSoft, color: C.brand, marginLeft: -22 }}>
+              <Bookmark size={11} fill={C.brand} /> +1
+            </span>
+          )}
+        </span>
       </div>
     </div>
   );
