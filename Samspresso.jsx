@@ -51,6 +51,7 @@ const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 const CSS = `
 .sp{font-family:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:${C.ink};background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;font-feature-settings:"cv11","ss01";}
 .sp *{box-sizing:border-box}
+.sp fieldset{min-width:0;margin:0;padding:0;border:0}
 .sp button{font:inherit;cursor:pointer}
 .sp .tabular{font-variant-numeric:tabular-nums}
 .sp .tr{transition-property:transform,opacity,background-color,color,border-color,box-shadow;transition-duration:.45s;transition-timing-function:${EASE}}
@@ -579,8 +580,8 @@ function Sheet({ data, onClose, label, children }) {
         style={{ willChange: "transform" }}
       >
         <div
-          className="no-scrollbar relative overflow-y-auto rounded-t-3xl bg-white md:rounded-3xl"
-          style={{ maxHeight: "90vh", boxShadow: "0 -10px 40px -20px rgba(30,28,26,.35)", paddingBottom: "env(safe-area-inset-bottom)" }}
+          className="no-scrollbar relative overflow-y-auto overflow-x-hidden rounded-t-3xl bg-white md:rounded-3xl"
+          style={{ maxHeight: "90vh", overscrollBehavior: "contain", boxShadow: "0 -10px 40px -20px rgba(30,28,26,.35)", paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           <div className="sticky top-0 z-10 flex justify-center bg-white pt-2.5 md:hidden">
             <span className="h-1 w-10 rounded-full" style={{ background: C.line }} />
@@ -1658,7 +1659,8 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
   const valid = itemName.trim().length > 1 && (cafeId !== "new" || newCafe.name.trim().length > 1);
   const pct = ((rating - 1) / 4) * 100;
   const toggleNote = (n) => setNotes((ns) => (ns.includes(n) ? ns.filter((x) => x !== n) : [...ns, n]));
-  const inputCls = "w-full rounded-2xl px-4 py-3 text-sm outline-none tr";
+  // 16px text: smaller inputs make iOS Safari auto-zoom the page on focus
+  const inputCls = "w-full rounded-2xl px-4 py-3 text-base outline-none tr";
   const inputStyle = { background: C.bg, boxShadow: `inset 0 0 0 1px ${C.line}` };
 
   return (
@@ -1698,7 +1700,6 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
               aria-label="New café name"
               value={newCafe.name}
               onChange={(e) => setNewCafe((n) => ({ ...n, name: e.target.value }))}
-              autoFocus
             />
             <div className="relative">
               <select
