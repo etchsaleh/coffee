@@ -1507,6 +1507,7 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
               <h3 className="flex items-center gap-2 truncate text-lg font-medium tracking-tight">
                 {cafe.name}
                 {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
+                {cafe.drop && <KindTag kind="drop" />}
               </h3>
               <p className="truncate text-sm" style={{ color: C.taupe }}>
                 {cafe.areas[0].toLowerCase()} · {cafe.tube}
@@ -1907,6 +1908,9 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                     }}
                   >
                     <span className="relative flex flex-col items-center">
+                      {c.drop && vis && (
+                        <span aria-label="Live drop" className="absolute -right-1 -top-1 z-10 h-3 w-3 rounded-full" style={{ background: C.brand, boxShadow: "0 0 0 2px #fff" }} />
+                      )}
                       {c.pick && vis && !isSel && (
                         <span aria-hidden="true" className="a-pulse absolute inset-x-0 top-0 h-8 rounded-full" style={{ boxShadow: `0 0 0 2px ${C.clay}` }} />
                       )}
@@ -2755,6 +2759,236 @@ function Toast({ toast }) {
 
 /* ───────────────────────────── Sort & "near me" ───────────────────────────── */
 
+/* ───────────────────────────── The journal ───────────────────────────── */
+
+const H_MS = 3600000;
+// Sample editorial content. Drops carry an end time and disappear once it passes.
+const JOURNAL = [
+  {
+    id: "j-drop-cardamom",
+    kind: "drop",
+    title: "the iced cardamom latte",
+    dek: "WatchHouse × sam'spresso. Cardamom-bun flavours, poured over ice. This weekend only.",
+    tone: ["#EFE3D6", "#D9BFA6"],
+    publishedAt: Date.now() - 20 * H_MS,
+    endsAt: Date.now() + 52 * H_MS,
+    read: 2,
+    body: [
+      { p: "We asked WatchHouse to bottle the thing everyone queues for: the cardamom bun. The answer is a spiced oat latte, shaken cold, with a cinnamon-sugar rim." },
+      { p: "It's on at Bermondsey and Soho until Sunday close, or until they run out of the syrup, which last time took about four hours." },
+      { cafe: "watchhouse", note: "Order it with an extra shot if you like it less sweet." },
+    ],
+  },
+  {
+    id: "j-edit-iced",
+    kind: "edit",
+    title: "the post-reformer iced edit",
+    dek: "Five cold, clean, oat-friendly cups for after class.",
+    tone: ["#E5EBDC", "#C9D3B4"],
+    publishedAt: Date.now() - 2 * 24 * H_MS,
+    read: 3,
+    body: [
+      { p: "Class done, cheeks pink, and you want something cold that doesn't taste like a milkshake. These are the ones we keep coming back to." },
+      { cafe: "hagen", item: "hg-iced", note: "Creamy, barely sweet, and right by South Ken station." },
+      { cafe: "commonbreads", item: "cb-iced", note: "The cult one. Samia's pick for a reason." },
+      { cafe: "storestreet", item: "ss-iced", note: "Mellow and big. Good for a slow walk through Bloomsbury." },
+      { cafe: "watchhouse", item: "wh-matcha", note: "Grassy, creamy, refreshing. The only matcha on the list." },
+      { cafe: "kaffeine", item: "ka-cold", note: "No milk, all chocolate. For the purists." },
+    ],
+  },
+  {
+    id: "j-spot-rosslyn",
+    kind: "spotlight",
+    title: "the tiny counter at the top",
+    dek: "How a standing-room spot by Bank became London's best-rated café.",
+    tone: ["#E9E5DD", "#D3CCC0"],
+    publishedAt: Date.now() - 4 * 24 * H_MS,
+    read: 4,
+    body: [
+      { p: "There are no tables at Rosslyn. There's a counter, a window and a queue of people in good coats who know exactly what they want." },
+      { p: "What they want is milk. The cortado is dense and chocolatey; the flat white is the smoothest in the Square Mile. Both sit at the top of our leaderboard." },
+      { cafe: "rosslyn", item: "ro-cort", note: "Start here. Two sips in, you'll get it." },
+    ],
+  },
+  {
+    id: "j-edit-grey",
+    kind: "edit",
+    title: "where to work when it's grey out",
+    dek: "Bright rooms, good Wi-Fi, no side-eye for staying a while.",
+    tone: ["#EAE4DA", "#D6C9B6"],
+    publishedAt: Date.now() - 6 * 24 * H_MS,
+    read: 3,
+    body: [
+      { p: "Some days the laptop has to leave the flat. These are the places that make that feel like a treat." },
+      { cafe: "prufrock", note: "Huge windows, long benches and a batch brew that keeps coming." },
+      { cafe: "origin", note: "Roastery energy. Get the V60 and stay for the afternoon." },
+      { cafe: "storestreet", note: "That skylight. Go before 10 for a table." },
+    ],
+  },
+  {
+    id: "j-news-areas",
+    kind: "news",
+    title: "new on the map",
+    dek: "Marylebone, Victoria and South Ken are in. Three new cafés to rate.",
+    tone: ["#E8EDE3", "#D3DCC6"],
+    publishedAt: Date.now() - 9 * 24 * H_MS,
+    read: 1,
+    body: [
+      { p: "We've stretched the map west and south. Say hello to three new spots, and tell us what we should add next." },
+      { cafe: "monocle" },
+      { cafe: "hagen" },
+      { cafe: "commonbreads" },
+    ],
+  },
+];
+
+const KIND_LABEL = { drop: "drop", edit: "samia's edit", spotlight: "spotlight", news: "new" };
+
+function timeLeft(ms) {
+  const h = Math.max(0, Math.round(ms / H_MS));
+  if (h < 1) return "ends soon";
+  if (h < 24) return `ends in ${h}h`;
+  const d = Math.round(h / 24);
+  return `ends in ${d} day${d === 1 ? "" : "s"}`;
+}
+
+/** Live drops (by café id), for badges elsewhere in the app. */
+const liveDrops = (now) => {
+  const m = {};
+  JOURNAL.forEach((j) => {
+    if (j.kind === "drop" && j.endsAt > now) j.body.forEach((b) => b.cafe && (m[b.cafe] = j));
+  });
+  return m;
+};
+
+function KindTag({ kind, light = false }) {
+  const drop = kind === "drop";
+  return (
+    <span
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
+      style={drop ? { background: C.brand, color: "#fff" } : { background: light ? "rgba(255,255,255,.7)" : C.stone, color: C.ink }}
+    >
+      {drop && <span className="a-dot h-1.5 w-1.5 rounded-full bg-white" />}
+      {KIND_LABEL[kind]}
+    </span>
+  );
+}
+
+/** "the journal": one row of tall editorial cards on Discover. */
+function JournalRow({ entries, readIds, onOpen }) {
+  if (!entries.length) return null;
+  return (
+    <section aria-labelledby="journal-title">
+      <div className="mb-4 flex items-end justify-between">
+        <div>
+          <p className="mb-1 text-sm" style={{ color: C.taupe }}>
+            from samia
+          </p>
+          <h2 id="journal-title" className="serif whitespace-nowrap text-3xl md:text-4xl">
+            the journal
+          </h2>
+        </div>
+        <p className="tabular pb-1 text-sm" style={{ color: C.taupe }}>
+          {entries.length} stories
+        </p>
+      </div>
+      <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
+        {entries.map((j, i) => {
+          const unread = !readIds.has(j.id);
+          return (
+            <div key={j.id} className="a-fadeup shrink-0 snap-start" style={{ animationDelay: `${i * 60}ms` }}>
+              <button
+                type="button"
+                data-morph
+                onClick={(e) => onOpen(j.id, e.currentTarget)}
+                className="lift relative flex h-72 w-56 flex-col justify-between overflow-hidden rounded-3xl p-4 text-left soft md:w-60"
+                style={{ background: `linear-gradient(160deg, ${j.tone[0]}, ${j.tone[1]})` }}
+                aria-label={`${KIND_LABEL[j.kind]}: ${j.title}${unread ? ", new" : ""}`}
+              >
+                <span className="flex items-start justify-between gap-2">
+                  <KindTag kind={j.kind} light />
+                  {unread && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: C.brand, boxShadow: "0 0 0 3px rgba(255,255,255,.7)" }} aria-hidden="true" />}
+                </span>
+                <span>
+                  <span className="serif block text-3xl leading-none" style={{ color: C.ink }}>
+                    {j.title}
+                  </span>
+                  <span className="mt-2 block text-xs leading-relaxed" style={{ color: "rgba(42,38,35,.7)" }}>
+                    {j.kind === "drop" ? timeLeft(j.endsAt - Date.now()) : `${j.read} min read`}
+                  </span>
+                </span>
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** Full article in a sheet; café blocks are live, tappable and saveable. */
+function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe }) {
+  const itemsById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
+  return (
+    <article>
+      <div className="relative -mt-4 flex h-52 flex-col justify-end px-5 pb-5 md:mt-0 md:px-8" style={{ background: `linear-gradient(160deg, ${entry.tone[0]}, ${entry.tone[1]})` }}>
+        <div className="flex items-center gap-2">
+          <KindTag kind={entry.kind} light />
+          <span className="text-xs" style={{ color: "rgba(42,38,35,.7)" }}>
+            {entry.kind === "drop" ? timeLeft(entry.endsAt - Date.now()) : timeAgo(entry.publishedAt).toLowerCase()}
+          </span>
+        </div>
+        <h2 className="serif mt-2 text-4xl leading-none md:text-5xl">{entry.title}</h2>
+      </div>
+      <div className="px-5 pb-8 pt-5 md:px-8">
+        <p className="text-base leading-relaxed">{entry.dek}</p>
+        <p className="mt-2 text-xs" style={{ color: C.taupe }}>
+          samia · {entry.read} min read
+        </p>
+        <div className="mt-6 space-y-4">
+          {entry.body.map((b, i) => {
+            if (b.p) {
+              return (
+                <p key={i} className="a-fadeup text-sm leading-relaxed" style={{ color: C.ink, animationDelay: `${100 + i * 50}ms` }}>
+                  {b.p}
+                </p>
+              );
+            }
+            const cafe = cafesById[b.cafe];
+            if (!cafe) return null;
+            const it = b.item ? itemsById[b.item] : cafe.items[0];
+            return (
+              <div key={i} className="a-fadeup rounded-3xl p-4" style={{ background: C.bg, animationDelay: `${100 + i * 50}ms` }}>
+                <div className="flex items-center gap-3">
+                  <button type="button" onClick={() => onOpenCafe(cafe.id)} className="min-w-0 flex-1 text-left">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate font-medium">{cafe.name}</span>
+                      {cafe.pick && <span style={{ color: C.latte }} aria-label="Samia's Pick">✦</span>}
+                    </span>
+                    <span className="block truncate text-xs" style={{ color: C.taupe }}>
+                      {cafe.areas[0].toLowerCase()}
+                      {it ? ` · ${it.name.toLowerCase()} ${f1(it.rating)}` : ""}
+                    </span>
+                  </button>
+                  {it && <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />}
+                  <button type="button" onClick={() => onOpenCafe(cafe.id)} aria-label={`Open ${cafe.name}`} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white" style={{ color: C.taupe }}>
+                    <ArrowRight size={15} />
+                  </button>
+                </div>
+                {b.note && (
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: C.taupe }}>
+                    {b.note}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 /* ───────────────────────────── App icon ───────────────────────────── */
 
 // iOS-style app icon: the logo's "s" in white on deep olive (assets/app-icon.svg).
@@ -2830,11 +3064,12 @@ export default function Samspresso() {
     if (typeof window !== "undefined") window.scrollTo(0, 0);
   }, []);
 
+  const liveDropsNow = useMemo(() => liveDrops(Date.now()), []);
   const cafesFull = useMemo(
     () =>
       cafes.map((c) => {
         const its = items.filter((i) => i.cafeId === c.id).sort((a, b) => b.rating - a.rating || b.count - a.count);
-        return { ...c, items: its, avg: avg(its.map((i) => i.rating)), total: its.reduce((s, i) => s + i.count, 0), pick: its.some((i) => i.pick) };
+        return { ...c, drop: liveDropsNow[c.id] || null, items: its, avg: avg(its.map((i) => i.rating)), total: its.reduce((s, i) => s + i.count, 0), pick: its.some((i) => i.pick) };
       }),
     [cafes, items]
   );
@@ -2879,6 +3114,29 @@ export default function Samspresso() {
   }, []);
 
   const [detailOrigin, setDetailOrigin] = useState(null);
+  const [articleId, setArticleId] = useState(null);
+  const [articleOrigin, setArticleOrigin] = useState(null);
+  const [readIds, setReadIds] = useState(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem("sp-journal-read") || "[]"));
+    } catch (_) {
+      return new Set();
+    }
+  });
+  const journal = useMemo(() => JOURNAL.filter((j) => !j.endsAt || j.endsAt > Date.now()).sort((a, b) => (b.kind === "drop") - (a.kind === "drop") || b.publishedAt - a.publishedAt), []);
+  const openArticle = useCallback((id, el) => {
+    setArticleOrigin(el || null);
+    setArticleId(id);
+    setReadIds((r) => {
+      const n = new Set(r);
+      n.add(id);
+      try {
+        localStorage.setItem("sp-journal-read", JSON.stringify([...n]));
+      } catch (_) {}
+      return n;
+    });
+  }, []);
+  const closeArticle = useCallback(() => setArticleId(null), []);
   const openCafe = useCallback((id, el) => {
     setDetailOrigin(el || null);
     setDetailId(id);
@@ -2968,6 +3226,7 @@ export default function Samspresso() {
   const discover = (
     <div className="space-y-8">
       <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} onRate={() => openRate()} />
+      <JournalRow entries={journal} readIds={readIds} onOpen={openArticle} />
       <section aria-labelledby="explore-title">
         <div className="mb-4 min-w-0">
           <p className="mb-1 text-sm" style={{ color: C.taupe }}>
@@ -3059,6 +3318,22 @@ export default function Samspresso() {
 
       <Sheet data={detailCafe} onClose={closeDetail} label="Café details" originEl={detailOrigin}>
         {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} />}
+      </Sheet>
+
+      <Sheet data={articleId ? journal.find((j) => j.id === articleId) : null} onClose={closeArticle} label="Journal story" originEl={articleOrigin}>
+        {(entry) => (
+          <JournalArticle
+            entry={entry}
+            cafesById={cafesById}
+            items={items}
+            saved={saved}
+            toggleSave={toggleSave}
+            onOpenCafe={(id) => {
+              setArticleId(null);
+              setTimeout(() => openCafe(id), 320);
+            }}
+          />
+        )}
       </Sheet>
 
       <Sheet data={rate} onClose={closeRate} label="Rate an item" bare tone="grouped">
