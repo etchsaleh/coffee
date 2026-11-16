@@ -26,7 +26,6 @@ import {
   ArrowRight,
   Coffee,
   Store,
-  LocateFixed,
 } from "lucide-react";
 
 /* ───────────────────────────── Design tokens ───────────────────────────── */
@@ -2478,97 +2477,6 @@ function Toast({ toast }) {
 
 /* ───────────────────────────── Sort & "near me" ───────────────────────────── */
 
-/**
- * The "10 cafés · top rated ▾ · open now" line under the explore title.
- * One native select covers both sorting and the "nearest to…" origin.
- */
-function SortLine({ count, drink, sort, setSort, openOnly, setOpenOnly, origin, setOrigin, notify }) {
-  const [locating, setLocating] = useState(false);
-  const stations = useMemo(() => [...TUBE_STATIONS].sort((a, b) => a[0].localeCompare(b[0])), []);
-
-  const locate = () => {
-    const fail = (msg) => {
-      setLocating(false);
-      notify({ t: Date.now(), title: "Location unavailable", sub: msg });
-    };
-    if (!navigator.geolocation) return fail("Pick the nearest Tube station instead.");
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const p = lonLatToMap(pos.coords.longitude, pos.coords.latitude);
-        setLocating(false);
-        if (p.x < -400 || p.x > 1400 || p.y < -400 || p.y > 1200) return fail("You look outside central London, so pick a station.");
-        setOrigin({ label: "my location", x: p.x, y: p.y });
-        setSort("near");
-      },
-      () => fail("Location access was blocked. Pick the nearest Tube station instead."),
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
-    );
-  };
-
-  const value = sort === "top" ? "top" : origin.label === "my location" ? "me" : `st:${origin.label}`;
-  const label = locating ? "locating…" : sort === "top" ? "top rated" : origin.label === "my location" ? "nearest to you" : `near ${origin.label}`;
-
-  return (
-    <div className="no-scrollbar mt-1 flex items-center gap-2 overflow-x-auto whitespace-nowrap text-sm" style={{ color: C.taupe }}>
-      <span className="tabular shrink-0">
-        {count} café{count === 1 ? "" : "s"}
-        {drink !== "All Drinks" ? ` · ${drink.toLowerCase()}` : ""}
-      </span>
-      <span aria-hidden="true">·</span>
-      <span className="press relative inline-flex shrink-0 items-center gap-1" style={{ color: C.brand }}>
-        {sort === "near" && <Footprints size={13} aria-hidden="true" />}
-        {label}
-        <ChevronDown size={14} aria-hidden="true" />
-        <select
-          aria-label="Sort cafés"
-          value={value}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === "top") setSort("top");
-            else if (v === "me") locate();
-            else {
-              const st = TUBE_STATIONS.find((x) => `st:${x[0]}` === v);
-              if (st) {
-                setOrigin({ label: st[0], x: st[1], y: st[2] });
-                setSort("near");
-              }
-            }
-          }}
-          className="absolute inset-0 cursor-pointer opacity-0"
-          style={{ fontSize: 16 }}
-        >
-          <option value="top">Top rated</option>
-          <optgroup label="Nearest to…">
-            <option value="me">My location</option>
-            {stations.map(([n]) => (
-              <option key={n} value={`st:${n}`}>
-                {n}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </span>
-      <span aria-hidden="true">·</span>
-      <button
-        type="button"
-        aria-pressed={openOnly}
-        onClick={() => setOpenOnly((o) => !o)}
-        className="press inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1"
-        style={{ background: openOnly ? C.matchaSoft : "transparent", color: openOnly ? C.matcha : C.taupe, transition: `background-color .3s ${EASE}, color .3s ${EASE}` }}
-      >
-        <span className="relative inline-block h-3.5 w-6 rounded-full" style={{ background: openOnly ? C.matcha : C.line, transition: `background-color .3s ${EASE}` }}>
-          <span
-            className="absolute top-0.5 h-2.5 w-2.5 rounded-full bg-white"
-            style={{ left: 2, transform: openOnly ? "translate3d(10px,0,0)" : "none", transition: `transform .35s ${SPRING}`, boxShadow: "0 1px 2px rgba(42,38,35,.25)" }}
-          />
-        </span>
-        open now
-      </button>
-    </div>
-  );
-}
-
 /* ───────────────────────────── App ───────────────────────────── */
 
 export default function Samspresso() {
@@ -2749,17 +2657,10 @@ export default function Samspresso() {
           <h2 id="explore-title" className="text-xl font-medium tracking-tight md:text-2xl">
             <span className="serif block truncate whitespace-nowrap text-3xl md:text-4xl">{area === "All London" ? "the london edit" : `the ${area.toLowerCase()} edit`}</span>
           </h2>
-          <SortLine
-            count={filtered.length}
-            drink={drink}
-            sort={sort}
-            setSort={setSort}
-            openOnly={openOnly}
-            setOpenOnly={setOpenOnly}
-            origin={origin}
-            setOrigin={setOrigin}
-            notify={setToast}
-          />
+          <p className="tabular mt-1 text-sm" style={{ color: C.taupe }}>
+            {filtered.length} café{filtered.length === 1 ? "" : "s"}
+            {drink !== "All Drinks" ? ` · ${drink.toLowerCase()}` : ""}
+          </p>
         </div>
         <Filters area={area} setArea={setArea} drink={drink} setDrink={setDrink} />
         <div key={`${area}|${drink}|${sort}|${openOnly}|${origin.label}`} className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
