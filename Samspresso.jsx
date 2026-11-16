@@ -1352,8 +1352,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
           {Math.min(index + 1, recs.length)} / {recs.length}
         </span>
         <span className="relative">
-          <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: "0 10px 22px -12px rgba(62,87,0,.7)" }}>
-            <Gloss />
+          <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.matcha, boxShadow: "0 6px 16px -10px rgba(122,139,90,.7)" }}>
             <span key={savedPop} className={`relative inline-flex ${savedPop ? "a-pop" : ""}`}>
               <Bookmark size={18} fill={justSaved ? "#fff" : "none"} style={{ transition: `fill .25s ${EASE}` }} />
             </span>
