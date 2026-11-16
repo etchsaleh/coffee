@@ -32,20 +32,40 @@ import {
 
 /* ───────────────────────────── Design tokens ───────────────────────────── */
 
+/*
+ * sam'spresso design system: white first, one accent.
+ *   bg / card  white surfaces
+ *   stone      the only grey fill (tracks, rows, chips)
+ *   line       hairlines
+ *   ink        text
+ *   taupe      secondary text and icons
+ *   brand      deep olive (logo, buttons, active states, badges, highlights)
+ *   brandSoft  brand at low opacity, for badge backgrounds
+ *   matcha     taste-match scores, "live" signals, parks on the map
+ *   latte      Samia's Picks only
+ * Map colours are quiet neutrals derived from the same set.
+ */
 const C = {
-  // milk, oat, latte, matcha
-  bg: "#F8F6F2",
+  bg: "#FFFFFF",
   card: "#FFFFFF",
-  line: "#EEEAE4",
-  stone: "#F1EDE7",
-  ink: "#2A2623",
-  taupe: "#8D867E",
-  clay: "#C49A74",
-  sage: "#7A8B5A",
-  land: "#F4F1EB",
-  river: "#E4E9E8",
-  park: "#E5EBDC",
+  stone: "#F4F4F0",
+  line: "#EAEAE4",
+  ink: "#1C1E17",
+  taupe: "#7B7E72",
+  brand: "#3E5700",
+  brandSoft: "rgba(62,87,0,.08)",
+  matcha: "#7A8B5A",
+  matchaSoft: "rgba(122,139,90,.13)",
+  latte: "#C49A74",
+  latteSoft: "rgba(196,154,116,.15)",
+  land: "#F3F3EE",
+  river: "#E9ECEA",
+  park: "#ECF0E3",
+  mapLine: "#D7D9CF",
 };
+// role aliases used throughout the components
+C.clay = C.latte; // Samia's Pick
+C.sage = C.matcha; // taste match / live
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 
@@ -53,7 +73,7 @@ const CSS = `
 @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap");
 .sp{font-family:"Manrope","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:${C.ink};background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
 .sp .serif{font-family:"Instrument Serif",ui-serif,Georgia,serif;font-style:italic;font-weight:400;letter-spacing:-.01em}
-.sp .soft{box-shadow:0 1px 2px rgba(42,38,35,.03),0 14px 36px -24px rgba(42,38,35,.22)}
+.sp .soft{box-shadow:0 0 0 1px ${C.line},0 12px 32px -26px rgba(28,30,23,.25)}
 .sp *{box-sizing:border-box}
 .sp fieldset{min-width:0;margin:0;padding:0;border:0}
 .sp button{font:inherit;cursor:pointer}
@@ -62,14 +82,14 @@ const CSS = `
 .sp .press{transition:transform .28s ${EASE},background-color .35s ${EASE},color .35s ${EASE},box-shadow .35s ${EASE},border-color .35s ${EASE},opacity .35s ${EASE}}
 .sp .press:active{transform:scale(.95)}
 .sp .lift{transition:transform .45s ${EASE},box-shadow .45s ${EASE},border-color .45s ${EASE}}
-@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 2px 4px rgba(42,38,35,.03),0 22px 44px -24px rgba(42,38,35,.28)}}
-.sp .glass{background:rgba(250,249,246,.74);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
+@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 0 0 1px ${C.line},0 22px 44px -26px rgba(28,30,23,.3)}}
+.sp .glass{background:rgba(255,255,255,.82);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
 .sp .glass-white{background:rgba(255,255,255,.78);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px)}
-.sp .hair{box-shadow:0 1px 2px rgba(42,38,35,.03),0 12px 32px -22px rgba(42,38,35,.2)}
+.sp .hair{box-shadow:0 0 0 1px ${C.line},0 12px 32px -26px rgba(28,30,23,.22)}
 .sp .no-scrollbar::-webkit-scrollbar{display:none}.sp .no-scrollbar{scrollbar-width:none}
 .sp :focus{outline:none}
-.sp :focus-visible{outline:2px solid ${C.ink};outline-offset:2px}
-.sp .focus-within-ring:focus-within{box-shadow:0 0 0 2px ${C.ink}}
+.sp :focus-visible{outline:2px solid ${C.brand};outline-offset:2px}
+.sp .focus-within-ring:focus-within{box-shadow:0 0 0 2px ${C.brand}}
 
 @keyframes spFadeUp{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:none}}
 @keyframes spFade{from{opacity:0}to{opacity:1}}
@@ -105,9 +125,9 @@ const CSS = `
 }
 
 .sp .sp-range{-webkit-appearance:none;appearance:none;height:6px;border-radius:999px;outline:none}
-.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(42,38,35,.35);transition:transform .3s ${SPRING};cursor:grab}
+.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(28,30,23,.35);transition:transform .3s ${SPRING};cursor:grab}
 .sp .sp-range:active::-webkit-slider-thumb{transform:scale(1.15);cursor:grabbing}
-.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(42,38,35,.35)}
+.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(28,30,23,.35)}
 .sp .sp-range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px ${C.ink}}
 
 @media (prefers-reduced-motion:reduce){
@@ -473,7 +493,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
       role="group"
       aria-label={label}
       className={`relative ${full ? "flex w-full" : "inline-flex"} items-center gap-0.5 rounded-full p-1 ${glass && !scroll ? "glass-white hair" : ""}`}
-      style={scroll ? undefined : glass ? { boxShadow: "0 6px 20px -12px rgba(42,38,35,.25)" } : { background: C.stone }}
+      style={scroll ? undefined : glass ? { boxShadow: "0 6px 20px -12px rgba(28,30,23,.25)" } : { background: C.stone }}
     >
       <span
         aria-hidden="true"
@@ -482,8 +502,8 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
           width: ind.w,
           transform: `translate3d(${ind.x}px,0,0)`,
           opacity: ind.ready ? 1 : 0,
-          background: ink ? C.ink : "#fff",
-          boxShadow: ink ? "0 4px 12px -6px rgba(42,38,35,.5)" : "0 1px 2px rgba(42,38,35,.08), 0 0 0 1px rgba(42,38,35,.04)",
+          background: ink ? C.brand : "#fff",
+          boxShadow: ink ? "0 4px 12px -6px rgba(28,30,23,.5)" : "0 1px 2px rgba(28,30,23,.08), 0 0 0 1px rgba(28,30,23,.04)",
           transition: `transform .55s ${EASE}, width .55s ${EASE}, opacity .3s`,
           willChange: "transform",
         }}
@@ -499,7 +519,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
             aria-pressed={active}
             onClick={() => onChange(o.value)}
             className={`press relative z-10 flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-medium ${full ? "flex-1" : ""} ${sm ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"}`}
-            style={{ color: active ? (ink ? "#fff" : C.ink) : C.taupe }}
+            style={{ color: active ? (ink ? "#fff" : C.brand) : C.taupe }}
           >
             {Icon && <Icon size={sm ? 13 : 15} strokeWidth={2} aria-hidden="true" />}
             {o.label}
@@ -515,7 +535,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
     <div
       ref={scrollRef}
       className={`no-scrollbar max-w-full overflow-x-auto rounded-full ${glass ? "glass-white hair" : ""}`}
-      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: "0 6px 20px -12px rgba(42,38,35,.25)" } : { background: C.stone }) }}
+      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: "0 6px 20px -12px rgba(28,30,23,.25)" } : { background: C.stone }) }}
     >
       {track}
     </div>
@@ -535,10 +555,10 @@ function BookmarkButton({ saved, onToggle, size = 17, className = "" }) {
         onToggle();
       }}
       className={`press flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${className}`}
-      style={{ background: saved ? C.stone : "transparent" }}
+      style={{ background: saved ? C.brandSoft : "transparent" }}
     >
       <span key={pop} className={`inline-flex ${pop ? "a-pop" : ""}`}>
-        <Bookmark size={size} strokeWidth={1.9} color={saved ? C.ink : C.taupe} fill={saved ? C.ink : "none"} />
+        <Bookmark size={size} strokeWidth={1.9} color={saved ? C.brand : C.taupe} fill={saved ? C.brand : "none"} />
       </span>
     </button>
   );
@@ -548,10 +568,10 @@ function ScoreChip({ value, digits = 1, strong = false }) {
   return (
     <span
       className="tabular inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-      style={{ background: strong ? C.ink : C.stone, color: strong ? "#fff" : C.ink }}
+      style={{ background: strong ? C.brand : C.stone, color: strong ? "#fff" : C.ink }}
     >
       {value.toFixed(digits)}
-      <Star size={11} strokeWidth={0} fill={strong ? "#fff" : C.ink} aria-hidden="true" />
+      <Star size={11} strokeWidth={0} fill={strong ? "#fff" : C.brand} aria-hidden="true" />
     </span>
   );
 }
@@ -560,7 +580,7 @@ function PickBadge({ small = false }) {
   return (
     <span
       className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full font-medium ${small ? "px-1.5 py-0.5 text-xs" : "px-2 py-0.5 text-xs"}`}
-      style={{ background: "rgba(196,154,116,.12)", color: C.clay }}
+      style={{ background: C.latteSoft, color: C.latte }}
     >
       samia's pick ✦
     </span>
@@ -570,7 +590,7 @@ function PickBadge({ small = false }) {
 function Tag({ children, tone = "stone" }) {
   const tones = {
     stone: { background: C.stone, color: C.taupe },
-    sage: { background: "rgba(122,139,90,.13)", color: C.sage },
+    sage: { background: C.matchaSoft, color: C.matcha },
     outline: { background: "#fff", color: C.taupe, boxShadow: `inset 0 0 0 1px ${C.line}` },
   };
   return (
@@ -620,11 +640,11 @@ const LOGO_GLYPHS = [
  * glossy highlight on every letter.
  */
 const LOGO_COLORS = {
-  sam: "#3E5700",
-  sFrom: "#3E5700",
-  sTo: "#3E5700",
-  presso: "#3E5700",
-  shine: "#FFFBF5",
+  sam: C.brand,
+  sFrom: C.brand,
+  sTo: C.brand,
+  presso: C.brand,
+  shine: "#FFFFFF",
 };
 
 function Logo({ height = 28, colors = LOGO_COLORS }) {
@@ -688,14 +708,14 @@ function Sheet({ data, onClose, label, children }) {
   if (!render || last.current == null) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal="true" aria-label={label}>
-      <div className={`absolute inset-0 ${open ? "ov-in" : "ov-out"}`} style={{ background: "rgba(42,38,35,.32)" }} onClick={onClose} />
+      <div className={`absolute inset-0 ${open ? "ov-in" : "ov-out"}`} style={{ background: "rgba(28,30,23,.32)" }} onClick={onClose} />
       <div
         className={`relative w-full md:max-w-xl ${open ? "sheet-in" : "sheet-out"}`}
         style={{ willChange: "transform" }}
       >
         <div
           className="no-scrollbar relative overflow-y-auto overflow-x-hidden rounded-t-3xl bg-white md:rounded-3xl"
-          style={{ maxHeight: "90vh", overscrollBehavior: "contain", boxShadow: "0 -10px 40px -20px rgba(42,38,35,.35)", paddingBottom: "env(safe-area-inset-bottom)" }}
+          style={{ maxHeight: "90vh", overscrollBehavior: "contain", boxShadow: "0 -10px 40px -20px rgba(28,30,23,.35)", paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           <div className="sticky top-0 z-10 flex justify-center bg-white pt-2.5 md:hidden">
             <span className="h-1 w-10 rounded-full" style={{ background: C.line }} />
@@ -731,7 +751,7 @@ function MatchBar({ score, delay }) {
       <div className="h-1 overflow-hidden rounded-full" style={{ background: C.stone }}>
         <div
           className="a-grow h-full w-full rounded-full"
-          style={{ transform: `scaleX(${score / 100})`, transformOrigin: "0 50%", background: high ? C.sage : C.ink, animationDelay: `${delay}ms` }}
+          style={{ transform: `scaleX(${score / 100})`, transformOrigin: "0 50%", background: high ? C.matcha : C.taupe, animationDelay: `${delay}ms` }}
         />
       </div>
     </div>
@@ -873,7 +893,7 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index }) {
           {shown.map((it) => {
             const dim = drink !== "All Drinks" && !it.styles.includes(drink);
             return (
-              <li key={it.id} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ background: C.bg, opacity: dim ? 0.45 : 1 }}>
+              <li key={it.id} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ background: C.stone, opacity: dim ? 0.45 : 1 }}>
                 <button type="button" onClick={() => onOpen(cafe.id)} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm">
                   <span className="truncate">{it.name}</span>
                   {it.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
@@ -897,7 +917,7 @@ function EmptyState({ onReset }) {
       <p className="mt-1 text-sm" style={{ color: C.taupe }}>
         Try another neighbourhood or drink style.
       </p>
-      <button type="button" onClick={onReset} className="press mt-4 rounded-full px-4 py-2 text-sm font-medium text-white" style={{ background: C.ink }}>
+      <button type="button" onClick={onReset} className="press mt-4 rounded-full px-4 py-2 text-sm font-medium text-white" style={{ background: C.brand }}>
         Reset filters
       </button>
     </div>
@@ -934,12 +954,12 @@ const TUBE_STATIONS = [
 ];
 
 const TUBE_LINES = [
-  { c: "#D99A86", d: "M-60 410 L256 385 L328 367 L388 350 L472 332 L560 308 L628 297 L739 357 L811 380 L862 301 L1060 250" },
-  { c: "#9C9893", d: "M400 -60 L412 180 L442 254 L472 332 L496 415 L522 472 L540 500 L560 780" },
-  { c: "#9C9893", d: "M800 -60 L820 166 L811 287 L811 380 L828 521 L771 593 L760 780" },
-  { c: "#8FB4CC", d: "M420 -60 L412 180 L388 350 L378 528 L362 780" },
-  { c: "#98A3CF", d: "M-60 600 L304 566 L378 528 L448 437 L496 415 L526 385 L560 308 L526 210 L528 74 L540 -60" },
-  { c: "#A7C2A5", d: "M-60 690 L362 674 L448 621 L544 598 L540 500 L608 430 L688 452 L768 399 L830 422 L907 439 L1060 420" },
+  { c: C.mapLine, d: "M-60 410 L256 385 L328 367 L388 350 L472 332 L560 308 L628 297 L739 357 L811 380 L862 301 L1060 250" },
+  { c: C.mapLine, d: "M400 -60 L412 180 L442 254 L472 332 L496 415 L522 472 L540 500 L560 780" },
+  { c: C.mapLine, d: "M800 -60 L820 166 L811 287 L811 380 L828 521 L771 593 L760 780" },
+  { c: C.mapLine, d: "M420 -60 L412 180 L388 350 L378 528 L362 780" },
+  { c: C.mapLine, d: "M-60 600 L304 566 L378 528 L448 437 L496 415 L526 385 L560 308 L526 210 L528 74 L540 -60" },
+  { c: C.mapLine, d: "M-60 690 L362 674 L448 621 L544 598 L540 500 L608 430 L688 452 L768 399 L830 422 L907 439 L1060 420" },
 ];
 
 const ROADS = [
@@ -978,14 +998,14 @@ const MapBase = memo(function MapBase() {
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="absolute left-0 top-0" style={{ overflow: "visible" }} aria-hidden="true">
       <rect x={-800} y={-800} width={W + 1600} height={H + 1600} fill={C.land} />
       {/* parks */}
-      <g fill={C.park} stroke="#DCE4DE" strokeWidth="1">
+      <g fill={C.park} stroke="#E2E7D6" strokeWidth="1">
         <path d="M-120 400 Q-110 380 0 388 L120 392 L290 380 Q306 382 305 402 L300 560 Q296 582 270 580 L40 590 Q-100 596 -120 570 Z" />
         <ellipse cx="290" cy="80" rx="86" ry="112" />
         <path d="M352 492 L424 480 L432 538 L502 548 L500 594 L420 598 L350 576 Z" />
         <rect x="498" y="222" width="30" height="26" rx="6" />
         <rect x="572" y="320" width="28" height="24" rx="6" />
       </g>
-      <g fill={C.sage} opacity=".55" fontSize="13" fontStyle="italic" fontWeight="500" textAnchor="middle">
+      <g fill={C.matcha} opacity=".6" fontSize="13" fontStyle="italic" fontWeight="500" textAnchor="middle">
         <text x="165" y="488">Hyde Park</text>
         <text x="290" y="96">Regent's Park</text>
         <text x="420" y="572" fontSize="10">Green Park</text>
@@ -1005,7 +1025,7 @@ const MapBase = memo(function MapBase() {
         strokeWidth="30"
         strokeLinecap="round"
       />
-      <text fontSize="11" letterSpacing="3" fill="#8FA2A8" fontWeight="500">
+      <text fontSize="11" letterSpacing="3" fill={C.taupe} fontWeight="500">
         <textPath href="#sp-thames" startOffset="48%">
           RIVER THAMES
         </textPath>
@@ -1019,8 +1039,8 @@ const MapBase = memo(function MapBase() {
       <g>
         {TUBE_STATIONS.map(([n, x, y]) => (
           <g key={n}>
-            <circle cx={x} cy={y} r="4" fill="#fff" stroke="#B9B3AA" strokeWidth="1.5" />
-            <text x={x + 7} y={y + 3.5} fontSize="9" fill="#A39D94">
+            <circle cx={x} cy={y} r="4" fill="#fff" stroke={C.mapLine} strokeWidth="1.5" />
+            <text x={x + 7} y={y + 3.5} fontSize="9" fill={C.taupe}>
               {n}
             </text>
           </g>
@@ -1251,25 +1271,25 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                       <span
                         className="tabular relative flex h-8 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-sm font-medium"
                         style={{
-                          background: isSel ? C.ink : "#fff",
+                          background: isSel ? C.brand : "#fff",
                           color: isSel ? "#fff" : C.ink,
-                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.clay : isSel || isHov ? C.ink : C.line}, 0 6px 16px -6px rgba(42,38,35,.35)`,
+                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.clay : isSel || isHov ? C.brand : C.line}, 0 6px 16px -6px rgba(28,30,23,.35)`,
                           transition: `background-color .35s ${EASE}, color .35s ${EASE}, box-shadow .35s ${EASE}`,
                         }}
                       >
                         {f1(c.avg)}
-                        <Star size={11} strokeWidth={0} fill={isSel ? "#fff" : C.ink} aria-hidden="true" />
+                        <Star size={11} strokeWidth={0} fill={isSel ? "#fff" : C.brand} aria-hidden="true" />
                       </span>
                       <span
                         aria-hidden="true"
                         className="-mt-1 h-2.5 w-2.5 rotate-45"
-                        style={{ background: isSel ? C.ink : "#fff", boxShadow: c.pick ? `1.5px 1.5px 0 0.5px ${C.clay}` : `1px 1px 0 0 ${C.line}` }}
+                        style={{ background: isSel ? C.brand : "#fff", boxShadow: c.pick ? `1.5px 1.5px 0 0.5px ${C.clay}` : `1px 1px 0 0 ${C.line}` }}
                       />
                       <span
                         className="pointer-events-none absolute top-full mt-1 whitespace-nowrap rounded-md px-1.5 text-xs font-medium"
                         style={{
                           color: C.ink,
-                          background: "rgba(250,249,246,.85)",
+                          background: "rgba(255,255,255,.9)",
                           opacity: showNames || isSel || isHov ? 1 : 0,
                           transform: showNames || isSel || isHov ? "none" : "translate3d(0,-4px,0)",
                           transition: `opacity .35s ${EASE}, transform .35s ${EASE}`,
@@ -1288,7 +1308,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 
       {overlay && <div className="absolute inset-x-0 top-0 z-20 p-3">{overlay}</div>}
 
-      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: "0 8px 24px -14px rgba(42,38,35,.35)" }}>
+      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: "0 8px 24px -14px rgba(28,30,23,.35)" }}>
         <button type="button" aria-label="Zoom in" className="press flex h-10 w-10 items-center justify-center" onClick={() => zoomAt(center().x, center().y, 1.45)}>
           <Plus size={17} />
         </button>
@@ -1329,7 +1349,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 function MapPreview({ cafe, onOpen, onClose }) {
   const top = cafe.items[0];
   return (
-    <div className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: "0 20px 50px -24px rgba(42,38,35,.45)" }}>
+    <div className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: "0 20px 50px -24px rgba(28,30,23,.45)" }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 text-base font-medium tracking-tight">
@@ -1352,7 +1372,7 @@ function MapPreview({ cafe, onOpen, onClose }) {
         </button>
       </div>
       {top && (
-        <div className="mt-3 flex items-center justify-between rounded-2xl px-3 py-2.5" style={{ background: C.bg }}>
+        <div className="mt-3 flex items-center justify-between rounded-2xl px-3 py-2.5" style={{ background: C.stone }}>
           <div className="min-w-0">
             <p className="text-xs" style={{ color: C.taupe }}>
               Top-rated here
@@ -1362,7 +1382,7 @@ function MapPreview({ cafe, onOpen, onClose }) {
           <ScoreChip value={top.rating} />
         </div>
       )}
-      <button type="button" onClick={() => onOpen(cafe.id)} className="press mt-3 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium text-white" style={{ background: C.ink }}>
+      <button type="button" onClick={() => onOpen(cafe.id)} className="press mt-3 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium text-white" style={{ background: C.brand }}>
         View Menu &amp; Ratings <ArrowRight size={15} />
       </button>
     </div>
@@ -1380,7 +1400,7 @@ function CafeListRow({ cafe, selected, onSelect, onHover, onOpen, index, rowRef 
         onMouseLeave={() => onHover(null)}
       >
         <button type="button" onClick={() => onSelect(cafe.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Show ${cafe.name} on map`}>
-          <span className="tabular flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-full text-sm font-light" style={{ background: selected ? C.ink : "#fff", color: selected ? "#fff" : C.ink }}>
+          <span className="tabular flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-full text-sm font-light" style={{ background: selected ? C.brand : "#fff", color: selected ? "#fff" : C.ink }}>
             {f1(cafe.avg)}
           </span>
           <span className="min-w-0">
@@ -1452,7 +1472,7 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
               className="absolute inset-x-0 top-0 flex items-center gap-4 px-5 md:px-6"
               style={{ height: ROW_H, transform: `translate3d(0, ${i * ROW_H}px, 0)`, transition: `transform .8s ${EASE}` }}
             >
-              {flashing && <span key={flash.t} aria-hidden="true" className="a-flash pointer-events-none absolute inset-0" style={{ background: "rgba(196,154,116,.14)" }} />}
+              {flashing && <span key={flash.t} aria-hidden="true" className="a-flash pointer-events-none absolute inset-0" style={{ background: C.latteSoft }} />}
               <span className="tabular relative w-6 shrink-0 text-center text-2xl font-light" style={{ color: i === 0 ? C.sage : C.taupe }}>
                 {i + 1}
               </span>
@@ -1545,7 +1565,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
           ) : (
             <div className="a-fadeup rounded-3xl bg-white p-8 text-center hair">
               <p className="font-medium">No ratings yet</p>
-              <button type="button" onClick={onRate} className="press mt-3 rounded-full px-4 py-2 text-sm font-medium text-white" style={{ background: C.ink }}>
+              <button type="button" onClick={onRate} className="press mt-3 rounded-full px-4 py-2 text-sm font-medium text-white" style={{ background: C.brand }}>
                 Rate your first cup
               </button>
             </div>
@@ -1632,7 +1652,7 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap }) {
       </h3>
       <ul className="space-y-2">
         {cafe.items.map((it, i) => (
-          <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-1" style={{ background: C.bg, animationDelay: `${120 + i * 60}ms` }}>
+          <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-1" style={{ background: C.stone, animationDelay: `${120 + i * 60}ms` }}>
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-2 font-medium">
                 {it.name} {it.pick && <PickBadge small />}
@@ -1652,7 +1672,7 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap }) {
         )}
       </ul>
       <div className="mt-6 flex gap-2">
-        <button type="button" onClick={() => onRate(cafe.id)} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-sm font-medium text-white" style={{ background: C.ink }}>
+        <button type="button" onClick={() => onRate(cafe.id)} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-sm font-medium text-white" style={{ background: C.brand }}>
           <Plus size={16} /> Rate an item here
         </button>
         {cafe.x != null && (
@@ -1688,7 +1708,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
   const toggleNote = (n) => setNotes((ns) => (ns.includes(n) ? ns.filter((x) => x !== n) : [...ns, n]));
   // 16px text: smaller inputs make iOS Safari auto-zoom the page on focus
   const inputCls = "w-full rounded-2xl px-4 py-3 text-base outline-none tr";
-  const inputStyle = { background: C.bg, boxShadow: `inset 0 0 0 1px ${C.line}` };
+  const inputStyle = { background: C.stone, boxShadow: `inset 0 0 0 1px ${C.line}` };
 
   return (
     <form
@@ -1758,7 +1778,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
                   aria-pressed={on}
                   onClick={() => setItemName(on ? "" : it.name)}
                   className="press flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium"
-                  style={{ background: on ? C.ink : C.stone, color: on ? "#fff" : C.ink }}
+                  style={{ background: on ? C.brand : C.stone, color: on ? "#fff" : C.ink }}
                 >
                   {on && <Check size={14} aria-hidden="true" />}
                   {it.name}
@@ -1772,7 +1792,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
 
       <fieldset className="mt-6">
         <legend className="mb-2 text-sm font-medium">Your rating</legend>
-        <div className="rounded-3xl p-4" style={{ background: C.bg }}>
+        <div className="rounded-3xl p-4" style={{ background: C.stone }}>
           <div className="flex items-end justify-between">
             <div>
               <span key={f1(rating)} className="a-pop tabular inline-block text-5xl font-medium leading-none tracking-tight">
@@ -1793,7 +1813,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
                 <button key={n} type="button" aria-label={`${n} star${n > 1 ? "s" : ""}`} onClick={() => setRating(n)} className="press relative h-9 w-9">
                   <Star size={32} strokeWidth={1.4} color={C.line} fill={C.stone} className="absolute inset-0 m-auto" />
                   <span className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - fill * 100}% 0 0)`, transition: `clip-path .4s ${EASE}` }}>
-                    <Star size={32} strokeWidth={1.4} color={C.ink} fill={C.ink} className="absolute inset-0 m-auto" />
+                    <Star size={32} strokeWidth={1.4} color={C.brand} fill={C.brand} className="absolute inset-0 m-auto" />
                   </span>
                 </button>
               );
@@ -1808,7 +1828,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
             aria-label="Rating from 1.0 to 5.0"
             onChange={(e) => setRating(parseFloat(e.target.value))}
             className="sp-range mt-5 w-full"
-            style={{ background: `linear-gradient(to right, ${C.ink} ${pct}%, ${C.line} ${pct}%)` }}
+            style={{ background: `linear-gradient(to right, ${C.brand} ${pct}%, ${C.line} ${pct}%)` }}
           />
           <div className="mt-2 flex justify-between text-xs" style={{ color: C.taupe }}>
             <span>1.0</span>
@@ -1830,7 +1850,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
                 aria-pressed={on}
                 onClick={() => toggleNote(n)}
                 className="press flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium"
-                style={{ background: on ? C.ink : "#fff", color: on ? "#fff" : C.ink, boxShadow: on ? "none" : `inset 0 0 0 1px ${C.line}` }}
+                style={{ background: on ? C.brand : "#fff", color: on ? "#fff" : C.ink, boxShadow: on ? "none" : `inset 0 0 0 1px ${C.line}` }}
               >
                 {on && <Check size={14} aria-hidden="true" />}
                 {n}
@@ -1844,7 +1864,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
         type="submit"
         disabled={!valid}
         className="press mt-7 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-medium text-white"
-        style={{ background: C.ink, opacity: valid ? 1 : 0.35, cursor: valid ? "pointer" : "not-allowed" }}
+        style={{ background: C.brand, opacity: valid ? 1 : 0.35, cursor: valid ? "pointer" : "not-allowed" }}
       >
         Submit rating <ArrowRight size={16} />
       </button>
@@ -1875,12 +1895,12 @@ function TopNav({ tab, setTab, onRate, savedCount }) {
           <button type="button" onClick={() => setTab("profile")} className="press relative flex h-10 w-10 items-center justify-center rounded-full" style={{ background: C.stone }} aria-label={`Want to Try list, ${savedCount} saved`}>
             <Bookmark size={17} />
             {savedCount > 0 && (
-              <span key={savedCount} className="a-pop tabular absolute -right-0.5 -top-0.5 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium text-white" style={{ background: C.ink, minWidth: 20 }}>
+              <span key={savedCount} className="a-pop tabular absolute -right-0.5 -top-0.5 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium text-white" style={{ background: C.brand, minWidth: 20 }}>
                 {savedCount}
               </span>
             )}
           </button>
-          <button type="button" onClick={() => onRate()} className="press flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium text-white" style={{ background: C.ink }}>
+          <button type="button" onClick={() => onRate()} className="press flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium text-white" style={{ background: C.brand }}>
             <Plus size={16} /> Rate
           </button>
         </div>
@@ -1900,17 +1920,17 @@ function BottomNav({ tab, setTab, onRate }) {
           className="pointer-events-none absolute bottom-1.5 left-0 flex w-1/5 justify-center"
           style={{ transform: `translate3d(${idx * 100}%,0,0)`, opacity: idx < 0 ? 0 : 1, transition: `transform .55s ${EASE}, opacity .3s` }}
         >
-          <span className="h-1 w-1 rounded-full" style={{ background: C.ink }} />
+          <span className="h-1 w-1 rounded-full" style={{ background: C.brand }} />
         </span>
         {slots.map((s, i) =>
           s ? (
-            <button key={s.value} type="button" onClick={() => setTab(s.value)} aria-current={tab === s.value ? "page" : undefined} className="press relative flex flex-col items-center justify-center gap-1 pb-1 text-xs" style={{ color: tab === s.value ? C.ink : C.taupe }}>
+            <button key={s.value} type="button" onClick={() => setTab(s.value)} aria-current={tab === s.value ? "page" : undefined} className="press relative flex flex-col items-center justify-center gap-1 pb-1 text-xs" style={{ color: tab === s.value ? C.brand : C.taupe }}>
               <s.icon size={20} strokeWidth={tab === s.value ? 2 : 1.5} aria-hidden="true" />
               {s.label === "Leaderboard" ? "Ranks" : s.label}
             </button>
           ) : (
             <div key="rate" className="flex items-center justify-center">
-              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press -mt-6 flex h-14 w-14 items-center justify-center rounded-full text-white" style={{ background: C.ink, boxShadow: `0 10px 24px -10px rgba(42,38,35,.6), 0 0 0 4px ${C.bg}` }}>
+              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press -mt-6 flex h-14 w-14 items-center justify-center rounded-full text-white" style={{ background: C.brand, boxShadow: `0 10px 24px -10px rgba(28,30,23,.6), 0 0 0 4px ${C.bg}` }}>
                 <Plus size={24} strokeWidth={2.2} />
               </button>
             </div>
@@ -1925,7 +1945,7 @@ function Toast({ toast }) {
   if (!toast) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-auto md:top-20" role="status" aria-live="polite">
-      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-white" style={{ background: C.ink, boxShadow: "0 18px 40px -16px rgba(42,38,35,.55)" }}>
+      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-white" style={{ background: C.brand, boxShadow: "0 18px 40px -16px rgba(28,30,23,.55)" }}>
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,.12)" }}>
           <Sparkles size={17} aria-hidden="true" />
         </span>
@@ -2188,7 +2208,7 @@ export default function Samspresso() {
         <button type="button" onClick={() => setTab("profile")} className="press relative flex h-9 w-9 items-center justify-center rounded-full" style={{ background: C.stone }} aria-label={`Want to Try list, ${saved.size} saved`}>
           <Bookmark size={16} />
           {saved.size > 0 && (
-            <span key={saved.size} className="a-pop tabular absolute -right-1 -top-1 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium text-white" style={{ background: C.ink, minWidth: 20 }}>
+            <span key={saved.size} className="a-pop tabular absolute -right-1 -top-1 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium text-white" style={{ background: C.brand, minWidth: 20 }}>
               {saved.size}
             </span>
           )}
