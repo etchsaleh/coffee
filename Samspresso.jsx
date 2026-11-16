@@ -993,6 +993,208 @@ function MatchBar({ score, delay }) {
   );
 }
 
+/* ───────────────────────────── Swipe stack ───────────────────────────── */
+
+const SWIPE_OUT = 110; // px past which a release dismisses the card
+const STACK_H = 300;
+
+/** One recommendation card's contents (shared by every layer of the stack). */
+function RecCard({ r, cafe, saved, toggleSave, onOpenCafe, live }) {
+  return (
+    <article data-morph className="flex h-full flex-col rounded-3xl bg-white p-5 soft">
+      <div className="flex items-start justify-between gap-2">
+        <button
+          type="button"
+          tabIndex={live ? 0 : -1}
+          onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))}
+          className="min-w-0 flex-1 text-left"
+        >
+          <p className="truncate text-xs font-medium" style={{ color: C.taupe }}>
+            {cafe.name}
+          </p>
+          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-lg font-medium tracking-tight">
+            {r.item.name}
+            {r.item.pick && <PickBadge small />}
+          </p>
+        </button>
+        <span onPointerDown={(e) => e.stopPropagation()}>
+          <BookmarkButton saved={saved.has(r.item.id)} onToggle={() => toggleSave(r.item.id)} />
+        </span>
+      </div>
+      <div className="mt-4">{live ? <MatchBar score={r.score} delay={150} /> : <MatchBar score={r.score} delay={0} />}</div>
+      <p className="mt-4 flex-1 text-sm leading-relaxed" style={{ color: C.taupe }}>
+        {r.why}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        {r.item.flavours.slice(0, 2).map((f) => (
+          <Tag key={f}>{f.toLowerCase()}</Tag>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+/**
+ * Tinder-style deck: drag the top card left or right past a threshold to
+ * dismiss it; the cards behind rise to take its place. When the deck is
+ * empty, a Rewind button deals them all back.
+ */
+function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
+  const [index, setIndex] = useState(0);
+  const [deal, setDeal] = useState(0); // bumps on rewind to replay the deal-in
+  const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
+  const [leaving, setLeaving] = useState(0); // -1 left, 1 right, 0 none
+  const start = useRef(null);
+  const left = recs.length - index;
+
+  const dismiss = useCallback(
+    (dir) => {
+      if (leaving || index >= recs.length) return;
+      setLeaving(dir);
+      setTimeout(() => {
+        setIndex((i) => i + 1);
+        setLeaving(0);
+        setDrag({ x: 0, y: 0, active: false });
+      }, 280);
+    },
+    [leaving, index, recs.length]
+  );
+
+  const rewind = () => {
+    setIndex(0);
+    setDeal((d) => d + 1);
+  };
+
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.target.closest && e.target.closest("input,select,textarea,[role=dialog]")) return;
+      if (e.key === "ArrowLeft") dismiss(-1);
+      if (e.key === "ArrowRight") dismiss(1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [dismiss]);
+
+  const onPointerDown = (e) => {
+    if (leaving || (e.pointerType === "mouse" && e.button !== 0)) return;
+    start.current = { x: e.clientX, y: e.clientY, t: performance.now(), horiz: null, id: e.pointerId, el: e.currentTarget };
+  };
+  const onPointerMove = (e) => {
+    const s0 = start.current;
+    if (!s0) return;
+    const dx = e.clientX - s0.x;
+    const dy = e.clientY - s0.y;
+    if (s0.horiz === null) {
+      if (Math.abs(dx) + Math.abs(dy) < 6) return;
+      s0.horiz = Math.abs(dx) > Math.abs(dy);
+      if (!s0.horiz) {
+        start.current = null; // vertical: let the page scroll
+        return;
+      }
+      try {
+        s0.el.setPointerCapture(s0.id);
+      } catch (_) {}
+    }
+    setDrag({ x: dx, y: dy * 0.25, active: true });
+  };
+  const onPointerUp = (e) => {
+    const s0 = start.current;
+    start.current = null;
+    if (!s0 || !s0.horiz) return;
+    const dx = e.clientX - s0.x;
+    const v = dx / Math.max(1, performance.now() - s0.t);
+    if (Math.abs(dx) > SWIPE_OUT || Math.abs(v) > 0.6) dismiss(dx > 0 ? 1 : -1);
+    else setDrag({ x: 0, y: 0, active: false });
+  };
+  // swallow the click that ends a drag so it doesn't open the café
+  const onClickCapture = (e) => {
+    if (drag.active && Math.abs(drag.x) > 6) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+
+  const visible = recs.slice(index, index + 3);
+  const progress = clamp(Math.abs(drag.x) / SWIPE_OUT, 0, 1);
+
+  return (
+    <div className="mx-auto mt-8 max-w-md">
+      <div className="relative" style={{ height: STACK_H }}>
+        {left === 0 && (
+          <div key={`done-${deal}`} className="a-fadeup absolute inset-0 flex flex-col items-center justify-center rounded-3xl text-center" style={{ background: C.stone }}>
+            <p className="serif text-3xl">that's the lot</p>
+            <p className="mt-1 text-sm" style={{ color: C.taupe }}>
+              you've seen every match for this drink
+            </p>
+            <button
+              type="button"
+              onClick={rewind}
+              className="press relative mt-5 flex items-center gap-2 overflow-hidden rounded-full py-2.5 pl-4 pr-5 text-sm font-medium text-white"
+              style={{ background: C.brand, boxShadow: "0 10px 24px -12px rgba(62,87,0,.7)" }}
+            >
+              <RotateCcw size={16} /> Rewind
+            </button>
+          </div>
+        )}
+        {visible
+          .map((r, depth) => {
+            const cafe = cafesById[r.item.cafeId];
+            const top = depth === 0;
+            // cards behind sit lower and smaller, and rise as the top card is dragged away
+            const lift = top ? 0 : progress;
+            const d = depth - lift;
+            let transform = `translate3d(0, ${d * 14}px, 0) scale(${1 - d * 0.05})`;
+            let transition = `transform .5s ${SPRING}, opacity .3s`;
+            if (top) {
+              if (leaving) {
+                transform = `translate3d(${leaving * 520}px, ${drag.y - 30}px, 0) rotate(${leaving * 24}deg)`;
+                transition = `transform .3s cubic-bezier(.4,0,.6,1)`;
+              } else {
+                transform = `translate3d(${drag.x}px, ${drag.y}px, 0) rotate(${drag.x / 18}deg)`;
+                transition = drag.active ? "none" : `transform .55s ${SPRING}`;
+              }
+            }
+            return (
+              <div
+                key={`${r.item.id}-${deal}`}
+                className="absolute inset-0"
+                style={{ zIndex: 10 - depth, touchAction: top ? "pan-y" : "auto", pointerEvents: top ? "auto" : "none" }}
+                aria-hidden={!top}
+              >
+                <div className="a-cardup h-full" style={{ animationDelay: deal ? `${depth * 70}ms` : "0ms" }}>
+                  <div
+                    className="relative h-full select-none"
+                    style={{ transform, transition, opacity: depth > 2 ? 0 : 1, cursor: top ? (drag.active ? "grabbing" : "grab") : "default", willChange: "transform" }}
+                    onPointerDown={top ? onPointerDown : undefined}
+                    onPointerMove={top ? onPointerMove : undefined}
+                    onPointerUp={top ? onPointerUp : undefined}
+                    onPointerCancel={top ? onPointerUp : undefined}
+                    onClickCapture={top ? onClickCapture : undefined}
+                  >
+                    <RecCard r={r} cafe={cafe} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} live={top} />
+                  </div>
+                </div>
+              </div>
+            );
+          })
+          .reverse()}
+      </div>
+
+      <div className="mt-6 flex items-center justify-center gap-5" style={{ opacity: left ? 1 : 0, transition: `opacity .3s ${EASE}`, pointerEvents: left ? "auto" : "none" }}>
+        <button type="button" aria-label="Skip this match" onClick={() => dismiss(-1)} className="press flex h-12 w-12 items-center justify-center rounded-full bg-white soft" style={{ color: C.taupe }}>
+          <ArrowRight size={18} style={{ transform: "rotate(180deg)" }} />
+        </button>
+        <span className="tabular w-14 text-center text-sm" style={{ color: C.taupe }}>
+          {Math.min(index + 1, recs.length)} / {recs.length}
+        </span>
+        <button type="button" aria-label="Next match" onClick={() => dismiss(1)} className="press flex h-12 w-12 items-center justify-center rounded-full bg-white soft" style={{ color: C.taupe }}>
+          <ArrowRight size={18} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, toggleSave, onOpenCafe }) {
   const src = items.find((i) => i.id === sourceId) || items[0];
   const srcCafe = cafesById[src.cafeId];
@@ -1002,7 +1204,7 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
         .filter((i) => i.id !== src.id && i.cafeId !== src.cafeId)
         .map((i) => ({ item: i, score: matchScore(src, i), why: reasonFor(src, i) }))
         .sort((a, b) => b.score - a.score || b.item.rating - a.item.rating)
-        .slice(0, 3),
+        .slice(0, 6),
     [items, src]
   );
   const short = (name) => name.replace(/ (Coffee|Espresso Bar|Espresso|Café)$/, "");
@@ -1050,40 +1252,7 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
         you'll probably love these too.
       </p>
 
-      <div key={src.id} className="mt-8 grid gap-4 md:grid-cols-3">
-        {recs.map((r, i) => {
-          const cafe = cafesById[r.item.cafeId];
-          return (
-            <div key={r.item.id} className="a-fadeup" style={{ animationDelay: `${i * 90}ms` }}>
-              <article data-morph className="lift flex h-full flex-col rounded-3xl bg-white p-5 soft">
-                <div className="flex items-start justify-between gap-2">
-                  <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="min-w-0 flex-1 text-left">
-                    <p className="truncate text-xs font-medium" style={{ color: C.taupe }}>
-                      {cafe.name}
-                    </p>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-lg font-medium tracking-tight">
-                      {r.item.name}
-                      {r.item.pick && <PickBadge small />}
-                    </p>
-                  </button>
-                  <BookmarkButton saved={saved.has(r.item.id)} onToggle={() => toggleSave(r.item.id)} />
-                </div>
-                <div className="mt-4">
-                  <MatchBar score={r.score} delay={200 + i * 120} />
-                </div>
-                <p className="mt-4 flex-1 text-sm leading-relaxed" style={{ color: C.taupe }}>
-                  {r.why}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-1.5">
-                  {r.item.flavours.slice(0, 2).map((f) => (
-                    <Tag key={f}>{f.toLowerCase()}</Tag>
-                  ))}
-                </div>
-              </article>
-            </div>
-          );
-        })}
-      </div>
+      <SwipeStack key={src.id} recs={recs} src={src} cafesById={cafesById} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} />
     </section>
   );
 }
