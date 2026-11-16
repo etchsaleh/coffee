@@ -122,6 +122,8 @@ const CSS = `
 .sp .a-cardup{animation:spCardUp .55s ${SPRING} both}
 .sp .ov-in{animation:spFade .35s ${EASE} both}
 .sp .ov-out{animation:spFadeOut .3s ${EASE} both}
+.sp .sheet-clip{clip-path:inset(0 0 -160px 0 round 24px 24px 0 0)}
+@media (min-width:768px){.sp .sheet-clip{clip-path:inset(0 round 24px)}}
 .sp .sheet-in{animation:spSheetUp .62s cubic-bezier(.3,1.22,.52,1) both}
 .sp .sheet-out{animation:spSheetDown .32s cubic-bezier(.5,0,.75,0) both}
 @media (min-width:768px){
@@ -416,6 +418,80 @@ function useMediaQuery(q) {
   return m;
 }
 
+/** Window scroll position, throttled to one update per frame. */
+function useScrollY() {
+  const [y, setY] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const on = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setY(window.scrollY || 0);
+      });
+    };
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", on);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+  return y;
+}
+
+/** iOS-style large title: fades and settles as it scrolls under the bar. */
+function LargeTitle({ children }) {
+  const y = useScrollY();
+  const p = clamp(y / 90, 0, 1);
+  return (
+    <div style={{ opacity: 1 - p * 0.85, transform: `translate3d(0, ${p * 6}px, 0) scale(${1 - p * 0.04})`, transformOrigin: "0 100%", willChange: "transform, opacity" }}>
+      {children}
+    </div>
+  );
+}
+
+const COMPACT_TITLES = { discover: "discover", map: "the map", leaderboard: "the leaderboard", profile: "your cup log" };
+
+/** Mobile top bar: seamless at the top, then glass + hairline, with the logo
+ *  cross-fading into a compact title once the large title has scrolled away. */
+function MobileHeader({ tab, savedCount, onSaved }) {
+  const y = useScrollY();
+  const scrolled = y > 4;
+  const collapsed = y > 64 && tab !== "map";
+  return (
+    <header
+      className="sticky top-0 z-40 flex h-14 items-center justify-between px-4 md:hidden"
+      style={{
+        background: scrolled ? "rgba(248,246,242,.8)" : C.bg,
+        WebkitBackdropFilter: scrolled ? "saturate(1.6) blur(18px)" : "none",
+        backdropFilter: scrolled ? "saturate(1.6) blur(18px)" : "none",
+        boxShadow: scrolled ? `0 1px 0 ${C.line}` : "0 1px 0 transparent",
+        transition: `box-shadow .35s ${EASE}, background-color .35s ${EASE}`,
+      }}
+    >
+      <div style={{ opacity: collapsed ? 0 : 1, transform: collapsed ? "translate3d(0,-6px,0) scale(.94)" : "none", transformOrigin: "0 50%", transition: `opacity .35s ${EASE}, transform .45s ${EASE}` }}>
+        <Logo height={24} />
+      </div>
+      <p
+        aria-hidden={!collapsed}
+        className="serif pointer-events-none absolute inset-x-0 text-center text-2xl"
+        style={{ opacity: collapsed ? 1 : 0, transform: collapsed ? "none" : "translate3d(0,8px,0)", transition: `opacity .35s ${EASE}, transform .45s ${EASE}` }}
+      >
+        {COMPACT_TITLES[tab]}
+      </p>
+      <button type="button" onClick={onSaved} className="press relative flex h-9 w-9 items-center justify-center rounded-full" style={{ background: C.stone }} aria-label={`Want to Try list, ${savedCount} saved`}>
+        <Bookmark size={16} />
+        {savedCount > 0 && (
+          <span key={savedCount} className="a-pop tabular absolute -right-1 -top-1 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium text-white" style={{ background: C.brand, minWidth: 20 }}>
+            {savedCount}
+          </span>
+        )}
+      </button>
+    </header>
+  );
+}
+
 function useCountUp(target, delay = 0, dur = 1100) {
   const [v, setV] = useState(0);
   useEffect(() => {
@@ -610,6 +686,7 @@ function Tag({ children, tone = "stone" }) {
 
 function SectionTitle({ eyebrow, title, right }) {
   return (
+    <LargeTitle>
     <div className="mb-4 flex items-end justify-between gap-3">
       <div>
         {eyebrow && (
@@ -621,6 +698,7 @@ function SectionTitle({ eyebrow, title, right }) {
       </div>
       {right}
     </div>
+    </LargeTitle>
   );
 }
 
@@ -686,7 +764,7 @@ function Logo({ height = 28, colors = LOGO_COLORS }) {
 
 /* ───────────────────────────── Sheet (slide-up drawer / modal) ───────────────────────────── */
 
-function Sheet({ data, onClose, label, children, bare = false, tone = "white" }) {
+function Sheet({ data, onClose, label, children, bare = false, tone = "white", originEl = null }) {
   const open = data != null;
   const last = useRef(data);
   if (data != null) last.current = data;
@@ -695,6 +773,41 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white" })
   const [dragging, setDragging] = useState(false);
   const drag = useRef(null);
   const surface = tone === "grouped" ? C.bg : "#fff";
+  const panelRef = useRef(null);
+  const contentRef = useRef(null);
+  const morph = !!(originEl && originEl.isConnected);
+  const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Shared-element transition: the tapped card grows into the sheet and shrinks back on close.
+  const fromOrigin = () => {
+    const panel = panelRef.current;
+    if (!panel || !originEl) return null;
+    const r = panel.getBoundingClientRect();
+    const o = originEl.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    return `translate3d(${o.left - r.left}px, ${o.top - r.top}px, 0) scale(${o.width / r.width}, ${o.height / r.height})`;
+  };
+  useLayoutEffect(() => {
+    if (!morph || reduce || !render) return;
+    const panel = panelRef.current;
+    const content = contentRef.current;
+    if (!panel || !panel.animate) return;
+    const from = fromOrigin();
+    if (!from) return;
+    if (open) {
+      originEl.style.opacity = "0";
+      panel.animate([{ transform: from }, { transform: "none" }], { duration: 560, easing: "cubic-bezier(.22,1,.36,1)" });
+      content && content.animate([{ opacity: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 1 }], { duration: 560, easing: "ease-out" });
+    } else {
+      content && content.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, fill: "forwards" });
+      const anim = panel.animate([{ transform: "none" }, { transform: from }], { duration: 380, easing: "cubic-bezier(.32,.72,0,1)", fill: "forwards" });
+      anim.onfinish = () => {
+        originEl.style.transition = "opacity .2s";
+        originEl.style.opacity = "";
+      };
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, render]);
 
   useEffect(() => {
     if (open) {
@@ -702,7 +815,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white" })
       setDy(0);
       return;
     }
-    const t = setTimeout(() => setRender(false), 340);
+    const t = setTimeout(() => setRender(false), morph && !reduce ? 420 : 340);
     return () => clearTimeout(t);
   }, [open]);
 
@@ -751,7 +864,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white" })
         style={{ background: "rgba(42,38,35,.32)", opacity: open ? clamp(1 - dy / 500, 0.2, 1) : undefined, transition: dragging ? "none" : `opacity .4s ${EASE}` }}
         onClick={onClose}
       />
-      <div className={`relative w-full md:max-w-xl ${open ? "sheet-in" : "sheet-out"}`} style={{ willChange: "transform" }}>
+      <div ref={panelRef} className={`sheet-clip relative w-full md:max-w-xl ${morph && !reduce ? "" : open ? "sheet-in" : "sheet-out"}`} style={{ willChange: "transform", transformOrigin: "0 0" }}>
         <div
           className="no-scrollbar relative overflow-y-auto overflow-x-hidden rounded-t-3xl md:rounded-3xl"
           onPointerDown={onPointerDown}
@@ -768,6 +881,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white" })
             transition: dragging ? "none" : `transform .55s ${SPRING}`,
           }}
         >
+          <div ref={contentRef}>
           {!bare && (
             <>
               <div data-sheet-handle className="sticky top-0 z-10 flex justify-center pb-1 pt-2 md:hidden" style={{ background: surface, touchAction: "none" }}>
@@ -785,6 +899,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white" })
             </>
           )}
           {children(last.current)}
+          </div>
         </div>
         {/* filler below the sheet so the spring overshoot never shows a gap */}
         <div className="absolute left-0 right-0 top-full h-16 md:hidden" style={{ background: surface, transform: `translate3d(0, ${dy}px, 0)` }} />
@@ -829,9 +944,11 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
 
   return (
     <section className="relative" aria-labelledby="tm-title">
+      <LargeTitle>
       <p className="mb-4 text-sm" style={{ color: C.sage }}>
         your taste match
       </p>
+      </LargeTitle>
       <h1 id="tm-title" className="flex flex-wrap items-center gap-x-3 gap-y-3">
         <span className="serif whitespace-nowrap text-4xl leading-tight md:text-5xl">If you love the</span>
         {/* Native select for speed; styled as a pill. The visible label never wraps. */}
@@ -873,9 +990,9 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
           const cafe = cafesById[r.item.cafeId];
           return (
             <div key={r.item.id} className="a-fadeup" style={{ animationDelay: `${i * 90}ms` }}>
-              <article className="lift flex h-full flex-col rounded-3xl bg-white p-5 soft">
+              <article data-morph className="lift flex h-full flex-col rounded-3xl bg-white p-5 soft">
                 <div className="flex items-start justify-between gap-2">
-                  <button type="button" onClick={() => onOpenCafe(cafe.id)} className="min-w-0 flex-1 text-left">
+                  <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="min-w-0 flex-1 text-left">
                     <p className="truncate text-xs font-medium" style={{ color: C.taupe }}>
                       {cafe.name}
                     </p>
@@ -926,11 +1043,12 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index }) {
   return (
     <div className="a-fadeup" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
       <article
+        data-morph
         className="lift flex h-full flex-col rounded-3xl bg-white p-5 soft md:p-6"
         onMouseEnter={() => onHover && onHover(cafe.id)}
         onMouseLeave={() => onHover && onHover(null)}
       >
-        <button type="button" onClick={() => onOpen(cafe.id)} className="w-full text-left" aria-label={`Open ${cafe.name}`}>
+        <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} className="w-full text-left" aria-label={`Open ${cafe.name}`}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 className="flex items-center gap-2 truncate text-lg font-medium tracking-tight">
@@ -949,7 +1067,7 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index }) {
             const dim = drink !== "All Drinks" && !it.styles.includes(drink);
             return (
               <li key={it.id} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ background: C.bg, opacity: dim ? 0.45 : 1 }}>
-                <button type="button" onClick={() => onOpen(cafe.id)} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm">
+                <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm">
                   <span className="truncate">{it.name}</span>
                   {it.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
                 </button>
@@ -1404,7 +1522,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 function MapPreview({ cafe, onOpen, onClose }) {
   const top = cafe.items[0];
   return (
-    <div className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: "0 20px 50px -24px rgba(42,38,35,.45)" }}>
+    <div data-morph className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: "0 20px 50px -24px rgba(42,38,35,.45)" }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex flex-wrap items-center gap-2 text-base font-medium tracking-tight">
@@ -1437,7 +1555,7 @@ function MapPreview({ cafe, onOpen, onClose }) {
           <ScoreChip value={top.rating} />
         </div>
       )}
-      <button type="button" onClick={() => onOpen(cafe.id)} className="press mt-3 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium text-white" style={{ background: C.brand }}>
+      <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} className="press mt-3 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium text-white" style={{ background: C.brand }}>
         View Menu &amp; Ratings <ArrowRight size={15} />
       </button>
     </div>
@@ -1449,6 +1567,7 @@ function CafeListRow({ cafe, selected, onSelect, onHover, onOpen, index, rowRef 
   return (
     <div ref={rowRef} className="a-fadeup" style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}>
       <div
+        data-morph
         className={`tr flex items-center gap-3 rounded-3xl p-3 ${selected ? "bg-white soft" : ""}`}
         style={{ background: selected ? "#fff" : "transparent" }}
         onMouseEnter={() => onHover(cafe.id)}
@@ -1468,7 +1587,7 @@ function CafeListRow({ cafe, selected, onSelect, onHover, onOpen, index, rowRef 
             </span>
           </span>
         </button>
-        <button type="button" onClick={() => onOpen(cafe.id)} aria-label={`Open ${cafe.name} details`} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ color: C.taupe }}>
+        <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} aria-label={`Open ${cafe.name} details`} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ color: C.taupe }}>
           <ArrowRight size={15} />
         </button>
       </div>
@@ -1524,6 +1643,7 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
           return (
             <div
               key={r.id}
+              data-morph
               className="absolute inset-x-0 top-0 flex items-center gap-4 px-5 md:px-6"
               style={{ height: ROW_H, transform: `translate3d(0, ${i * ROW_H}px, 0)`, transition: `transform .8s ${EASE}` }}
             >
@@ -1531,7 +1651,7 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
               <span className="tabular relative w-6 shrink-0 text-center text-2xl font-light" style={{ color: i === 0 ? C.sage : C.taupe }}>
                 {i + 1}
               </span>
-              <button type="button" onClick={() => onOpenCafe(cafe.id)} className="relative min-w-0 flex-1 text-left">
+              <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="relative min-w-0 flex-1 text-left">
                 <span className="flex items-center gap-2">
                   <span className="truncate font-medium">{r.name}</span>
                   {r.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
@@ -1563,10 +1683,12 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
   return (
     <div className="space-y-6">
       <section>
-        <p className="text-sm" style={{ color: C.sage }}>
-          your cup log
-        </p>
-        <h1 className="serif mt-1 whitespace-nowrap text-4xl md:text-5xl">sip, rate, repeat.</h1>
+        <LargeTitle>
+          <p className="text-sm" style={{ color: C.sage }}>
+            your cup log
+          </p>
+          <h1 className="serif mt-1 whitespace-nowrap text-4xl md:text-5xl">sip, rate, repeat.</h1>
+        </LargeTitle>
         <dl className="mt-6 grid grid-cols-3 gap-3">
           {stats.map((s) => (
             <div key={s.label} className="rounded-3xl bg-white px-4 py-4 soft">
@@ -1597,7 +1719,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
           (history.length ? (
             history.map((h, i) => (
               <div key={h.id} className="a-fadeup" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
-                <button type="button" onClick={() => cafesById[h.cafeId] && onOpenCafe(h.cafeId)} className="lift flex w-full items-center gap-4 rounded-3xl bg-white p-4 text-left soft">
+                <button type="button" data-morph onClick={(e) => cafesById[h.cafeId] && onOpenCafe(h.cafeId, e.currentTarget)} className="lift flex w-full items-center gap-4 rounded-3xl bg-white p-4 text-left soft">
                   <span className="tabular flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-light" style={{ background: C.stone }}>
                     {f1(h.rating)}
                   </span>
@@ -1631,8 +1753,8 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
               const cafe = cafesById[it.cafeId];
               return (
                 <div key={it.id} className="a-fadeup" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
-                  <div className="lift flex items-center gap-3 rounded-3xl bg-white p-4 soft">
-                    <button type="button" onClick={() => onOpenCafe(cafe.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                  <div data-morph className="lift flex items-center gap-3 rounded-3xl bg-white p-4 soft">
+                    <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ background: C.stone }}>
                         <Coffee size={20} strokeWidth={1.7} aria-hidden="true" />
                       </span>
@@ -1947,48 +2069,48 @@ function RateForm({ cafes, items, initialCafeId, onSubmit, onCancel }) {
           />
         </FormSection>
 
-        <FormSection
-          title="your rating"
-          aside={
-            <span key={ratingWord(rating)} className="a-fade text-sm" style={{ color: C.matcha }}>
-              {ratingWord(rating).toLowerCase()}
-            </span>
-          }
-        >
-          <div className="px-1 pt-1">
+        <section>
+          <h3 className="mb-2 px-1 text-sm" style={{ color: C.taupe }}>
+            your rating
+          </h3>
+          {/* The original rating card: big popping number, word, large stars, slider with scale */}
+          <div className="rounded-3xl p-5" style={{ background: C.stone }}>
             <div className="flex items-end justify-between">
-              <p className="tabular leading-none">
-                <span key={f1(rating)} className="a-tick inline-block text-5xl font-light tracking-tight">
+              <div>
+                <span key={f1(rating)} className="a-pop tabular inline-block text-6xl font-light leading-none tracking-tight">
                   {f1(rating)}
                 </span>
                 <span className="ml-1 text-sm" style={{ color: C.taupe }}>
-                  / 5
+                  / 5.0
                 </span>
-              </p>
-              <div className="flex gap-1" role="group" aria-label="Tap a star">
-                {[1, 2, 3, 4, 5].map((n) => {
-                  const fill = clamp(rating - (n - 1), 0, 1);
-                  return (
-                    <button
-                      key={n}
-                      type="button"
-                      aria-label={`${n} star${n > 1 ? "s" : ""}`}
-                      onClick={() => {
-                        setRating(n);
-                        setStarPop((p) => ({ n, k: p.k + 1 }));
-                      }}
-                      className="press relative h-8 w-8"
-                    >
-                      <span key={starPop.n === n ? starPop.k : 0} className={`absolute inset-0 ${starPop.n === n && starPop.k ? "a-pop" : ""}`}>
-                        <Star size={26} strokeWidth={1.3} color={C.line} fill={C.stone} className="absolute inset-0 m-auto" />
-                        <span className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - fill * 100}% 0 0)`, transition: `clip-path .45s ${EASE}` }}>
-                          <Star size={26} strokeWidth={1.3} color={C.brand} fill={C.brand} className="absolute inset-0 m-auto" />
-                        </span>
-                      </span>
-                    </button>
-                  );
-                })}
               </div>
+              <span key={ratingWord(rating)} className="a-fade pb-1 text-base" style={{ color: C.taupe }}>
+                {ratingWord(rating)}
+              </span>
+            </div>
+            <div className="mt-5 flex gap-2" role="group" aria-label="Tap a star">
+              {[1, 2, 3, 4, 5].map((n) => {
+                const fill = clamp(rating - (n - 1), 0, 1);
+                return (
+                  <button
+                    key={n}
+                    type="button"
+                    aria-label={`${n} star${n > 1 ? "s" : ""}`}
+                    onClick={() => {
+                      setRating(n);
+                      setStarPop((p) => ({ n, k: p.k + 1 }));
+                    }}
+                    className="press relative h-10 w-10"
+                  >
+                    <span key={starPop.n === n ? starPop.k : 0} className={`absolute inset-0 ${starPop.n === n && starPop.k ? "a-pop" : ""}`}>
+                      <Star size={34} strokeWidth={1.2} color={C.line} fill={C.bg} className="absolute inset-0 m-auto" />
+                      <span className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - fill * 100}% 0 0)`, transition: `clip-path .45s ${EASE}` }}>
+                        <Star size={34} strokeWidth={1.2} color={C.brand} fill={C.brand} className="absolute inset-0 m-auto" />
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
             </div>
             <input
               id="rate-slider"
@@ -1999,11 +2121,16 @@ function RateForm({ cafes, items, initialCafeId, onSubmit, onCancel }) {
               value={rating}
               aria-label="Rating from 1.0 to 5.0"
               onChange={(e) => setRating(parseFloat(e.target.value))}
-              className="sp-range mb-1 mt-6 w-full"
-              style={{ background: `linear-gradient(to right, ${C.brand} ${pct}%, ${C.stone} ${pct}%)` }}
+              className="sp-range mt-6 w-full"
+              style={{ background: `linear-gradient(to right, ${C.brand} ${pct}%, ${C.line} ${pct}%)` }}
             />
+            <div className="tabular mt-2 flex justify-between text-xs" style={{ color: C.taupe }}>
+              <span>1.0</span>
+              <span>3.0</span>
+              <span>5.0</span>
+            </div>
           </div>
-        </FormSection>
+        </section>
 
         <FormSection title="tasting notes" aside={notes.length ? <span className="a-fade text-sm" style={{ color: C.taupe }}>{notes.length} selected</span> : null}>
           <div className="flex flex-wrap gap-2">
@@ -2193,7 +2320,11 @@ export default function Samspresso() {
     });
   }, []);
 
-  const openCafe = useCallback((id) => setDetailId(id), []);
+  const [detailOrigin, setDetailOrigin] = useState(null);
+  const openCafe = useCallback((id, el) => {
+    setDetailOrigin(el || null);
+    setDetailId(id);
+  }, []);
   const closeDetail = useCallback(() => setDetailId(null), []);
   const openRate = useCallback((cafeId) => {
     setDetailId(null);
@@ -2364,17 +2495,7 @@ export default function Samspresso() {
     <div className="sp min-h-screen">
       <style>{CSS}</style>
       <TopNav tab={tab} setTab={setTab} onRate={openRate} savedCount={saved.size} />
-      <header className="glass sticky top-0 z-40 flex h-14 items-center justify-between border-b px-4 md:hidden" style={{ borderColor: C.line }}>
-        <Logo height={24} />
-        <button type="button" onClick={() => setTab("profile")} className="press relative flex h-9 w-9 items-center justify-center rounded-full" style={{ background: C.stone }} aria-label={`Want to Try list, ${saved.size} saved`}>
-          <Bookmark size={16} />
-          {saved.size > 0 && (
-            <span key={saved.size} className="a-pop tabular absolute -right-1 -top-1 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium text-white" style={{ background: C.brand, minWidth: 20 }}>
-              {saved.size}
-            </span>
-          )}
-        </button>
-      </header>
+      <MobileHeader tab={tab} savedCount={saved.size} onSaved={() => setTab("profile")} />
 
       <main className={`mx-auto max-w-5xl px-4 md:px-6 ${tab === "map" ? "pt-4 md:py-8 pb-0 md:pb-8" : "pb-28 pt-4 md:py-8"}`}>
         <div key={tab} className="a-fadeup">
@@ -2387,7 +2508,7 @@ export default function Samspresso() {
 
       <BottomNav tab={tab} setTab={setTab} onRate={openRate} />
 
-      <Sheet data={detailCafe} onClose={closeDetail} label="Café details">
+      <Sheet data={detailCafe} onClose={closeDetail} label="Café details" originEl={detailOrigin}>
         {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} />}
       </Sheet>
 
