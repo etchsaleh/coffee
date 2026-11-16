@@ -2487,13 +2487,13 @@ const APPLE_TOUCH_ICON = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0
 function useAppIcon() {
   useEffect(() => {
     try {
+      // Only fill in what the host page hasn't already declared (a hosted
+      // index.html ships real icon files, which iOS handles best).
       const link = (rel, href, attrs = {}) => {
-        let el = document.head.querySelector(`link[rel="${rel}"]`);
-        if (!el) {
-          el = document.createElement("link");
-          el.rel = rel;
-          document.head.appendChild(el);
-        }
+        if (document.head.querySelector(`link[rel="${rel}"]`)) return;
+        const el = document.createElement("link");
+        el.rel = rel;
+        document.head.appendChild(el);
         el.href = href;
         Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
       };
