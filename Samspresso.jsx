@@ -73,7 +73,7 @@ const CSS = `
 .sp{font-family:"Manrope","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:${C.ink};background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
 .sp .serif{font-family:"Instrument Serif",ui-serif,Georgia,serif;font-style:italic;font-weight:400;letter-spacing:-.01em}
 .sp .soft{box-shadow:0 1px 2px rgba(42,38,35,.03),0 14px 36px -24px rgba(42,38,35,.22)}
-.sp{overflow-x:hidden;overflow-x:clip;max-width:100vw}
+.sp{overflow-x:clip;max-width:100vw}
 .sp *{box-sizing:border-box}
 .sp fieldset{min-width:0;margin:0;padding:0;border:0}
 .sp button{font:inherit;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -108,7 +108,6 @@ const CSS = `
 @keyframes spDraw{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
 @keyframes spTick{0%{opacity:.4;transform:translate3d(0,6px,0)}100%{opacity:1;transform:none}}
 @keyframes spShine{0%{transform:translate3d(-120%,0,0)}60%,100%{transform:translate3d(220%,0,0)}}
-@keyframes spFloatUp{0%{opacity:0;transform:translate3d(0,6px,0) scale(.7)}25%{opacity:1;transform:translate3d(0,-6px,0) scale(1)}100%{opacity:0;transform:translate3d(0,-30px,0) scale(1)}}
 @keyframes spNope{0%{transform:rotate(0) scale(1)}45%{transform:rotate(90deg) scale(.8)}100%{transform:rotate(90deg) scale(1)}}
 @keyframes spTrailR{0%{opacity:0;transform:translate3d(-30%,0,0) scaleX(.6)}35%{opacity:1}100%{opacity:0;transform:translate3d(25%,0,0) scaleX(1.1)}}
 @keyframes spTrailL{0%{opacity:0;transform:translate3d(30%,0,0) scaleX(.6)}35%{opacity:1}100%{opacity:0;transform:translate3d(-25%,0,0) scaleX(1.1)}}
@@ -125,7 +124,6 @@ const CSS = `
 .sp .a-draw{stroke-dasharray:24;animation:spDraw .55s ${EASE} .25s both}
 .sp .a-tick{animation:spTick .3s ${EASE} both}
 .sp .a-shine::after{content:"";position:absolute;inset:0;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);animation:spShine 3.6s ${EASE} 1s infinite}
-.sp .a-floatup{animation:spFloatUp .9s ${EASE} both}
 .sp .a-nope{animation:spNope .45s ${SPRING} both}
 .sp .a-trail-r{transform-origin:100% 50%;animation:spTrailR .7s ${EASE} both}
 .sp .a-trail-l{transform-origin:0 50%;animation:spTrailL .7s ${EASE} both}
@@ -490,17 +488,20 @@ function useScrollY() {
   const [y, setY] = useState(0);
   useEffect(() => {
     let raf = 0;
+    const read = () =>
+      Math.max(window.scrollY || 0, (document.scrollingElement && document.scrollingElement.scrollTop) || 0, document.documentElement.scrollTop || 0, document.body.scrollTop || 0);
     const on = () => {
       if (raf) return;
       raf = requestAnimationFrame(() => {
         raf = 0;
-        setY(window.scrollY || 0);
+        setY(read());
       });
     };
     on();
-    window.addEventListener("scroll", on, { passive: true });
+    // capture: also hears scrolls of body/html when iOS makes them the scroller
+    document.addEventListener("scroll", on, { passive: true, capture: true });
     return () => {
-      window.removeEventListener("scroll", on);
+      document.removeEventListener("scroll", on, { capture: true });
       cancelAnimationFrame(raf);
     };
   }, []);
@@ -1054,6 +1055,13 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   const [savedPop, setSavedPop] = useState(0);
   const [skipPop, setSkipPop] = useState(0);
   const [trail, setTrail] = useState({ dir: 0, n: 0 });
+  const [justSaved, setJustSaved] = useState(false);
+  useEffect(() => {
+    if (!savedPop) return;
+    setJustSaved(true);
+    const t = setTimeout(() => setJustSaved(false), 900);
+    return () => clearTimeout(t);
+  }, [savedPop]);
   const [index, setIndex] = useState(0);
   const [deal, setDeal] = useState(0); // bumps on rewind to replay the deal-in
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
@@ -1066,8 +1074,8 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
       if (leaving || index >= recs.length) return;
       // swipe right = like: save it to Want to Try (never un-saves)
       const r = recs[index];
-      if (dir > 0 && r && !saved.has(r.item.id)) {
-        toggleSave(r.item.id);
+      if (dir > 0 && r) {
+        if (!saved.has(r.item.id)) toggleSave(r.item.id);
         setSavedPop((n) => n + 1);
       }
       if (dir < 0) setSkipPop((n) => n + 1);
@@ -1262,14 +1270,9 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
           <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: "0 10px 22px -12px rgba(62,87,0,.7)" }}>
             <Gloss />
             <span key={savedPop} className={`relative inline-flex ${savedPop ? "a-pop" : ""}`}>
-              <Bookmark size={18} />
+              <Bookmark size={18} fill={justSaved ? "#fff" : "none"} style={{ transition: `fill .25s ${EASE}` }} />
             </span>
           </button>
-          {savedPop > 0 && (
-            <span key={`fly-${savedPop}`} aria-hidden="true" className="a-floatup pointer-events-none absolute -top-2 left-1/2 flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: C.brandSoft, color: C.brand, marginLeft: -22 }}>
-              <Bookmark size={11} fill={C.brand} /> +1
-            </span>
-          )}
         </span>
       </div>
     </div>
