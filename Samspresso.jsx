@@ -1040,6 +1040,7 @@ function RecCard({ r, cafe, saved, toggleSave, onOpenCafe, live }) {
  * empty, a Rewind button deals them all back.
  */
 function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
+  const [savedPop, setSavedPop] = useState(0);
   const [index, setIndex] = useState(0);
   const [deal, setDeal] = useState(0); // bumps on rewind to replay the deal-in
   const [drag, setDrag] = useState({ x: 0, y: 0, active: false });
@@ -1050,6 +1051,12 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   const dismiss = useCallback(
     (dir) => {
       if (leaving || index >= recs.length) return;
+      // swipe right = like: save it to Want to Try (never un-saves)
+      const r = recs[index];
+      if (dir > 0 && r && !saved.has(r.item.id)) {
+        toggleSave(r.item.id);
+        setSavedPop((n) => n + 1);
+      }
       setLeaving(dir);
       setTimeout(() => {
         setIndex((i) => i + 1);
@@ -1057,7 +1064,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
         setDrag({ x: 0, y: 0, active: false });
       }, 280);
     },
-    [leaving, index, recs.length]
+    [leaving, index, recs.length, recs, saved, toggleSave]
   );
 
   const rewind = () => {
@@ -1172,6 +1179,24 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
                     onClickCapture={top ? onClickCapture : undefined}
                   >
                     <RecCard r={r} cafe={cafe} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} live={top} />
+                    {top && (
+                      <>
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute left-5 top-5 flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium text-white"
+                          style={{ background: C.brand, opacity: leaving > 0 ? 1 : drag.x > 0 ? progress : 0, transform: `rotate(-8deg) scale(${0.85 + 0.15 * (leaving > 0 ? 1 : drag.x > 0 ? progress : 0)})` }}
+                        >
+                          <Bookmark size={14} fill="#fff" /> want to try
+                        </span>
+                        <span
+                          aria-hidden="true"
+                          className="pointer-events-none absolute right-5 top-5 rounded-full px-3 py-1.5 text-sm font-medium"
+                          style={{ background: C.stone, color: C.taupe, opacity: leaving < 0 ? 1 : drag.x < 0 ? progress : 0, transform: `rotate(8deg) scale(${0.85 + 0.15 * (leaving < 0 ? 1 : drag.x < 0 ? progress : 0)})` }}
+                        >
+                          skip
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1182,13 +1207,16 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
 
       <div className="mt-6 flex items-center justify-center gap-5" style={{ opacity: left ? 1 : 0, transition: `opacity .3s ${EASE}`, pointerEvents: left ? "auto" : "none" }}>
         <button type="button" aria-label="Skip this match" onClick={() => dismiss(-1)} className="press flex h-12 w-12 items-center justify-center rounded-full bg-white soft" style={{ color: C.taupe }}>
-          <ArrowRight size={18} style={{ transform: "rotate(180deg)" }} />
+          <X size={18} />
         </button>
         <span className="tabular w-14 text-center text-sm" style={{ color: C.taupe }}>
           {Math.min(index + 1, recs.length)} / {recs.length}
         </span>
-        <button type="button" aria-label="Next match" onClick={() => dismiss(1)} className="press flex h-12 w-12 items-center justify-center rounded-full bg-white soft" style={{ color: C.taupe }}>
-          <ArrowRight size={18} />
+        <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: "0 10px 22px -12px rgba(62,87,0,.7)" }}>
+          <Gloss />
+          <span key={savedPop} className={`relative inline-flex ${savedPop ? "a-pop" : ""}`}>
+            <Bookmark size={18} />
+          </span>
         </button>
       </div>
     </div>
