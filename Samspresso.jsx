@@ -33,23 +33,27 @@ import {
 /* ───────────────────────────── Design tokens ───────────────────────────── */
 
 const C = {
-  bg: "#FAF9F6",
+  // milk, oat, latte, matcha
+  bg: "#F8F6F2",
   card: "#FFFFFF",
-  line: "#EBE8E2",
-  stone: "#F2EFE9",
-  ink: "#1E1C1A",
-  taupe: "#736E67",
-  clay: "#B87D56",
-  sage: "#5E7A6B",
-  land: "#F4F1EA",
-  river: "#E3E8EA",
-  park: "#E8EDE9",
+  line: "#EEEAE4",
+  stone: "#F1EDE7",
+  ink: "#2A2623",
+  taupe: "#8D867E",
+  clay: "#C49A74",
+  sage: "#7A8B5A",
+  land: "#F4F1EB",
+  river: "#E4E9E8",
+  park: "#E5EBDC",
 };
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 
 const CSS = `
-.sp{font-family:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:${C.ink};background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;font-feature-settings:"cv11","ss01";}
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap");
+.sp{font-family:"Manrope","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:${C.ink};background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
+.sp .serif{font-family:"Instrument Serif",ui-serif,Georgia,serif;font-style:italic;font-weight:400;letter-spacing:-.01em}
+.sp .soft{box-shadow:0 1px 2px rgba(42,38,35,.03),0 14px 36px -24px rgba(42,38,35,.22)}
 .sp *{box-sizing:border-box}
 .sp fieldset{min-width:0;margin:0;padding:0;border:0}
 .sp button{font:inherit;cursor:pointer}
@@ -58,10 +62,10 @@ const CSS = `
 .sp .press{transition:transform .28s ${EASE},background-color .35s ${EASE},color .35s ${EASE},box-shadow .35s ${EASE},border-color .35s ${EASE},opacity .35s ${EASE}}
 .sp .press:active{transform:scale(.95)}
 .sp .lift{transition:transform .45s ${EASE},box-shadow .45s ${EASE},border-color .45s ${EASE}}
-@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 18px 40px -22px rgba(30,28,26,.28);border-color:#E0DCD4}}
+@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 2px 4px rgba(42,38,35,.03),0 22px 44px -24px rgba(42,38,35,.28)}}
 .sp .glass{background:rgba(250,249,246,.74);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
 .sp .glass-white{background:rgba(255,255,255,.78);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px)}
-.sp .hair{border:1px solid ${C.line}}
+.sp .hair{box-shadow:0 1px 2px rgba(42,38,35,.03),0 12px 32px -22px rgba(42,38,35,.2)}
 .sp .no-scrollbar::-webkit-scrollbar{display:none}.sp .no-scrollbar{scrollbar-width:none}
 .sp :focus{outline:none}
 .sp :focus-visible{outline:2px solid ${C.ink};outline-offset:2px}
@@ -101,9 +105,9 @@ const CSS = `
 }
 
 .sp .sp-range{-webkit-appearance:none;appearance:none;height:6px;border-radius:999px;outline:none}
-.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(30,28,26,.35);transition:transform .3s ${SPRING};cursor:grab}
+.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(42,38,35,.35);transition:transform .3s ${SPRING};cursor:grab}
 .sp .sp-range:active::-webkit-slider-thumb{transform:scale(1.15);cursor:grabbing}
-.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(30,28,26,.35)}
+.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(42,38,35,.35)}
 .sp .sp-range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px ${C.ink}}
 
 @media (prefers-reduced-motion:reduce){
@@ -113,7 +117,7 @@ const CSS = `
 
 /* ───────────────────────────── Mock database ───────────────────────────── */
 
-const AREAS = ["All London", "Soho", "Shoreditch", "Borough", "Fitzrovia", "City", "Bloomsbury"];
+const AREAS = ["All London", "Soho", "Marylebone", "Fitzrovia", "Bloomsbury", "Shoreditch", "City", "Borough", "Victoria", "South Ken"];
 const DRINKS = ["All Drinks", "Flat White", "Matcha", "Pour Over", "Oat Milk", "Pastries"];
 const NOTE_CHIPS = ["Silky", "Fruity", "Chocolatey", "Great Oat Milk", "Nutty", "Bright", "Caramel", "Floral", "Balanced", "Bold"];
 const AREA_POS = {
@@ -123,6 +127,9 @@ const AREA_POS = {
   Fitzrovia: [418, 298],
   City: [760, 368],
   Bloomsbury: [508, 258],
+  Marylebone: [262, 300],
+  Victoria: [372, 690],
+  "South Ken": [128, 712],
 };
 
 // Map units: 1000 × 700, roughly Hyde Park (W) → Shoreditch (E), Regent's Park (N) → Borough (S).
@@ -220,6 +227,45 @@ const SEED_CAFES = [
     x: 472,
     y: 271,
   },
+  {
+    id: "monocle",
+    name: "Monocle Café",
+    hood: "Chiltern Street · Marylebone",
+    areas: ["Marylebone"],
+    tube: "Baker Street",
+    walk: 5,
+    price: "££",
+    vibes: ["Tiny & Chic", "Pavement Seats", "Magazine Rack"],
+    blurb: "The magazine's tiny café on Chiltern Street: a neat flat white, Japanese-Scandi bakes and a stack of reading.",
+    x: 276,
+    y: 257,
+  },
+  {
+    id: "hagen",
+    name: "Hagen Espresso Bar",
+    hood: "Old Brompton Road · South Ken",
+    areas: ["South Ken"],
+    tube: "South Kensington",
+    walk: 2,
+    price: "££",
+    vibes: ["Danish Hygge", "Al Fresco", "Post-Pilates"],
+    blurb: "Copenhagen-inspired espresso bar at the top of Old Brompton Road. Made for a post-reformer iced oat latte.",
+    x: 124,
+    y: 726,
+  },
+  {
+    id: "commonbreads",
+    name: "Common Breads",
+    hood: "Victoria",
+    areas: ["Victoria"],
+    tube: "Victoria",
+    walk: 4,
+    price: "£",
+    vibes: ["Bakery", "Grab & Go", "Sourdough"],
+    blurb: "A bakery-café with a cult iced latte. Creamy, lightly sweet and dangerously easy to drink.",
+    x: 380,
+    y: 690,
+  },
 ];
 
 // p = taste profile: [body, sweetness, brightness, milk, roast/cocoa, cold, pastry]
@@ -240,6 +286,11 @@ const SEED_ITEMS = [
   { id: "ka-cold", cafeId: "kaffeine", name: "Cold Brew", rating: 4.6, count: 21, styles: [], flavours: ["Chocolatey", "Smooth", "Low Acidity"], p: [0.6, 0.5, 0.15, 0, 0.7, 1, 0] },
   { id: "ss-iced", cafeId: "storestreet", name: "Iced Latte", rating: 4.6, count: 34, styles: [], flavours: ["Creamy", "Refreshing", "Mellow"], p: [0.45, 0.55, 0.25, 0.85, 0.5, 1, 0] },
   { id: "ss-mocha", cafeId: "storestreet", name: "Mocha", rating: 4.5, count: 26, styles: [], flavours: ["Chocolatey", "Rich", "Indulgent"], p: [0.8, 0.85, 0.15, 0.85, 0.85, 0, 0] },
+  { id: "mo-fw", cafeId: "monocle", name: "Flat White", rating: 4.6, count: 31, styles: ["Flat White"], flavours: ["Nutty", "Smooth", "Balanced"], p: [0.7, 0.55, 0.3, 0.8, 0.6, 0, 0] },
+  { id: "mo-bun", cafeId: "monocle", name: "Cinnamon Bun", rating: 4.5, count: 19, styles: ["Pastries"], flavours: ["Spiced", "Buttery", "Soft"], p: [0.55, 0.85, 0.1, 0.2, 0.35, 0, 1] },
+  { id: "hg-iced", cafeId: "hagen", name: "Iced Oat Latte", rating: 4.7, count: 28, styles: ["Oat Milk"], flavours: ["Oat-Friendly", "Creamy", "Refreshing"], p: [0.45, 0.6, 0.25, 0.85, 0.5, 1, 0] },
+  { id: "hg-fw", cafeId: "hagen", name: "Flat White", rating: 4.6, count: 33, styles: ["Flat White"], flavours: ["Velvety Microfoam", "Caramel", "Balanced"], p: [0.7, 0.6, 0.3, 0.8, 0.6, 0, 0] },
+  { id: "cb-iced", cafeId: "commonbreads", name: "Iced Latte", rating: 4.8, count: 24, pick: true, styles: [], flavours: ["Creamy", "Caramel", "Refreshing"], p: [0.5, 0.6, 0.25, 0.85, 0.55, 1, 0] },
 ];
 
 const DAY = 86400000;
@@ -409,7 +460,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
       role="group"
       aria-label={label}
       className={`relative ${full ? "flex w-full" : "inline-flex"} items-center gap-0.5 rounded-full p-1 ${glass && !scroll ? "glass-white hair" : ""}`}
-      style={scroll ? undefined : glass ? { boxShadow: "0 6px 20px -12px rgba(30,28,26,.25)" } : { background: C.stone }}
+      style={scroll ? undefined : glass ? { boxShadow: "0 6px 20px -12px rgba(42,38,35,.25)" } : { background: C.stone }}
     >
       <span
         aria-hidden="true"
@@ -419,7 +470,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
           transform: `translate3d(${ind.x}px,0,0)`,
           opacity: ind.ready ? 1 : 0,
           background: ink ? C.ink : "#fff",
-          boxShadow: ink ? "0 4px 12px -6px rgba(30,28,26,.5)" : "0 1px 2px rgba(30,28,26,.08), 0 0 0 1px rgba(30,28,26,.04)",
+          boxShadow: ink ? "0 4px 12px -6px rgba(42,38,35,.5)" : "0 1px 2px rgba(42,38,35,.08), 0 0 0 1px rgba(42,38,35,.04)",
           transition: `transform .55s ${EASE}, width .55s ${EASE}, opacity .3s`,
           willChange: "transform",
         }}
@@ -451,7 +502,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
     <div
       ref={scrollRef}
       className={`no-scrollbar max-w-full overflow-x-auto rounded-full ${glass ? "glass-white hair" : ""}`}
-      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: "0 6px 20px -12px rgba(30,28,26,.25)" } : { background: C.stone }) }}
+      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: "0 6px 20px -12px rgba(42,38,35,.25)" } : { background: C.stone }) }}
     >
       {track}
     </div>
@@ -483,7 +534,7 @@ function BookmarkButton({ saved, onToggle, size = 17, className = "" }) {
 function ScoreChip({ value, digits = 1, strong = false }) {
   return (
     <span
-      className="tabular inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+      className="tabular inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
       style={{ background: strong ? C.ink : C.stone, color: strong ? "#fff" : C.ink }}
     >
       {value.toFixed(digits)}
@@ -496,9 +547,9 @@ function PickBadge({ small = false }) {
   return (
     <span
       className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full font-medium ${small ? "px-1.5 py-0.5 text-xs" : "px-2 py-0.5 text-xs"}`}
-      style={{ background: "rgba(184,125,86,.12)", color: C.clay }}
+      style={{ background: "rgba(196,154,116,.12)", color: C.clay }}
     >
-      Samia's Pick ✨
+      samia's pick ✦
     </span>
   );
 }
@@ -506,7 +557,7 @@ function PickBadge({ small = false }) {
 function Tag({ children, tone = "stone" }) {
   const tones = {
     stone: { background: C.stone, color: C.taupe },
-    sage: { background: "rgba(94,122,107,.12)", color: C.sage },
+    sage: { background: "rgba(122,139,90,.13)", color: C.sage },
     outline: { background: "#fff", color: C.taupe, boxShadow: `inset 0 0 0 1px ${C.line}` },
   };
   return (
@@ -521,11 +572,11 @@ function SectionTitle({ eyebrow, title, right }) {
     <div className="mb-4 flex items-end justify-between gap-3">
       <div>
         {eyebrow && (
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest" style={{ color: C.taupe }}>
+          <p className="mb-1 text-sm" style={{ color: C.taupe }}>
             {eyebrow}
           </p>
         )}
-        <h2 className="text-xl font-semibold tracking-tight md:text-2xl">{title}</h2>
+        <h2 className="text-xl font-medium tracking-tight md:text-2xl">{title}</h2>
       </div>
       {right}
     </div>
@@ -556,11 +607,11 @@ const LOGO_GLYPHS = [
  * glossy highlight on every letter.
  */
 const LOGO_COLORS = {
-  sam: "#B98A64",
-  sFrom: "#B98A64",
-  sTo: "#4A2F1E",
-  presso: "#4A2F1E",
-  shine: "#FBF3EA",
+  sam: "#CDAA88",
+  sFrom: "#CDAA88",
+  sTo: "#5A4434",
+  presso: "#5A4434",
+  shine: "#FFFBF5",
 };
 
 function Logo({ height = 28, colors = LOGO_COLORS }) {
@@ -624,14 +675,14 @@ function Sheet({ data, onClose, label, children }) {
   if (!render || last.current == null) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal="true" aria-label={label}>
-      <div className={`absolute inset-0 ${open ? "ov-in" : "ov-out"}`} style={{ background: "rgba(30,28,26,.32)" }} onClick={onClose} />
+      <div className={`absolute inset-0 ${open ? "ov-in" : "ov-out"}`} style={{ background: "rgba(42,38,35,.32)" }} onClick={onClose} />
       <div
         className={`relative w-full md:max-w-xl ${open ? "sheet-in" : "sheet-out"}`}
         style={{ willChange: "transform" }}
       >
         <div
           className="no-scrollbar relative overflow-y-auto overflow-x-hidden rounded-t-3xl bg-white md:rounded-3xl"
-          style={{ maxHeight: "90vh", overscrollBehavior: "contain", boxShadow: "0 -10px 40px -20px rgba(30,28,26,.35)", paddingBottom: "env(safe-area-inset-bottom)" }}
+          style={{ maxHeight: "90vh", overscrollBehavior: "contain", boxShadow: "0 -10px 40px -20px rgba(42,38,35,.35)", paddingBottom: "env(safe-area-inset-bottom)" }}
         >
           <div className="sticky top-0 z-10 flex justify-center bg-white pt-2.5 md:hidden">
             <span className="h-1 w-10 rounded-full" style={{ background: C.line }} />
@@ -661,17 +712,10 @@ function MatchBar({ score, delay }) {
   const high = score >= 90;
   return (
     <div>
-      <div className="mb-1.5 flex items-center justify-between text-xs">
-        <span className="tabular font-semibold" style={{ color: high ? C.sage : C.ink }}>
-          {shown}% Taste Match
-        </span>
-        {high && (
-          <span className="rounded-full px-2 py-0.5 font-medium" style={{ background: "rgba(94,122,107,.12)", color: C.sage }}>
-            High match
-          </span>
-        )}
-      </div>
-      <div className="h-1.5 overflow-hidden rounded-full" style={{ background: C.stone }}>
+      <p className="tabular mb-2 text-xs font-medium" style={{ color: high ? C.sage : C.taupe }}>
+        {shown}% match
+      </p>
+      <div className="h-1 overflow-hidden rounded-full" style={{ background: C.stone }}>
         <div
           className="a-grow h-full w-full rounded-full"
           style={{ transform: `scaleX(${score / 100})`, transformOrigin: "0 50%", background: high ? C.sage : C.ink, animationDelay: `${delay}ms` }}
@@ -696,22 +740,17 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
   const short = (name) => name.replace(/ Coffee| Espresso/g, "");
 
   return (
-    <section className="relative overflow-hidden rounded-3xl bg-white p-5 hair md:p-8" aria-labelledby="tm-title">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full"
-        style={{ background: "radial-gradient(closest-side, rgba(184,125,86,.10), transparent)" }}
-      />
-      <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest" style={{ color: C.taupe }}>
-        <Sparkles size={13} aria-hidden="true" /> Taste-Match Engine
+    <section className="relative" aria-labelledby="tm-title">
+      <p className="mb-4 text-sm" style={{ color: C.sage }}>
+        your taste match
       </p>
-      <h1 id="tm-title" className="text-2xl font-semibold leading-snug tracking-tight md:text-4xl md:leading-tight">
-        If you love the{" "}
-        <span className="focus-within-ring mr-1 relative inline-flex items-center gap-1 rounded-xl px-2 py-0.5 align-baseline" style={{ background: C.stone }}>
+      <h1 id="tm-title" className="text-3xl font-light leading-tight tracking-tight md:text-5xl md:leading-tight">
+        <span className="serif">If you love the</span>{" "}
+        <span className="focus-within-ring relative mr-1 mt-1 inline-flex items-center gap-1.5 rounded-full px-4 py-1 align-baseline text-2xl font-normal soft md:mt-0 md:text-5xl" style={{ background: "#fff" }}>
           <span>
             {src.name} <span style={{ color: C.taupe }}>at {short(srcCafe ? srcCafe.name : "")}</span>
           </span>
-          <ChevronDown size={20} strokeWidth={2.2} aria-hidden="true" />
+          <ChevronDown size={18} strokeWidth={1.6} aria-hidden="true" />
           <select
             aria-label="Choose a drink you love"
             value={src.id}
@@ -733,46 +772,38 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
         </span>
         <span aria-hidden="true" className="hidden md:inline">…</span>
       </h1>
-      <p className="mt-2 text-sm md:text-base" style={{ color: C.taupe }}>
-        …you'll probably love these across London.
+      <p className="mt-3 text-sm md:text-base" style={{ color: C.taupe }}>
+        you'll probably love these too.
       </p>
 
-      <div key={src.id} className="mt-6 grid gap-3 md:grid-cols-3">
+      <div key={src.id} className="mt-8 grid gap-4 md:grid-cols-3">
         {recs.map((r, i) => {
           const cafe = cafesById[r.item.cafeId];
           return (
             <div key={r.item.id} className="a-fadeup" style={{ animationDelay: `${i * 90}ms` }}>
-              <article className="lift flex h-full flex-col rounded-2xl p-4 hair" style={{ background: C.bg }}>
+              <article className="lift flex h-full flex-col rounded-3xl bg-white p-5 soft">
                 <div className="flex items-start justify-between gap-2">
                   <button type="button" onClick={() => onOpenCafe(cafe.id)} className="min-w-0 flex-1 text-left">
                     <p className="truncate text-xs font-medium" style={{ color: C.taupe }}>
                       {cafe.name}
                     </p>
-                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 font-semibold">
+                    <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-lg font-medium tracking-tight">
                       {r.item.name}
                       {r.item.pick && <PickBadge small />}
                     </p>
                   </button>
                   <BookmarkButton saved={saved.has(r.item.id)} onToggle={() => toggleSave(r.item.id)} />
                 </div>
-                <div className="mt-3">
+                <div className="mt-4">
                   <MatchBar score={r.score} delay={200 + i * 120} />
                 </div>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {r.item.flavours.map((f) => (
-                    <Tag key={f} tone={src.flavours.includes(f) ? "sage" : "outline"}>
-                      {f}
-                    </Tag>
-                  ))}
-                </div>
-                <p className="mt-3 flex-1 text-sm leading-relaxed" style={{ color: C.taupe }}>
+                <p className="mt-4 flex-1 text-sm leading-relaxed" style={{ color: C.taupe }}>
                   {r.why}
                 </p>
-                <div className="mt-3 flex items-center justify-between text-xs" style={{ color: C.taupe }}>
-                  <span className="flex items-center gap-1">
-                    <TrainFront size={13} aria-hidden="true" /> {cafe.tube}
-                  </span>
-                  <ScoreChip value={r.item.rating} />
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  {r.item.flavours.slice(0, 2).map((f) => (
+                    <Tag key={f}>{f.toLowerCase()}</Tag>
+                  ))}
                 </div>
               </article>
             </div>
@@ -788,8 +819,8 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
 function Filters({ area, setArea, drink, setDrink, compact = false, glass = false }) {
   return (
     <div className={compact ? "space-y-2" : "space-y-3"}>
-      <Segmented label="Filter by neighbourhood" options={AREAS} value={area} onChange={setArea} variant="ink" size={compact ? "sm" : "md"} scroll glass={glass} />
-      <Segmented label="Filter by drink style" options={DRINKS} value={drink} onChange={setDrink} variant="ink" size={compact ? "sm" : "md"} scroll glass={glass} />
+      <Segmented label="Filter by neighbourhood" options={AREAS} value={area} onChange={setArea} size={compact ? "sm" : "md"} scroll glass={glass} />
+      <Segmented label="Filter by drink style" options={DRINKS} value={drink} onChange={setDrink} size={compact ? "sm" : "md"} scroll glass={glass} />
     </div>
   );
 }
@@ -798,54 +829,39 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index }) {
   const shown = useMemo(() => {
     const list = [...cafe.items];
     if (drink !== "All Drinks") list.sort((a, b) => b.styles.includes(drink) - a.styles.includes(drink));
-    return list.slice(0, 3);
+    return list.slice(0, 2);
   }, [cafe.items, drink]);
   return (
     <div className="a-fadeup" style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}>
       <article
-        className="lift flex h-full flex-col rounded-3xl bg-white p-4 hair md:p-5"
+        className="lift flex h-full flex-col rounded-3xl bg-white p-5 soft md:p-6"
         onMouseEnter={() => onHover && onHover(cafe.id)}
         onMouseLeave={() => onHover && onHover(null)}
       >
         <button type="button" onClick={() => onOpen(cafe.id)} className="w-full text-left" aria-label={`Open ${cafe.name}`}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="truncate text-lg font-semibold tracking-tight">{cafe.name}</h3>
+              <h3 className="flex items-center gap-2 truncate text-lg font-medium tracking-tight">
+                {cafe.name}
+                {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
+              </h3>
               <p className="truncate text-sm" style={{ color: C.taupe }}>
-                {cafe.hood}
+                {cafe.areas[0].toLowerCase()} · {cafe.tube}
               </p>
             </div>
-            <div className="shrink-0 text-right">
-              <p className="tabular text-2xl font-semibold leading-none tracking-tight">{f1(cafe.avg)}</p>
-              <p className="mt-1 text-xs" style={{ color: C.taupe }}>
-                avg score
-              </p>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: C.taupe }}>
-            <span className="flex items-center gap-1">
-              <TrainFront size={13} aria-hidden="true" /> {cafe.tube}
-            </span>
-            <span aria-label={`Price ${cafe.price.length} of 2`}>{cafe.price}</span>
-            <span>{cafe.total} ratings</span>
-            {cafe.pick && <PickBadge small />}
-          </div>
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {cafe.vibes.slice(0, 3).map((v) => (
-              <Tag key={v}>{v}</Tag>
-            ))}
+            <p className="tabular shrink-0 text-2xl font-light leading-none tracking-tight">{f1(cafe.avg)}</p>
           </div>
         </button>
-        <ul className="mt-4 border-t" style={{ borderColor: C.line }}>
+        <ul className="mt-5 space-y-1">
           {shown.map((it) => {
             const dim = drink !== "All Drinks" && !it.styles.includes(drink);
             return (
-              <li key={it.id} className="tr flex items-center gap-2 border-b py-1.5 last:border-b-0" style={{ borderColor: C.line, opacity: dim ? 0.45 : 1 }}>
-                <button type="button" onClick={() => onOpen(cafe.id)} className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 py-1 text-left text-sm">
-                  <span className="font-medium">{it.name}</span>
-                  {it.pick && <PickBadge small />}
+              <li key={it.id} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ background: C.bg, opacity: dim ? 0.45 : 1 }}>
+                <button type="button" onClick={() => onOpen(cafe.id)} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm">
+                  <span className="truncate">{it.name}</span>
+                  {it.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
                 </button>
-                <ScoreChip value={it.rating} />
+                <span className="tabular text-sm" style={{ color: C.taupe }}>{f1(it.rating)}</span>
                 <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
               </li>
             );
@@ -860,7 +876,7 @@ function EmptyState({ onReset }) {
   return (
     <div className="a-fadeup rounded-3xl p-10 text-center hair" style={{ background: "#fff" }}>
       <Coffee size={28} className="mx-auto" color={C.taupe} aria-hidden="true" />
-      <p className="mt-3 font-semibold">No cafés match that combo yet</p>
+      <p className="mt-3 font-medium">No cafés match that combo yet</p>
       <p className="mt-1 text-sm" style={{ color: C.taupe }}>
         Try another neighbourhood or drink style.
       </p>
@@ -874,7 +890,7 @@ function EmptyState({ onReset }) {
 /* ───────────────────────────── London map ───────────────────────────── */
 
 const W = 1000;
-const H = 700;
+const H = 780; // extends south to cover Victoria & South Ken
 
 const TUBE_STATIONS = [
   ["Oxford Circus", 388, 350],
@@ -895,6 +911,9 @@ const TUBE_STATIONS = [
   ["Piccadilly Circus", 448, 437],
   ["Warren St", 412, 180],
   ["Old St", 820, 166],
+  ["Baker St", 263, 215],
+  ["Victoria", 362, 674],
+  ["South Kensington", 130, 716],
 ];
 
 const TUBE_LINES = [
@@ -930,7 +949,9 @@ const HOODS = [
   ["BOROUGH", 740, 625],
   ["BERMONDSEY", 930, 660],
   ["MAYFAIR", 320, 450],
-  ["MARYLEBONE", 300, 300],
+  ["MARYLEBONE", 232, 330],
+  ["VICTORIA", 440, 712],
+  ["SOUTH KEN", 170, 680],
   ["CLERKENWELL", 700, 190],
   ["SOUTH BANK", 620, 545],
 ];
@@ -1038,8 +1059,8 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
   );
 
   const homeView = useCallback(() => {
-    const k = Math.min(size.w / 600, size.h / 540);
-    return clampView({ k, x: size.w / 2 - 640 * k, y: size.h * 0.56 - 385 * k });
+    const k = Math.min(size.w / 640, size.h / 600);
+    return clampView({ k, x: size.w / 2 - 560 * k, y: size.h * 0.56 - 430 * k });
   }, [size.w, size.h, clampView]);
 
   useEffect(() => {
@@ -1211,11 +1232,11 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                         <span aria-hidden="true" className="a-pulse absolute inset-x-0 top-0 h-8 rounded-full" style={{ boxShadow: `0 0 0 2px ${C.clay}` }} />
                       )}
                       <span
-                        className="tabular relative flex h-8 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-sm font-semibold"
+                        className="tabular relative flex h-8 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-sm font-medium"
                         style={{
                           background: isSel ? C.ink : "#fff",
                           color: isSel ? "#fff" : C.ink,
-                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.clay : isSel || isHov ? C.ink : C.line}, 0 6px 16px -6px rgba(30,28,26,.35)`,
+                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.clay : isSel || isHov ? C.ink : C.line}, 0 6px 16px -6px rgba(42,38,35,.35)`,
                           transition: `background-color .35s ${EASE}, color .35s ${EASE}, box-shadow .35s ${EASE}`,
                         }}
                       >
@@ -1228,7 +1249,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                         style={{ background: isSel ? C.ink : "#fff", boxShadow: c.pick ? `1.5px 1.5px 0 0.5px ${C.clay}` : `1px 1px 0 0 ${C.line}` }}
                       />
                       <span
-                        className="pointer-events-none absolute top-full mt-1 whitespace-nowrap rounded-md px-1.5 text-xs font-semibold"
+                        className="pointer-events-none absolute top-full mt-1 whitespace-nowrap rounded-md px-1.5 text-xs font-medium"
                         style={{
                           color: C.ink,
                           background: "rgba(250,249,246,.85)",
@@ -1250,7 +1271,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 
       {overlay && <div className="absolute inset-x-0 top-0 z-20 p-3">{overlay}</div>}
 
-      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: "0 8px 24px -14px rgba(30,28,26,.35)" }}>
+      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: "0 8px 24px -14px rgba(42,38,35,.35)" }}>
         <button type="button" aria-label="Zoom in" className="press flex h-10 w-10 items-center justify-center" onClick={() => zoomAt(center().x, center().y, 1.45)}>
           <Plus size={17} />
         </button>
@@ -1291,10 +1312,10 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 function MapPreview({ cafe, onOpen, onClose }) {
   const top = cafe.items[0];
   return (
-    <div className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: "0 20px 50px -24px rgba(30,28,26,.45)" }}>
+    <div className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: "0 20px 50px -24px rgba(42,38,35,.45)" }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="flex flex-wrap items-center gap-2 text-base font-semibold tracking-tight">
+          <p className="flex flex-wrap items-center gap-2 text-base font-medium tracking-tight">
             {cafe.name} {cafe.pick && <PickBadge small />}
           </p>
           <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: C.taupe }}>
@@ -1319,12 +1340,12 @@ function MapPreview({ cafe, onOpen, onClose }) {
             <p className="text-xs" style={{ color: C.taupe }}>
               Top-rated here
             </p>
-            <p className="truncate text-sm font-semibold">{top.name}</p>
+            <p className="truncate text-sm font-medium">{top.name}</p>
           </div>
           <ScoreChip value={top.rating} />
         </div>
       )}
-      <button type="button" onClick={() => onOpen(cafe.id)} className="press mt-3 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold text-white" style={{ background: C.ink }}>
+      <button type="button" onClick={() => onOpen(cafe.id)} className="press mt-3 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium text-white" style={{ background: C.ink }}>
         View Menu &amp; Ratings <ArrowRight size={15} />
       </button>
     </div>
@@ -1336,26 +1357,26 @@ function CafeListRow({ cafe, selected, onSelect, onHover, onOpen, index, rowRef 
   return (
     <div ref={rowRef} className="a-fadeup" style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}>
       <div
-        className="tr flex items-center gap-3 rounded-2xl bg-white p-3"
-        style={{ boxShadow: `0 0 0 ${selected ? 1.5 : 1}px ${selected ? C.ink : C.line}` }}
+        className={`tr flex items-center gap-3 rounded-3xl p-3 ${selected ? "bg-white soft" : ""}`}
+        style={{ background: selected ? "#fff" : "transparent" }}
         onMouseEnter={() => onHover(cafe.id)}
         onMouseLeave={() => onHover(null)}
       >
         <button type="button" onClick={() => onSelect(cafe.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Show ${cafe.name} on map`}>
-          <span className="tabular flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-xl text-sm font-semibold" style={{ background: selected ? C.ink : C.stone, color: selected ? "#fff" : C.ink }}>
+          <span className="tabular flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-full text-sm font-light" style={{ background: selected ? C.ink : "#fff", color: selected ? "#fff" : C.ink }}>
             {f1(cafe.avg)}
           </span>
           <span className="min-w-0">
             <span className="flex items-center gap-1.5">
-              <span className="truncate font-semibold">{cafe.name}</span>
-              {cafe.pick && <span aria-label="Samia's Pick">✨</span>}
+              <span className="truncate font-medium">{cafe.name}</span>
+              {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
             </span>
             <span className="block truncate text-xs" style={{ color: C.taupe }}>
-              {cafe.tube} · {cafe.price} · {top ? `${top.name} ${f1(top.rating)}` : "No ratings yet"}
+              {cafe.areas[0].toLowerCase()} · {top ? top.name.toLowerCase() : "no ratings yet"}
             </span>
           </span>
         </button>
-        <button type="button" onClick={() => onOpen(cafe.id)} aria-label={`Open ${cafe.name} details`} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: C.stone }}>
+        <button type="button" onClick={() => onOpen(cafe.id)} aria-label={`Open ${cafe.name} details`} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ color: C.taupe }}>
           <ArrowRight size={15} />
         </button>
       </div>
@@ -1382,32 +1403,27 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
   }, [rankedItems]);
 
   const rows = tab === "cafes" ? rankedCafes : rankedItems;
-  const maxScore = 5;
 
   return (
     <div>
       <SectionTitle
-        eyebrow="Community rankings"
-        title="London Leaderboard"
-        right={
-          <span className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: "rgba(94,122,107,.12)", color: C.sage }}>
-            <span className="a-dot h-1.5 w-1.5 rounded-full" style={{ background: C.sage }} /> Live
-          </span>
-        }
+        eyebrow="live from the community"
+        title={<span className="serif text-3xl md:text-4xl">the leaderboard</span>}
+        right={<span className="a-dot mb-2 h-2 w-2 rounded-full" style={{ background: C.sage }} aria-label="Live" />}
       />
       <div className="mb-4">
         <Segmented
           label="Leaderboard type"
           full
           options={[
-            { value: "cafes", label: "Top London Cafés", icon: Store },
-            { value: "drinks", label: "Top Specific Drinks", icon: Coffee },
+            { value: "cafes", label: "Cafés" },
+            { value: "drinks", label: "Drinks" },
           ]}
           value={tab}
           onChange={setTab}
         />
       </div>
-      <div key={tab} className="a-fade relative overflow-hidden rounded-3xl bg-white hair" style={{ height: rows.length * ROW_H }}>
+      <div key={tab} className="a-fade relative overflow-hidden rounded-3xl bg-white soft" style={{ height: rows.length * ROW_H }}>
         {rows.map((r, i) => {
           const isCafe = tab === "cafes";
           const score = isCafe ? r.avg : r.rating;
@@ -1416,49 +1432,23 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
           return (
             <div
               key={r.id}
-              className="absolute inset-x-0 top-0 flex items-center gap-3 px-4 md:px-5"
-              style={{ height: ROW_H, transform: `translate3d(0, ${i * ROW_H}px, 0)`, transition: `transform .8s ${EASE}`, borderBottom: i < rows.length - 1 ? `1px solid ${C.line}` : "none" }}
+              className="absolute inset-x-0 top-0 flex items-center gap-4 px-5 md:px-6"
+              style={{ height: ROW_H, transform: `translate3d(0, ${i * ROW_H}px, 0)`, transition: `transform .8s ${EASE}` }}
             >
-              {flashing && <span key={flash.t} aria-hidden="true" className="a-flash pointer-events-none absolute inset-0" style={{ background: "rgba(184,125,86,.12)" }} />}
-              <span
-                className="tabular relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
-                style={i < 3 ? { background: i === 0 ? C.ink : C.stone, color: i === 0 ? "#fff" : C.ink } : { color: C.taupe }}
-              >
+              {flashing && <span key={flash.t} aria-hidden="true" className="a-flash pointer-events-none absolute inset-0" style={{ background: "rgba(196,154,116,.14)" }} />}
+              <span className="tabular relative w-6 shrink-0 text-center text-2xl font-light" style={{ color: i === 0 ? C.sage : C.taupe }}>
                 {i + 1}
               </span>
               <button type="button" onClick={() => onOpenCafe(cafe.id)} className="relative min-w-0 flex-1 text-left">
                 <span className="flex items-center gap-2">
-                  <span className="truncate font-semibold">{r.name}</span>
-                  {!isCafe && bestOf[r.id] && (
-                    <span className="hidden whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium sm:inline-flex" style={{ background: "rgba(94,122,107,.12)", color: C.sage }}>
-                      {bestOf[r.id]}
-                    </span>
-                  )}
-                  {r.pick && <span aria-label="Samia's Pick">✨</span>}
+                  <span className="truncate font-medium">{r.name}</span>
+                  {r.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
                 </span>
-                <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs" style={{ color: C.taupe }}>
-                  {!isCafe && <span className="truncate font-medium" style={{ color: C.ink }}>{cafe.name}</span>}
-                  {!isCafe && <span>·</span>}
-                  <TrainFront size={12} className="shrink-0" aria-hidden="true" />
-                  <span className="truncate">{cafe.tube}</span>
-                  <span>·</span>
-                  <span>{cafe.price}</span>
+                <span className="mt-0.5 block truncate text-sm" style={{ color: !isCafe && bestOf[r.id] ? C.sage : C.taupe }}>
+                  {isCafe ? `${r.areas[0].toLowerCase()} · ${r.total} ratings` : bestOf[r.id] ? `${cafe.name} · ${bestOf[r.id].toLowerCase()}` : cafe.name}
                 </span>
-                {!isCafe && bestOf[r.id] && (
-                  <span className="mt-1 inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium sm:hidden" style={{ background: "rgba(94,122,107,.12)", color: C.sage }}>
-                    {bestOf[r.id]}
-                  </span>
-                )}
               </button>
-              <div className="relative w-20 shrink-0 text-right md:w-28">
-                <p className="tabular text-lg font-semibold leading-none">{f2(score)}</p>
-                <div className="ml-auto mt-1.5 h-1 w-full overflow-hidden rounded-full" style={{ background: C.stone }}>
-                  <div className="h-full w-full rounded-full" style={{ background: C.ink, transform: `scaleX(${clamp((score - 4) / (maxScore - 4), 0.05, 1)})`, transformOrigin: "0 50%", transition: `transform .8s ${EASE}` }} />
-                </div>
-                <p className="tabular mt-1 text-xs" style={{ color: C.taupe }}>
-                  {isCafe ? r.total : r.count} ratings
-                </p>
-              </div>
+              <p className="tabular relative shrink-0 text-lg font-light">{f2(score)}</p>
               {!isCafe && <BookmarkButton saved={saved.has(r.id)} onToggle={() => toggleSave(r.id)} />}
             </div>
           );
@@ -1477,32 +1467,23 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
     { label: "Ratings", value: history.length },
     { label: "Want to Try", value: savedItems.length },
     { label: "Cafés tried", value: new Set(history.map((h) => h.cafeId)).size },
-    { label: "Avg given", value: history.length ? f1(avg(history.map((h) => h.rating))) : "–" },
   ];
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-3xl bg-white p-5 hair md:p-8">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full" style={{ background: "radial-gradient(closest-side, rgba(94,122,107,.10), transparent)" }} />
-        <div className="flex items-center gap-4">
-          <span className="flex h-16 w-16 items-center justify-center rounded-3xl" style={{ background: C.stone }}>
-            <User size={28} strokeWidth={1.6} aria-hidden="true" />
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.taupe }}>
-              Coffee Passport
-            </p>
-            <h1 className="text-2xl font-semibold tracking-tight">Your London Cup Log</h1>
-          </div>
-        </div>
-        <dl className="mt-6 grid grid-cols-2 gap-2 md:grid-cols-4">
+      <section>
+        <p className="text-sm" style={{ color: C.sage }}>
+          your cup log
+        </p>
+        <h1 className="serif mt-1 text-4xl md:text-5xl">sip, rate, repeat.</h1>
+        <dl className="mt-6 grid grid-cols-3 gap-3">
           {stats.map((s) => (
-            <div key={s.label} className="rounded-2xl px-4 py-3" style={{ background: C.bg }}>
-              <dt className="text-xs" style={{ color: C.taupe }}>
-                {s.label}
-              </dt>
-              <dd key={String(s.value)} className="a-pop tabular mt-0.5 inline-block text-2xl font-semibold tracking-tight">
+            <div key={s.label} className="rounded-3xl bg-white px-4 py-4 soft">
+              <dd key={String(s.value)} className="a-pop tabular inline-block text-3xl font-light tracking-tight">
                 {s.value}
               </dd>
+              <dt className="mt-1 text-xs" style={{ color: C.taupe }}>
+                {s.label.toLowerCase()}
+              </dt>
             </div>
           ))}
         </dl>
@@ -1524,19 +1505,19 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
           (history.length ? (
             history.map((h, i) => (
               <div key={h.id} className="a-fadeup" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
-                <button type="button" onClick={() => cafesById[h.cafeId] && onOpenCafe(h.cafeId)} className="lift flex w-full items-center gap-3 rounded-2xl bg-white p-4 text-left hair">
-                  <span className="tabular flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-base font-semibold" style={{ background: C.stone }}>
+                <button type="button" onClick={() => cafesById[h.cafeId] && onOpenCafe(h.cafeId)} className="lift flex w-full items-center gap-4 rounded-3xl bg-white p-4 text-left soft">
+                  <span className="tabular flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-light" style={{ background: C.stone }}>
                     {f1(h.rating)}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-semibold">{h.name}</span>
+                    <span className="block truncate font-medium">{h.name}</span>
                     <span className="block truncate text-xs" style={{ color: C.taupe }}>
                       {h.cafeName} · {timeAgo(h.ts)}
                     </span>
                     {h.notes.length > 0 && (
                       <span className="mt-2 flex flex-wrap gap-1">
                         {h.notes.map((n) => (
-                          <Tag key={n}>{n}</Tag>
+                          <Tag key={n}>{n.toLowerCase()}</Tag>
                         ))}
                       </span>
                     )}
@@ -1546,7 +1527,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
             ))
           ) : (
             <div className="a-fadeup rounded-3xl bg-white p-8 text-center hair">
-              <p className="font-semibold">No ratings yet</p>
+              <p className="font-medium">No ratings yet</p>
               <button type="button" onClick={onRate} className="press mt-3 rounded-full px-4 py-2 text-sm font-medium text-white" style={{ background: C.ink }}>
                 Rate your first cup
               </button>
@@ -1558,14 +1539,14 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
               const cafe = cafesById[it.cafeId];
               return (
                 <div key={it.id} className="a-fadeup" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
-                  <div className="lift flex items-center gap-3 rounded-2xl bg-white p-4 hair">
+                  <div className="lift flex items-center gap-3 rounded-3xl bg-white p-4 soft">
                     <button type="button" onClick={() => onOpenCafe(cafe.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                       <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ background: C.stone }}>
                         <Coffee size={20} strokeWidth={1.7} aria-hidden="true" />
                       </span>
                       <span className="min-w-0">
                         <span className="flex items-center gap-2">
-                          <span className="truncate font-semibold">{it.name}</span>
+                          <span className="truncate font-medium">{it.name}</span>
                           {it.pick && <PickBadge small />}
                         </span>
                         <span className="block truncate text-xs" style={{ color: C.taupe }}>
@@ -1582,7 +1563,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
           ) : (
             <div className="a-fadeup rounded-3xl bg-white p-8 text-center hair">
               <Bookmark size={24} className="mx-auto" color={C.taupe} aria-hidden="true" />
-              <p className="mt-3 font-semibold">Your Want to Try list is empty</p>
+              <p className="mt-3 font-medium">Your Want to Try list is empty</p>
               <p className="mt-1 text-sm" style={{ color: C.taupe }}>
                 Tap the bookmark on any drink to save it here.
               </p>
@@ -1598,34 +1579,18 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
 function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap }) {
   return (
     <div className="px-5 pb-6 pt-3 md:px-8 md:pt-8">
-      <p className="flex items-center gap-1.5 pr-12 text-xs font-semibold uppercase tracking-widest" style={{ color: C.taupe }}>
+      <p className="flex items-center gap-1.5 pr-12 text-sm" style={{ color: C.taupe }}>
         <MapPin size={13} aria-hidden="true" /> {cafe.hood}
       </p>
       <div className="mt-2 flex items-start justify-between gap-4">
-        <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{cafe.name}</h2>
+        <h2 className="text-2xl font-medium tracking-tight md:text-3xl">{cafe.name}</h2>
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <div className="rounded-2xl px-3 py-3" style={{ background: C.bg }}>
-          <p className="text-xs" style={{ color: C.taupe }}>
-            Avg score
-          </p>
-          <p className="tabular mt-0.5 flex items-center gap-1 text-xl font-semibold">
-            {f2(cafe.avg)} <Star size={14} strokeWidth={0} fill={C.ink} aria-hidden="true" />
-          </p>
-        </div>
-        <div className="rounded-2xl px-3 py-3" style={{ background: C.bg }}>
-          <p className="text-xs" style={{ color: C.taupe }}>
-            London rank
-          </p>
-          <p className="tabular mt-0.5 text-xl font-semibold">{rank ? `#${rank}` : "New"}</p>
-        </div>
-        <div className="rounded-2xl px-3 py-3" style={{ background: C.bg }}>
-          <p className="text-xs" style={{ color: C.taupe }}>
-            Ratings
-          </p>
-          <p className="tabular mt-0.5 text-xl font-semibold">{cafe.total}</p>
-        </div>
-      </div>
+      <p className="tabular mt-3 flex items-baseline gap-3">
+        <span className="text-4xl font-light tracking-tight">{f2(cafe.avg)}</span>
+        <span className="text-sm" style={{ color: C.taupe }}>
+          {rank ? `#${rank} in london` : "new"} · {cafe.total} ratings
+        </span>
+      </p>
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm" style={{ color: C.taupe }}>
         <span className="flex items-center gap-1.5">
           <TrainFront size={15} aria-hidden="true" /> {cafe.tube}
@@ -1641,30 +1606,25 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap }) {
       {cafe.blurb && <p className="mt-4 text-sm leading-relaxed">{cafe.blurb}</p>}
       <div className="mt-4 flex flex-wrap gap-1.5">
         {cafe.vibes.map((v) => (
-          <Tag key={v} tone="outline">
-            {v}
-          </Tag>
+          <Tag key={v}>{v.toLowerCase()}</Tag>
         ))}
       </div>
 
-      <h3 className="mb-2 mt-7 text-xs font-semibold uppercase tracking-widest" style={{ color: C.taupe }}>
+      <h3 className="mb-2 mt-7 text-sm" style={{ color: C.taupe }}>
         Menu &amp; Ratings
       </h3>
       <ul className="space-y-2">
         {cafe.items.map((it, i) => (
-          <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl p-3 hair" style={{ animationDelay: `${120 + i * 60}ms` }}>
-            <span className="tabular w-5 text-center text-sm font-semibold" style={{ color: C.taupe }}>
-              {i + 1}
-            </span>
+          <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-1" style={{ background: C.bg, animationDelay: `${120 + i * 60}ms` }}>
             <div className="min-w-0 flex-1">
-              <p className="flex flex-wrap items-center gap-2 font-semibold">
+              <p className="flex flex-wrap items-center gap-2 font-medium">
                 {it.name} {it.pick && <PickBadge small />}
               </p>
-              <p className="mt-1 truncate text-xs" style={{ color: C.taupe }}>
-                {it.flavours.join(" · ")} · {it.count} ratings
+              <p className="mt-0.5 truncate text-xs" style={{ color: C.taupe }}>
+                {it.flavours.slice(0, 2).join(", ").toLowerCase()}
               </p>
             </div>
-            <ScoreChip value={it.rating} digits={2} />
+            <span className="tabular text-base font-light">{f2(it.rating)}</span>
             <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
           </li>
         ))}
@@ -1675,11 +1635,11 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap }) {
         )}
       </ul>
       <div className="mt-6 flex gap-2">
-        <button type="button" onClick={() => onRate(cafe.id)} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold text-white" style={{ background: C.ink }}>
+        <button type="button" onClick={() => onRate(cafe.id)} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-sm font-medium text-white" style={{ background: C.ink }}>
           <Plus size={16} /> Rate an item here
         </button>
         {cafe.x != null && (
-          <button type="button" onClick={() => onShowMap(cafe.id)} className="press flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-semibold" style={{ background: C.stone }}>
+          <button type="button" onClick={() => onShowMap(cafe.id)} className="press flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium" style={{ background: C.stone }}>
             <MapIcon size={16} /> Map
           </button>
         )}
@@ -1721,13 +1681,13 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
         if (valid) onSubmit({ cafeId, newCafe, itemName, rating: Math.round(rating * 10) / 10, notes });
       }}
     >
-      <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.taupe }}>
+      <p className="text-sm" style={{ color: C.taupe }}>
         New rating
       </p>
-      <h2 className="mt-1 pr-12 text-2xl font-semibold tracking-tight">What did you sip?</h2>
+      <h2 className="mt-1 pr-12 text-2xl font-medium tracking-tight">What did you sip?</h2>
 
       <fieldset className="mt-6">
-        <legend className="mb-2 text-sm font-semibold">Café</legend>
+        <legend className="mb-2 text-sm font-medium">Café</legend>
         <Segmented
           label="Choose a café"
           variant="ink"
@@ -1769,7 +1729,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
       </fieldset>
 
       <fieldset className="mt-6">
-        <legend className="mb-2 text-sm font-semibold">Menu item</legend>
+        <legend className="mb-2 text-sm font-medium">Menu item</legend>
         {cafeItems.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-1.5">
             {cafeItems.map((it) => {
@@ -1794,11 +1754,11 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
       </fieldset>
 
       <fieldset className="mt-6">
-        <legend className="mb-2 text-sm font-semibold">Your rating</legend>
+        <legend className="mb-2 text-sm font-medium">Your rating</legend>
         <div className="rounded-3xl p-4" style={{ background: C.bg }}>
           <div className="flex items-end justify-between">
             <div>
-              <span key={f1(rating)} className="a-pop tabular inline-block text-5xl font-semibold leading-none tracking-tight">
+              <span key={f1(rating)} className="a-pop tabular inline-block text-5xl font-medium leading-none tracking-tight">
                 {f1(rating)}
               </span>
               <span className="ml-1 text-sm" style={{ color: C.taupe }}>
@@ -1842,7 +1802,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
       </fieldset>
 
       <fieldset className="mt-6">
-        <legend className="mb-2 text-sm font-semibold">Tasting notes</legend>
+        <legend className="mb-2 text-sm font-medium">Tasting notes</legend>
         <div className="flex flex-wrap gap-1.5">
           {NOTE_CHIPS.map((n) => {
             const on = notes.includes(n);
@@ -1866,7 +1826,7 @@ function RateForm({ cafes, items, initialCafeId, onSubmit }) {
       <button
         type="submit"
         disabled={!valid}
-        className="press mt-7 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-semibold text-white"
+        className="press mt-7 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-medium text-white"
         style={{ background: C.ink, opacity: valid ? 1 : 0.35, cursor: valid ? "pointer" : "not-allowed" }}
       >
         Submit rating <ArrowRight size={16} />
@@ -1898,12 +1858,12 @@ function TopNav({ tab, setTab, onRate, savedCount }) {
           <button type="button" onClick={() => setTab("profile")} className="press relative flex h-10 w-10 items-center justify-center rounded-full" style={{ background: C.stone }} aria-label={`Want to Try list, ${savedCount} saved`}>
             <Bookmark size={17} />
             {savedCount > 0 && (
-              <span key={savedCount} className="a-pop tabular absolute -right-0.5 -top-0.5 flex h-5 items-center justify-center rounded-full px-1 text-xs font-semibold text-white" style={{ background: C.ink, minWidth: 20 }}>
+              <span key={savedCount} className="a-pop tabular absolute -right-0.5 -top-0.5 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium text-white" style={{ background: C.ink, minWidth: 20 }}>
                 {savedCount}
               </span>
             )}
           </button>
-          <button type="button" onClick={() => onRate()} className="press flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold text-white" style={{ background: C.ink }}>
+          <button type="button" onClick={() => onRate()} className="press flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium text-white" style={{ background: C.ink }}>
             <Plus size={16} /> Rate
           </button>
         </div>
@@ -1929,7 +1889,7 @@ function BottomNav({ tab, setTab, onRate }) {
             </button>
           ) : (
             <div key="rate" className="flex items-center justify-center">
-              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press -mt-6 flex h-14 w-14 items-center justify-center rounded-full text-white" style={{ background: C.ink, boxShadow: "0 10px 24px -10px rgba(30,28,26,.6), 0 0 0 4px #FAF9F6" }}>
+              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press -mt-6 flex h-14 w-14 items-center justify-center rounded-full text-white" style={{ background: C.ink, boxShadow: "0 10px 24px -10px rgba(42,38,35,.6), 0 0 0 4px #FAF9F6" }}>
                 <Plus size={24} strokeWidth={2.2} />
               </button>
             </div>
@@ -1944,12 +1904,12 @@ function Toast({ toast }) {
   if (!toast) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-auto md:top-20" role="status" aria-live="polite">
-      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-white" style={{ background: C.ink, boxShadow: "0 18px 40px -16px rgba(30,28,26,.55)" }}>
+      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-white" style={{ background: C.ink, boxShadow: "0 18px 40px -16px rgba(42,38,35,.55)" }}>
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,.12)" }}>
           <Sparkles size={17} aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <p className="text-sm font-semibold">{toast.title}</p>
+          <p className="text-sm font-medium">{toast.title}</p>
           <p className="truncate text-xs" style={{ color: "rgba(255,255,255,.7)" }}>
             {toast.sub}
           </p>
@@ -2120,11 +2080,11 @@ export default function Samspresso() {
       <section aria-labelledby="explore-title">
         <div className="mb-4 flex items-end justify-between gap-3">
           <div>
-            <p className="mb-1 text-xs font-semibold uppercase tracking-widest" style={{ color: C.taupe }}>
-              Explore
+            <p className="mb-1 text-sm" style={{ color: C.taupe }}>
+              explore
             </p>
-            <h2 id="explore-title" className="text-xl font-semibold tracking-tight md:text-2xl">
-              {area === "All London" ? "Specialty coffee across London" : `Best of ${area}`}
+            <h2 id="explore-title" className="text-xl font-medium tracking-tight md:text-2xl">
+              <span className="serif text-3xl md:text-4xl">{area === "All London" ? "your london coffee edit" : `the ${area.toLowerCase()} edit`}</span>
             </h2>
             <p className="tabular mt-1 text-sm" style={{ color: C.taupe }}>
               {filtered.length} café{filtered.length === 1 ? "" : "s"}
@@ -2165,10 +2125,10 @@ export default function Samspresso() {
     <div className="grid gap-4" style={{ gridTemplateColumns: "340px 1fr", height: "calc(100vh - 64px - 64px)", minHeight: 520 }}>
       <aside className="flex min-h-0 flex-col" aria-label="Café list">
         <div className="mb-3">
-          <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: C.taupe }}>
-            Map view
+          <p className="text-sm" style={{ color: C.sage }}>
+            {filtered.length} cafés
           </p>
-          <h1 className="text-xl font-semibold tracking-tight">{filtered.length} cafés on the map</h1>
+          <h1 className="serif text-3xl">the map</h1>
         </div>
         <div key={`${area}|${drink}`} className="no-scrollbar -mx-1 min-h-0 flex-1 space-y-2 overflow-y-auto px-1 pb-2 pt-1">
           {filtered.map((c, i) => (
@@ -2207,7 +2167,7 @@ export default function Samspresso() {
         <button type="button" onClick={() => setTab("profile")} className="press relative flex h-9 w-9 items-center justify-center rounded-full" style={{ background: C.stone }} aria-label={`Want to Try list, ${saved.size} saved`}>
           <Bookmark size={16} />
           {saved.size > 0 && (
-            <span key={saved.size} className="a-pop tabular absolute -right-1 -top-1 flex h-5 items-center justify-center rounded-full px-1 text-xs font-semibold text-white" style={{ background: C.ink, minWidth: 20 }}>
+            <span key={saved.size} className="a-pop tabular absolute -right-1 -top-1 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium text-white" style={{ background: C.ink, minWidth: 20 }}>
               {saved.size}
             </span>
           )}
