@@ -18,7 +18,6 @@ import {
   X,
   MapPin,
   TrainFront,
-  Sparkles,
   ChevronDown,
   Footprints,
   Minus,
@@ -77,7 +76,7 @@ const CSS = `
 .sp .soft{box-shadow:0 1px 2px rgba(42,38,35,.03),0 14px 36px -24px rgba(42,38,35,.22)}
 .sp *{box-sizing:border-box}
 .sp fieldset{min-width:0;margin:0;padding:0;border:0}
-.sp button{font:inherit;cursor:pointer}
+.sp button{font:inherit;cursor:pointer;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .sp .tabular{font-variant-numeric:tabular-nums}
 .sp .tr{transition-property:transform,opacity,background-color,color,border-color,box-shadow;transition-duration:.45s;transition-timing-function:${EASE}}
 .sp .press{transition:transform .28s ${EASE},background-color .35s ${EASE},color .35s ${EASE},box-shadow .35s ${EASE},border-color .35s ${EASE},opacity .35s ${EASE}}
@@ -90,6 +89,7 @@ const CSS = `
 .sp .no-scrollbar::-webkit-scrollbar{display:none}.sp .no-scrollbar{scrollbar-width:none}
 .sp :focus{outline:none}
 .sp :focus-visible{outline:2px solid ${C.brand};outline-offset:2px}
+.sp input:focus-visible,.sp select:focus-visible{outline:none;box-shadow:0 0 0 2px rgba(62,87,0,.28)}
 .sp .focus-within-ring:focus-within{box-shadow:0 0 0 2px ${C.brand}}
 
 @keyframes spFadeUp{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:none}}
@@ -105,6 +105,8 @@ const CSS = `
 @keyframes spDot{0%,100%{opacity:1}50%{opacity:.35}}
 @keyframes spToastIn{from{opacity:0;transform:translate3d(0,18px,0) scale(.95)}to{opacity:1;transform:none}}
 @keyframes spFlash{0%{opacity:1}100%{opacity:0}}
+@keyframes spDraw{from{stroke-dashoffset:24}to{stroke-dashoffset:0}}
+@keyframes spTick{0%{opacity:.4;transform:translate3d(0,6px,0)}100%{opacity:1;transform:none}}
 @keyframes spCardUp{from{opacity:0;transform:translate3d(0,24px,0) scale(.97)}to{opacity:1;transform:none}}
 
 .sp .a-fadeup{animation:spFadeUp .7s ${EASE} both}
@@ -115,6 +117,8 @@ const CSS = `
 .sp .a-dot{animation:spDot 1.6s ease-in-out infinite}
 .sp .a-toast{animation:spToastIn .55s ${SPRING} both}
 .sp .a-flash{animation:spFlash 2.4s ${EASE} both}
+.sp .a-draw{stroke-dasharray:24;animation:spDraw .55s ${EASE} .25s both}
+.sp .a-tick{animation:spTick .3s ${EASE} both}
 .sp .a-cardup{animation:spCardUp .55s ${SPRING} both}
 .sp .ov-in{animation:spFade .35s ${EASE} both}
 .sp .ov-out{animation:spFadeOut .3s ${EASE} both}
@@ -445,7 +449,10 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
 
   const measure = useCallback(() => {
     const el = refs.current[value];
-    if (!el) return;
+    if (!el) {
+      setInd((p) => (p.ready ? { ...p, ready: false } : p));
+      return;
+    }
     const x = el.offsetLeft;
     const w = el.offsetWidth;
     setInd((p) => (p.x === x && p.w === w && p.ready ? p : { x, w, ready: true }));
@@ -679,18 +686,23 @@ function Logo({ height = 28, colors = LOGO_COLORS }) {
 
 /* ───────────────────────────── Sheet (slide-up drawer / modal) ───────────────────────────── */
 
-function Sheet({ data, onClose, label, children }) {
+function Sheet({ data, onClose, label, children, bare = false, tone = "white" }) {
   const open = data != null;
   const last = useRef(data);
   if (data != null) last.current = data;
   const [render, setRender] = useState(open);
+  const [dy, setDy] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef(null);
+  const surface = tone === "grouped" ? C.bg : "#fff";
 
   useEffect(() => {
     if (open) {
       setRender(true);
+      setDy(0);
       return;
     }
-    const t = setTimeout(() => setRender(false), 320);
+    const t = setTimeout(() => setRender(false), 340);
     return () => clearTimeout(t);
   }, [open]);
 
@@ -706,34 +718,76 @@ function Sheet({ data, onClose, label, children }) {
     };
   }, [open, onClose]);
 
+  // Swipe down on the grabber / header to dismiss, like a native iOS sheet.
+  const onPointerDown = (e) => {
+    if (!open || window.innerWidth >= 768) return;
+    if (!e.target.closest("[data-sheet-handle]") || e.target.closest("button,input,select,textarea,a")) return;
+    drag.current = { y: e.clientY, t: performance.now() };
+    setDragging(true);
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch (_) {}
+  };
+  const onPointerMove = (e) => {
+    if (!drag.current) return;
+    const d = e.clientY - drag.current.y;
+    setDy(d > 0 ? d : -Math.sqrt(-d) * 2);
+  };
+  const onPointerUp = (e) => {
+    if (!drag.current) return;
+    const d = e.clientY - drag.current.y;
+    const v = d / Math.max(1, performance.now() - drag.current.t);
+    drag.current = null;
+    setDragging(false);
+    if (d > 110 || v > 0.55) onClose();
+    else setDy(0);
+  };
+
   if (!render || last.current == null) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal="true" aria-label={label}>
-      <div className={`absolute inset-0 ${open ? "ov-in" : "ov-out"}`} style={{ background: "rgba(42,38,35,.32)" }} onClick={onClose} />
       <div
-        className={`relative w-full md:max-w-xl ${open ? "sheet-in" : "sheet-out"}`}
-        style={{ willChange: "transform" }}
-      >
+        className={`absolute inset-0 ${open ? "ov-in" : "ov-out"}`}
+        style={{ background: "rgba(42,38,35,.32)", opacity: open ? clamp(1 - dy / 500, 0.2, 1) : undefined, transition: dragging ? "none" : `opacity .4s ${EASE}` }}
+        onClick={onClose}
+      />
+      <div className={`relative w-full md:max-w-xl ${open ? "sheet-in" : "sheet-out"}`} style={{ willChange: "transform" }}>
         <div
-          className="no-scrollbar relative overflow-y-auto overflow-x-hidden rounded-t-3xl bg-white md:rounded-3xl"
-          style={{ maxHeight: "90vh", overscrollBehavior: "contain", boxShadow: "0 -10px 40px -20px rgba(42,38,35,.35)", paddingBottom: "env(safe-area-inset-bottom)" }}
+          className="no-scrollbar relative overflow-y-auto overflow-x-hidden rounded-t-3xl md:rounded-3xl"
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          style={{
+            background: surface,
+            maxHeight: "90vh",
+            overscrollBehavior: "contain",
+            boxShadow: "0 -10px 40px -20px rgba(42,38,35,.35)",
+            paddingBottom: "env(safe-area-inset-bottom)",
+            transform: `translate3d(0, ${dy}px, 0)`,
+            transition: dragging ? "none" : `transform .55s ${SPRING}`,
+          }}
         >
-          <div className="sticky top-0 z-10 flex justify-center bg-white pt-2.5 md:hidden">
-            <span className="h-1 w-10 rounded-full" style={{ background: C.line }} />
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="press absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full"
-            style={{ background: C.stone }}
-          >
-            <X size={17} strokeWidth={2} />
-          </button>
+          {!bare && (
+            <>
+              <div data-sheet-handle className="sticky top-0 z-10 flex justify-center pb-1 pt-2 md:hidden" style={{ background: surface, touchAction: "none" }}>
+                <span className="h-1 w-9 rounded-full" style={{ background: "rgba(42,38,35,.18)" }} />
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close"
+                className="press absolute right-4 top-4 z-20 flex h-9 w-9 items-center justify-center rounded-full"
+                style={{ background: C.stone }}
+              >
+                <X size={17} strokeWidth={2} />
+              </button>
+            </>
+          )}
           {children(last.current)}
         </div>
         {/* filler below the sheet so the spring overshoot never shows a gap */}
-        <div className="absolute left-0 right-0 top-full h-16 bg-white md:hidden" />
+        <div className="absolute left-0 right-0 top-full h-16 md:hidden" style={{ background: surface, transform: `translate3d(0, ${dy}px, 0)` }} />
       </div>
     </div>
   );
@@ -1697,178 +1751,270 @@ function ratingWord(r) {
   return "Exceptional";
 }
 
-function RateForm({ cafes, items, initialCafeId, onSubmit }) {
-  const [cafeId, setCafeId] = useState(initialCafeId || cafes[0].id);
+/** Height-animated reveal (no layout jump): grid rows 0fr → 1fr. */
+function Collapse({ open, children }) {
+  return (
+    <div
+      aria-hidden={!open}
+      style={{ display: "grid", gridTemplateRows: open ? "1fr" : "0fr", opacity: open ? 1 : 0, transition: `grid-template-rows .5s ${EASE}, opacity .4s ${EASE}` }}
+    >
+      <div className="min-h-0 overflow-hidden">{children}</div>
+    </div>
+  );
+}
+
+/** iOS-style grouped section: small caption above a white rounded card. */
+function FormSection({ title, aside, children }) {
+  return (
+    <section>
+      <div className="mb-2 flex items-baseline justify-between px-1">
+        <h3 className="text-sm" style={{ color: C.taupe }}>
+          {title}
+        </h3>
+        {aside}
+      </div>
+      <div className="rounded-3xl bg-white p-3 soft">{children}</div>
+    </section>
+  );
+}
+
+function Chip({ on, onClick, children, className = "" }) {
+  const [pop, setPop] = useState(0);
+  return (
+    <button
+      type="button"
+      aria-pressed={on}
+      onClick={() => {
+        setPop((p) => p + 1);
+        onClick();
+      }}
+      className={`press flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-sm ${className}`}
+      style={{ background: on ? C.brand : C.stone, color: on ? "#fff" : C.ink }}
+    >
+      <span
+        aria-hidden="true"
+        className="inline-flex overflow-hidden"
+        style={{ width: on ? 14 : 0, opacity: on ? 1 : 0, transition: `width .35s ${EASE}, opacity .25s` }}
+      >
+        <Check size={14} strokeWidth={2.4} />
+      </span>
+      <span key={on ? pop : "off"} className={on && pop ? "a-pop inline-block" : "inline-block"}>
+        {children}
+      </span>
+    </button>
+  );
+}
+
+function RateForm({ cafes, items, initialCafeId, onSubmit, onCancel }) {
+  const [selCafe, setSelCafe] = useState(initialCafeId || cafes[0].id);
+  const [adding, setAdding] = useState(false);
   const [newCafe, setNewCafe] = useState({ name: "", area: "Soho" });
   const [itemName, setItemName] = useState("");
   const [rating, setRating] = useState(4.5);
   const [notes, setNotes] = useState([]);
-  const cafeItems = cafeId === "new" ? [] : items.filter((i) => i.cafeId === cafeId);
-  const valid = itemName.trim().length > 1 && (cafeId !== "new" || newCafe.name.trim().length > 1);
+  const [starPop, setStarPop] = useState({ n: 0, k: 0 });
+  const nameRef = useRef(null);
+  const cafeId = adding ? "new" : selCafe;
+  const cafeItems = adding ? [] : items.filter((i) => i.cafeId === selCafe);
+  const valid = itemName.trim().length > 1 && (!adding || newCafe.name.trim().length > 1);
   const pct = ((rating - 1) / 4) * 100;
   const toggleNote = (n) => setNotes((ns) => (ns.includes(n) ? ns.filter((x) => x !== n) : [...ns, n]));
-  // 16px text: smaller inputs make iOS Safari auto-zoom the page on focus
   const inputCls = "w-full rounded-2xl px-4 py-3 text-base outline-none tr";
-  const inputStyle = { background: C.stone, boxShadow: `inset 0 0 0 1px ${C.line}` };
+  const inputStyle = { background: C.stone };
+
+  useEffect(() => {
+    if (adding && nameRef.current) {
+      const t = setTimeout(() => nameRef.current && nameRef.current.focus({ preventScroll: true }), 320);
+      return () => clearTimeout(t);
+    }
+  }, [adding]);
+
+  const submit = (e) => {
+    e && e.preventDefault();
+    if (valid) onSubmit({ cafeId, newCafe, itemName, rating: Math.round(rating * 10) / 10, notes });
+  };
 
   return (
-    <form
-      className="px-5 pb-6 pt-3 md:px-8 md:pt-8"
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (valid) onSubmit({ cafeId, newCafe, itemName, rating: Math.round(rating * 10) / 10, notes });
-      }}
-    >
-      <p className="text-sm" style={{ color: C.taupe }}>
-        New rating
-      </p>
-      <h2 className="mt-1 pr-12 text-2xl font-medium tracking-tight">What did you sip?</h2>
+    <form onSubmit={submit} noValidate>
+      {/* iOS navigation bar: always visible, doubles as the drag handle */}
+      <div data-sheet-handle className="sticky top-0 z-20" style={{ background: C.bg, boxShadow: `0 1px 0 ${C.line}`, touchAction: "none" }}>
+        <div className="flex justify-center pt-2 md:hidden">
+          <span className="h-1 w-9 rounded-full" style={{ background: "rgba(42,38,35,.18)" }} />
+        </div>
+        <div className="relative flex items-center justify-between px-4 pb-3 pt-2 md:pt-4">
+          <button type="button" onClick={onCancel} className="press -ml-1 rounded-full px-2 py-1 text-base" style={{ color: C.brand }}>
+            Cancel
+          </button>
+          <p className="pointer-events-none absolute inset-x-0 text-center text-base font-medium">New Rating</p>
+          <button
+            type="submit"
+            disabled={!valid}
+            className="press relative -mr-1 rounded-full px-3 py-1 text-base font-semibold"
+            style={{ color: valid ? "#fff" : C.taupe, background: valid ? C.brand : "transparent", transition: `background-color .35s ${EASE}, color .35s ${EASE}` }}
+          >
+            Save
+          </button>
+        </div>
+      </div>
 
-      <fieldset className="mt-6">
-        <legend className="mb-2 text-sm font-medium">Café</legend>
-        <Segmented
-          label="Choose a café"
-          variant="ink"
-          size="sm"
-          scroll
-          value={cafeId}
-          onChange={(v) => {
-            setCafeId(v);
-            setItemName("");
-          }}
-          options={[...cafes.map((c) => ({ value: c.id, label: c.name })), { value: "new", label: "Add new café", icon: Plus }]}
-        />
-        {cafeId === "new" && (
-          <div className="a-fadeup mt-3 grid gap-2 sm:grid-cols-2">
-            <input
-              className={inputCls}
-              style={inputStyle}
-              placeholder="Café name"
-              aria-label="New café name"
-              value={newCafe.name}
-              onChange={(e) => setNewCafe((n) => ({ ...n, name: e.target.value }))}
-            />
-            <div className="relative">
-              <select
-                aria-label="Neighbourhood"
-                className={`${inputCls} appearance-none pr-10`}
+      <div className="space-y-6 px-4 pb-8 pt-2 md:px-6">
+        <FormSection title="café">
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1" style={{ opacity: adding ? 0.35 : 1, transition: `opacity .35s ${EASE}` }}>
+              <Segmented
+                label="Choose a café"
+                variant="ink"
+                size="sm"
+                scroll
+                value={selCafe}
+                onChange={(v) => {
+                  setSelCafe(v);
+                  setAdding(false);
+                  setItemName("");
+                }}
+                options={cafes.map((c) => ({ value: c.id, label: c.name }))}
+              />
+            </div>
+            <button
+              type="button"
+              aria-label={adding ? "Cancel adding a café" : "Add a new café"}
+              aria-pressed={adding}
+              onClick={() => {
+                setAdding((a) => !a);
+                setItemName("");
+              }}
+              className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+              style={{ background: adding ? C.brand : C.stone, color: adding ? "#fff" : C.brand, transition: `background-color .35s ${EASE}, color .35s ${EASE}` }}
+            >
+              <Plus size={18} strokeWidth={2.2} style={{ transform: adding ? "rotate(135deg)" : "none", transition: `transform .5s ${SPRING}` }} />
+            </button>
+          </div>
+          <Collapse open={adding}>
+            <div className="grid gap-2 pt-3 sm:grid-cols-2">
+              <input
+                ref={nameRef}
+                id="rate-new-cafe"
+                className={inputCls}
                 style={inputStyle}
-                value={newCafe.area}
-                onChange={(e) => setNewCafe((n) => ({ ...n, area: e.target.value }))}
-              >
-                {AREAS.slice(1).map((a) => (
-                  <option key={a}>{a}</option>
-                ))}
-              </select>
-              <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true" />
-            </div>
-          </div>
-        )}
-      </fieldset>
-
-      <fieldset className="mt-6">
-        <legend className="mb-2 text-sm font-medium">Menu item</legend>
-        {cafeItems.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1.5">
-            {cafeItems.map((it) => {
-              const on = itemName.toLowerCase() === it.name.toLowerCase();
-              return (
-                <button
-                  key={it.id}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => setItemName(on ? "" : it.name)}
-                  className="press flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium"
-                  style={{ background: on ? C.brand : C.stone, color: on ? "#fff" : C.ink }}
+                placeholder="New café name"
+                aria-label="New café name"
+                value={newCafe.name}
+                tabIndex={adding ? 0 : -1}
+                onChange={(e) => setNewCafe((n) => ({ ...n, name: e.target.value }))}
+              />
+              <div className="relative">
+                <select
+                  id="rate-new-area"
+                  aria-label="Neighbourhood"
+                  className={`${inputCls} appearance-none pr-10`}
+                  style={inputStyle}
+                  value={newCafe.area}
+                  tabIndex={adding ? 0 : -1}
+                  onChange={(e) => setNewCafe((n) => ({ ...n, area: e.target.value }))}
                 >
-                  {on && <Check size={14} aria-hidden="true" />}
-                  {it.name}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <input className={inputCls} style={inputStyle} placeholder="…or type an item, e.g. Oat Flat White" aria-label="Menu item name" value={itemName} onChange={(e) => setItemName(e.target.value)} />
-      </fieldset>
-
-      <fieldset className="mt-6">
-        <legend className="mb-2 text-sm font-medium">Your rating</legend>
-        <div className="rounded-3xl p-4" style={{ background: C.stone }}>
-          <div className="flex items-end justify-between">
-            <div>
-              <span key={f1(rating)} className="a-pop tabular inline-block text-5xl font-medium leading-none tracking-tight">
-                {f1(rating)}
-              </span>
-              <span className="ml-1 text-sm" style={{ color: C.taupe }}>
-                / 5.0
-              </span>
+                  {AREAS.slice(1).map((a) => (
+                    <option key={a}>{a}</option>
+                  ))}
+                </select>
+                <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true" />
+              </div>
             </div>
-            <span className="text-sm font-medium" style={{ color: C.taupe }}>
-              {ratingWord(rating)}
-            </span>
-          </div>
-          <div className="mt-4 flex gap-1.5" role="group" aria-label="Tap a star">
-            {[1, 2, 3, 4, 5].map((n) => {
-              const fill = clamp(rating - (n - 1), 0, 1);
-              return (
-                <button key={n} type="button" aria-label={`${n} star${n > 1 ? "s" : ""}`} onClick={() => setRating(n)} className="press relative h-9 w-9">
-                  <Star size={32} strokeWidth={1.4} color={C.line} fill={C.stone} className="absolute inset-0 m-auto" />
-                  <span className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - fill * 100}% 0 0)`, transition: `clip-path .4s ${EASE}` }}>
-                    <Star size={32} strokeWidth={1.4} color={C.brand} fill={C.brand} className="absolute inset-0 m-auto" />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          </Collapse>
+        </FormSection>
+
+        <FormSection title="what you had">
+          <Collapse open={cafeItems.length > 0}>
+            {/* one swipeable row: never wraps, so nothing below jumps */}
+            <div key={selCafe} className="no-scrollbar -mx-3 mb-2 flex gap-2 overflow-x-auto px-3 a-fade">
+              {cafeItems.map((it) => {
+                const on = itemName.toLowerCase() === it.name.toLowerCase();
+                return (
+                  <Chip key={it.id} on={on} onClick={() => setItemName(on ? "" : it.name)}>
+                    {it.name}
+                  </Chip>
+                );
+              })}
+            </div>
+          </Collapse>
           <input
-            type="range"
-            min="1"
-            max="5"
-            step="0.1"
-            value={rating}
-            aria-label="Rating from 1.0 to 5.0"
-            onChange={(e) => setRating(parseFloat(e.target.value))}
-            className="sp-range mt-5 w-full"
-            style={{ background: `linear-gradient(to right, ${C.brand} ${pct}%, ${C.line} ${pct}%)` }}
+            id="rate-item"
+            className={inputCls}
+            style={inputStyle}
+            placeholder={cafeItems.length ? "or type something else" : "e.g. Oat Flat White"}
+            aria-label="Menu item name"
+            value={itemName}
+            onChange={(e) => setItemName(e.target.value)}
           />
-          <div className="mt-2 flex justify-between text-xs" style={{ color: C.taupe }}>
-            <span>1.0</span>
-            <span>3.0</span>
-            <span>5.0</span>
+        </FormSection>
+
+        <FormSection
+          title="your rating"
+          aside={
+            <span key={ratingWord(rating)} className="a-fade text-sm" style={{ color: C.matcha }}>
+              {ratingWord(rating).toLowerCase()}
+            </span>
+          }
+        >
+          <div className="px-1 pt-1">
+            <div className="flex items-end justify-between">
+              <p className="tabular leading-none">
+                <span key={f1(rating)} className="a-tick inline-block text-5xl font-light tracking-tight">
+                  {f1(rating)}
+                </span>
+                <span className="ml-1 text-sm" style={{ color: C.taupe }}>
+                  / 5
+                </span>
+              </p>
+              <div className="flex gap-1" role="group" aria-label="Tap a star">
+                {[1, 2, 3, 4, 5].map((n) => {
+                  const fill = clamp(rating - (n - 1), 0, 1);
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      aria-label={`${n} star${n > 1 ? "s" : ""}`}
+                      onClick={() => {
+                        setRating(n);
+                        setStarPop((p) => ({ n, k: p.k + 1 }));
+                      }}
+                      className="press relative h-8 w-8"
+                    >
+                      <span key={starPop.n === n ? starPop.k : 0} className={`absolute inset-0 ${starPop.n === n && starPop.k ? "a-pop" : ""}`}>
+                        <Star size={26} strokeWidth={1.3} color={C.line} fill={C.stone} className="absolute inset-0 m-auto" />
+                        <span className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - fill * 100}% 0 0)`, transition: `clip-path .45s ${EASE}` }}>
+                          <Star size={26} strokeWidth={1.3} color={C.brand} fill={C.brand} className="absolute inset-0 m-auto" />
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            <input
+              id="rate-slider"
+              type="range"
+              min="1"
+              max="5"
+              step="0.1"
+              value={rating}
+              aria-label="Rating from 1.0 to 5.0"
+              onChange={(e) => setRating(parseFloat(e.target.value))}
+              className="sp-range mb-1 mt-6 w-full"
+              style={{ background: `linear-gradient(to right, ${C.brand} ${pct}%, ${C.stone} ${pct}%)` }}
+            />
           </div>
-        </div>
-      </fieldset>
+        </FormSection>
 
-      <fieldset className="mt-6">
-        <legend className="mb-2 text-sm font-medium">Tasting notes</legend>
-        <div className="flex flex-wrap gap-1.5">
-          {NOTE_CHIPS.map((n) => {
-            const on = notes.includes(n);
-            return (
-              <button
-                key={n}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggleNote(n)}
-                className="press flex items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium"
-                style={{ background: on ? C.brand : "#fff", color: on ? "#fff" : C.ink, boxShadow: on ? "none" : `inset 0 0 0 1px ${C.line}` }}
-              >
-                {on && <Check size={14} aria-hidden="true" />}
-                {n}
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
-
-      <button
-        type="submit"
-        disabled={!valid}
-        className="press mt-7 flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-medium text-white"
-        style={{ background: C.brand, opacity: valid ? 1 : 0.35, cursor: valid ? "pointer" : "not-allowed" }}
-      >
-        Submit rating <ArrowRight size={16} />
-      </button>
+        <FormSection title="tasting notes" aside={notes.length ? <span className="a-fade text-sm" style={{ color: C.taupe }}>{notes.length} selected</span> : null}>
+          <div className="flex flex-wrap gap-2">
+            {NOTE_CHIPS.map((n) => (
+              <Chip key={n} on={notes.includes(n)} onClick={() => toggleNote(n)}>
+                {n.toLowerCase()}
+              </Chip>
+            ))}
+          </div>
+        </FormSection>
+      </div>
     </form>
   );
 }
@@ -1960,7 +2106,9 @@ function Toast({ toast }) {
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-auto md:top-20" role="status" aria-live="polite">
       <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-white" style={{ background: C.brand, boxShadow: "0 18px 40px -16px rgba(42,38,35,.55)" }}>
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,.12)" }}>
-          <Sparkles size={17} aria-hidden="true" />
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path className="a-draw" d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </span>
         <div className="min-w-0">
           <p className="text-sm font-medium">{toast.title}</p>
@@ -2243,8 +2391,8 @@ export default function Samspresso() {
         {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} />}
       </Sheet>
 
-      <Sheet data={rate} onClose={closeRate} label="Rate an item">
-        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} initialCafeId={r.cafeId} onSubmit={submitRating} />}
+      <Sheet data={rate} onClose={closeRate} label="Rate an item" bare tone="grouped">
+        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} initialCafeId={r.cafeId} onSubmit={submitRating} onCancel={closeRate} />}
       </Sheet>
 
       <Toast toast={toast} />
