@@ -203,6 +203,35 @@ applyTheme(DEFAULT_THEME);
 // Foreground colours resolve per surface through CSS variables (see buildCSS).
 Object.assign(C, { fg: "var(--sp-text)", fgMuted: "var(--sp-muted)", fgBrand: "var(--sp-brand)", fgAccent: "var(--sp-accent)", fgHighlight: "var(--sp-highlight)" });
 
+/* ───────────────────────────── Analytics & session replay (PostHog) ─────────────────────────────
+ * Used for testing: records full sessions (nothing masked except password fields,
+ * which PostHog always hides). Leave `key` empty to switch it off.
+ */
+const POSTHOG = { key: "phc_rvSuiCa4hn3rvhr5uz5agCvvYGnagbEsqmPxoiehpcn3", host: "https://us.i.posthog.com" };
+// Loads PostHog from its own servers after the app has started, so the app bundle stays small.
+function startAnalytics() {
+  if (!POSTHOG.key || typeof window === "undefined" || window.posthog) return;
+  const s = document.createElement("script");
+  s.async = true;
+  s.src = `${POSTHOG.host.replace(".i.posthog.com", "-assets.i.posthog.com")}/static/array.js`;
+  s.onload = () =>
+    window.posthog &&
+    window.posthog.init(POSTHOG.key, {
+      api_host: POSTHOG.host,
+      person_profiles: "identified_only",
+      capture_pageview: true,
+      autocapture: true,
+      disable_session_recording: false,
+      session_recording: { maskAllInputs: false, maskTextSelector: null },
+    });
+  document.head.appendChild(s);
+}
+const track = (event, props) => {
+  try {
+    if (window.posthog && window.posthog.__loaded) window.posthog.capture(event, props);
+  } catch (_) {}
+};
+
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 
@@ -5491,6 +5520,7 @@ function useAppIcon() {
 
 export default function Samspresso() {
   useAppIcon();
+  useEffect(startAnalytics, []);
   // theme: defaults → published theme.json → (design mode) this device's draft
   const [, setThemeV] = useState(THEME_VERSION);
   const [publishedTheme, setPublishedTheme] = useState(DEFAULT_THEME);
@@ -5662,6 +5692,7 @@ export default function Samspresso() {
 
   const setTab = useCallback((t) => {
     setTabRaw(t);
+    track("tab_viewed", { tab: t });
     if (typeof window !== "undefined") window.scrollTo(0, 0);
   }, []);
 
