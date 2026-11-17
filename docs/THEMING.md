@@ -11,7 +11,7 @@ Open the app with `?design` on the end of the address:
 A **theme playground** panel appears. Changes show straight away, but **only on your device**, so experiment freely.
 
 - **Colours:** tap a swatch to pick a colour, or type a hex code (like `#3E5700`) and press Enter.
-- **Fonts:** pick a heading font and a body font. "Other Google Font…" accepts any font name from [fonts.google.com](https://fonts.google.com), typed exactly as it appears there.
+- **Fonts:** pick a heading font and a body font from about 70 Google Fonts, grouped into serif, sans serif, and display & script. For anything else, choose **Other Google Font…**, type the name from [fonts.google.com](https://fonts.google.com) and tap **Use**. The app checks the name and fixes capitals for you ("lora" becomes "Lora").
 - **Italic headings:** on or off.
 - **Corner roundness:** how round cards and buttons are.
 - **Reset:** goes back to the theme everyone currently sees.
@@ -41,8 +41,8 @@ To undo, open the file on GitHub, click **History**, and copy back an older vers
 | `text` | Main text |
 | `muted` | Secondary text and icons |
 | `brand` | Logo, main buttons, selected states |
-| `matcha` | Taste-match highlights |
-| `latte` | Samia's Picks |
+| `accent` | Taste matches, "open now" and live signals |
+| `highlight` | Samia's Picks and editorial highlights |
 
 Lighter tints (soft backgrounds, shadows, glows) are worked out automatically from these colours.
 
@@ -58,8 +58,8 @@ Lighter tints (soft backgrounds, shadows, glows) are worked out automatically fr
     "text": "#2A2623",
     "muted": "#8D867E",
     "brand": "#3E5700",
-    "matcha": "#7A8B5A",
-    "latte": "#C49A74"
+    "accent": "#7A8B5A",
+    "highlight": "#C49A74"
   },
   "fonts": {
     "display": "Instrument Serif",
@@ -69,6 +69,15 @@ Lighter tints (soft backgrounds, shadows, glows) are worked out automatically fr
   "corners": 24
 }
 ```
+
+## Readability is automatic
+
+Any combination is safe to try. On each surface (page, cards, pills, brand buttons), the app checks whether text is readable:
+
+- If it isn't, the app uses a stronger shade of the same colour there. For example, dark text on a dark card becomes light on that card only.
+- Text on brand-coloured buttons switches between white and dark to suit the brand colour.
+
+The playground shows a short **contrast note** whenever this happens, so you know which pairing was adjusted. If you'd rather keep your exact colour everywhere, pick a combination that doesn't trigger a note.
 
 ## Good to know
 

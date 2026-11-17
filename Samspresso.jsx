@@ -36,37 +36,19 @@ import {
 /* ───────────────────────────── Design tokens ───────────────────────────── */
 
 /*
- * sam'spresso design system: warm milk & oat neutrals, one brand colour.
- *   bg         milk page background
- *   card       white cards
- *   stone      the only grey fill (tracks, rows, chips)
- *   line       hairlines
- *   ink        text
- *   taupe      secondary text and icons
- *   brand      deep olive (logo, buttons, active states, badges, highlights)
- *   brandSoft  brand at low opacity, for badge backgrounds
- *   matcha     taste-match scores, "live" signals, parks on the map
- *   latte      Samia's Picks only
- * Map colours are quiet neutrals derived from the same set.
+ * sam'spresso design system. Token names match the roles in theme.json:
+ *   background     page background
+ *   card           cards & sheets
+ *   surface        pills, tracks & rows (the one grey fill)
+ *   line           hairlines
+ *   text           main text
+ *   muted          secondary text & icons
+ *   brand          logo, buttons, active states, badges
+ *   accent         taste-match scores, "open now", live signals, parks on the map
+ *   highlight      Samia's Picks and editorial highlights
+ * Soft tints, readable foregrounds and map colours are derived in applyTheme.
  */
-const C = {
-  bg: "#F8F6F2",
-  card: "#FFFFFF",
-  stone: "#F1EDE7",
-  line: "#EEEAE4",
-  ink: "#2A2623",
-  taupe: "#8D867E",
-  brand: "#3E5700",
-  matcha: "#7A8B5A",
-  latte: "#C49A74",
-  land: "#F4F1EB",
-  river: "#E4E9E8",
-  park: "#E5EBDC",
-  mapLine: "#D9D3CB",
-};
-// role aliases used throughout the components
-C.clay = C.latte; // Samia's Pick
-C.sage = C.matcha; // taste match / live
+const C = {};
 /* ───────────────────────────── Theme (editable without code) ─────────────────────────────
  * Colours, fonts and corner roundness come from theme.json at the site root.
  * A designer can edit that file on GitHub, or tune it live in the playground
@@ -82,8 +64,8 @@ const DEFAULT_THEME = {
     text: "#2A2623",
     muted: "#8D867E", // secondary text & icons
     brand: "#3E5700", // logo, buttons, active states
-    matcha: "#7A8B5A", // taste matches, "live"
-    latte: "#C49A74", // Samia's Picks
+    accent: "#7A8B5A", // taste matches, open now, live
+    highlight: "#C49A74", // Samia's Picks, editorial highlights
   },
   fonts: { display: "Instrument Serif", displayItalic: true, body: "Manrope" },
   corners: 24,
@@ -96,8 +78,8 @@ const COLOR_ROLES = [
   ["text", "Text"],
   ["muted", "Secondary text & icons"],
   ["brand", "Brand: logo, buttons, active"],
-  ["matcha", "Matcha: taste matches"],
-  ["latte", "Latte: Samia's Picks"],
+  ["accent", "Accent: taste matches & open now"],
+  ["highlight", "Highlight: Samia's Picks"],
 ];
 const HEX = /^#[0-9a-f]{6}$/i;
 const FONT_NAME = /^[A-Za-z0-9 ]{2,40}$/;
@@ -147,42 +129,95 @@ function loadFont(slot, name, extra) {
   });
 }
 
+/* Colour maths for automatic contrast: whatever colours a designer picks,
+ * text and icons switch to a readable shade of themselves on each surface. */
+const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+const hexOf = (rgb) => "#" + rgb.map((v) => Math.round(Math.min(255, Math.max(0, v))).toString(16).padStart(2, "0")).join("").toUpperCase();
+function luminance(hex) {
+  const f = (v) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  const [r, g, b] = rgbOf(hex).map(f);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function contrast(a, b) {
+  const x = luminance(a);
+  const y = luminance(b);
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
+}
+/** Blend a toward b by t (0–1). */
+const mixHex = (a, b, t) => hexOf(rgbOf(a).map((v, i) => v + (rgbOf(b)[i] - v) * t));
+const isDark = (hex) => luminance(hex) < 0.18;
+/** fg if it reads on bg; otherwise the nearest shade of fg (towards black or white) that does. */
+function readable(fg, bg, min = 4.5) {
+  if (contrast(fg, bg) >= min) return fg;
+  const target = isDark(bg) ? "#FFFFFF" : "#121110";
+  for (let t = 0.15; t < 1; t += 0.05) {
+    const c = mixHex(fg, target, t);
+    if (contrast(c, bg) >= min) return c;
+  }
+  return target;
+}
+/** Text/icon colour for something filled with bg: white when it reads, otherwise a near-black. */
+const onColor = (bg) => (contrast("#FFFFFF", bg) >= 3 ? "#FFFFFF" : readable("#121110", bg, 4.5));
+
 function applyTheme(theme) {
   THEME = sanitizeTheme(theme);
   const k = THEME.colors;
-  Object.assign(C, {
-    bg: k.background,
-    card: k.card,
-    stone: k.surface,
-    line: k.line,
-    ink: k.text,
-    taupe: k.muted,
-    brand: k.brand,
-    matcha: k.matcha,
-    latte: k.latte,
-  });
-  C.clay = C.latte;
-  C.sage = C.matcha;
+  Object.assign(C, k);
   C.brandSoft = tint(C.brand, 0.08);
-  C.matchaSoft = tint(C.matcha, 0.13);
-  C.latteSoft = tint(C.latte, 0.15);
+  C.accentSoft = tint(C.accent, 0.13);
+  C.highlightSoft = tint(C.highlight, 0.15);
+  // readable foregrounds per surface (used through CSS variables, see buildCSS)
+  const fgOn = (bg) => ({
+    text: readable(C.text, bg, 7),
+    // thresholds keep the default palette exactly as designed; only weaker pairings get corrected
+    muted: readable(C.muted, bg, 3),
+    brand: readable(C.brand, bg, 3),
+    accent: readable(C.accent, bg, 3),
+    highlight: readable(C.highlight, bg, 2.3),
+  });
+  C.onPage = fgOn(C.background);
+  C.onCard = fgOn(C.card);
+  C.onSurface = fgOn(C.surface);
+  C.onBrand = onColor(C.brand);
+  C.onAccent = onColor(C.accent);
+  C.onHighlight = onColor(C.highlight);
+  // the map is drawn from the same palette
+  C.land = mixHex(C.background, C.surface, 0.55);
+  C.river = mixHex(C.background, C.muted, 0.14);
+  C.park = mixHex(C.background, C.accent, 0.18);
+  C.mapLine = mixHex(C.background, C.muted, 0.3);
+  C.mapLabel = readable(C.muted, C.land, 3);
+  C.road = mixHex(C.land, isDark(C.land) ? "#FFFFFF" : "#FFFFFF", isDark(C.land) ? 0.1 : 0.75);
   THEME_VERSION += 1;
   loadFont("body", THEME.fonts.body, "wght@300;400;500;600");
   loadFont("display", THEME.fonts.display, "ital@0;1");
 }
 applyTheme(DEFAULT_THEME);
+// Foreground colours resolve per surface through CSS variables (see buildCSS).
+Object.assign(C, { fg: "var(--sp-text)", fgMuted: "var(--sp-muted)", fgBrand: "var(--sp-brand)", fgAccent: "var(--sp-accent)", fgHighlight: "var(--sp-highlight)" });
 
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 
+const fgVars = (o) => `--sp-text:${o.text};--sp-muted:${o.muted};--sp-brand:${o.brand};--sp-accent:${o.accent};--sp-highlight:${o.highlight};`;
 const buildCSS = () => `
-.sp{font-family:"${THEME.fonts.body}","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:${C.ink};background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
+.sp{font-family:"${THEME.fonts.body}","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;${fgVars(C.onPage)}color:var(--sp-text);background:${C.background};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
 .sp .serif{font-family:"${THEME.fonts.display}",ui-serif,Georgia,serif;font-style:${THEME.fonts.displayItalic ? "italic" : "normal"};font-weight:400;letter-spacing:-.01em}
 .sp .bg-white{background-color:${C.card}}
+.sp .bg-white,.sp .glass-white,.sp [data-surface=card]{${fgVars(C.onCard)}color:var(--sp-text)}
+.sp [data-surface=surface]{${fgVars(C.onSurface)}color:var(--sp-text)}
+.sp [data-surface=page]{${fgVars(C.onPage)}color:var(--sp-text)}
+.sp .sp-tool,.sp .sp-tool [data-surface]{--sp-text:#1C1C1E;--sp-muted:#6E6E73;--sp-brand:#1C1C1E;--sp-accent:#1C1C1E;--sp-highlight:#8A5A00;color:#1C1C1E}
+.sp .sp-tool{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,"Segoe UI",Roboto,sans-serif;letter-spacing:0}
+.sp .sp-tool .rounded-2xl{border-radius:14px}
+.sp .sp-tool.rounded-t-3xl{border-top-left-radius:22px;border-top-right-radius:22px}
+@media (min-width:768px){.sp .sp-tool.md\\:rounded-3xl{border-radius:22px}}
+.sp .sp-tool-range::-webkit-slider-thumb{background:#FFFFFF;border-color:#E5E5EA;box-shadow:0 2px 8px -2px rgba(0,0,0,.25)}
+.sp .sp-tool-range::-moz-range-thumb{background:#FFFFFF;border-color:#E5E5EA;box-shadow:0 2px 8px -2px rgba(0,0,0,.25)}
 .sp .rounded-3xl{border-radius:${THEME.corners}px}
 .sp .rounded-2xl{border-radius:${Math.round(THEME.corners * 0.67)}px}
 .sp .rounded-t-3xl{border-top-left-radius:${THEME.corners}px;border-top-right-radius:${THEME.corners}px}
-.sp .soft{box-shadow:0 1px 2px ${tint(C.ink, .03)},0 14px 36px -24px ${tint(C.ink, .22)}}
+.sp .soft{box-shadow:0 1px 2px ${tint(C.text, .03)},0 14px 36px -24px ${tint(C.text, .22)}}
 .sp{overflow-x:clip;max-width:100vw}
 .sp *{box-sizing:border-box}
 .sp fieldset{min-width:0;margin:0;padding:0;border:0}
@@ -196,10 +231,10 @@ const buildCSS = () => `
 .sp .tab-btn:active .tab-halo{opacity:1;transform:scale(1)}
 .sp .tab-btn:active .tab-icon{transform:scale(.9)}
 .sp .lift{transition:transform .45s ${EASE},box-shadow .45s ${EASE},border-color .45s ${EASE}}
-@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 2px 4px ${tint(C.ink, .03)},0 22px 44px -24px ${tint(C.ink, .28)}}}
-.sp .glass{background:${tint(C.bg, .78)};-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
-.sp .glass-white{background:rgba(255,255,255,.78);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px)}
-.sp .hair{box-shadow:0 1px 2px ${tint(C.ink, .03)},0 12px 32px -22px ${tint(C.ink, .2)}}
+@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 2px 4px ${tint(C.text, .03)},0 22px 44px -24px ${tint(C.text, .28)}}}
+.sp .glass{background:${tint(C.background, .78)};-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
+.sp .glass-white{background:${tint(C.card, .9)};-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px)}
+.sp .hair{box-shadow:0 1px 2px ${tint(C.text, .03)},0 12px 32px -22px ${tint(C.text, .2)}}
 .sp .no-scrollbar::-webkit-scrollbar{display:none}.sp .no-scrollbar{scrollbar-width:none}
 .sp :focus{outline:none}
 .sp :focus-visible{outline:2px solid ${C.brand};outline-offset:2px}
@@ -256,10 +291,10 @@ const buildCSS = () => `
 }
 
 .sp .sp-range{-webkit-appearance:none;appearance:none;height:6px;border-radius:999px;outline:none}
-.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px ${tint(C.ink, .35)};transition:transform .3s ${SPRING};cursor:grab}
+.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:${C.card};border:1px solid ${C.line};box-shadow:0 4px 14px -4px ${tint(C.text, .35)};transition:transform .3s ${SPRING};cursor:grab}
 .sp .sp-range:active::-webkit-slider-thumb{transform:scale(1.15);cursor:grabbing}
-.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px ${tint(C.ink, .35)}}
-.sp .sp-range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px ${C.ink}}
+.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:${C.card};border:1px solid ${C.line};box-shadow:0 4px 14px -4px ${tint(C.text, .35)}}
+.sp .sp-range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px ${C.text}}
 
 @media (prefers-reduced-motion:reduce){
   .sp *,.sp *::before,.sp *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -823,7 +858,7 @@ function MobileHeader({ tab, savedCount, onSaved }) {
     <header
       className="sticky top-0 z-40 flex h-14 items-center justify-between px-4 md:hidden"
       style={{
-        background: scrolled ? `${tint(C.bg, .8)}` : C.bg,
+        background: scrolled ? `${tint(C.background, .8)}` : C.background,
         WebkitBackdropFilter: scrolled ? "saturate(1.6) blur(18px)" : "none",
         backdropFilter: scrolled ? "saturate(1.6) blur(18px)" : "none",
         boxShadow: scrolled ? `0 1px 0 ${C.line}` : "0 1px 0 transparent",
@@ -840,10 +875,10 @@ function MobileHeader({ tab, savedCount, onSaved }) {
       >
         {COMPACT_TITLES[tab]}
       </p>
-      <button type="button" onClick={onSaved} className="press relative flex h-9 w-9 items-center justify-center rounded-full" style={{ background: C.stone }} aria-label={`Want to Try list, ${savedCount} saved`}>
+      <button type="button" onClick={onSaved} className="press relative flex h-9 w-9 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }} aria-label={`Want to Try list, ${savedCount} saved`}>
         <Bookmark size={16} />
         {savedCount > 0 && (
-          <span key={savedCount} className="a-pop tabular absolute -right-1 -top-1 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium text-white" style={{ background: C.brand, minWidth: 20 }}>
+          <span key={savedCount} className="a-pop tabular absolute -right-1 -top-1 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium" style={{ color: C.onBrand, background: C.brand, minWidth: 20 }}>
             {savedCount}
           </span>
         )}
@@ -937,7 +972,8 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
       role="group"
       aria-label={label}
       className={`relative ${full ? "flex w-full" : "inline-flex"} items-center gap-0.5 rounded-full p-1 ${glass && !scroll ? "glass-white hair" : ""}`}
-      style={scroll ? undefined : glass ? { boxShadow: `0 6px 20px -12px ${tint(C.ink, .25)}` } : { background: C.stone }}
+      data-surface={scroll ? undefined : glass ? "card" : "surface"}
+      style={scroll ? undefined : glass ? { boxShadow: `0 6px 20px -12px ${tint(C.text, .25)}` } : { background: C.surface }}
     >
       <span
         aria-hidden="true"
@@ -946,8 +982,8 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
           width: ind.w,
           transform: `translate3d(${ind.x}px,0,0)`,
           opacity: ind.ready ? 1 : 0,
-          background: ink ? C.brand : "#fff",
-          boxShadow: ink ? `0 4px 12px -6px ${tint(C.ink, .5)}` : `0 1px 2px ${tint(C.ink, .08)}, 0 0 0 1px ${tint(C.ink, .04)}`,
+          background: ink ? C.brand : C.card,
+          boxShadow: ink ? `0 4px 12px -6px ${tint(C.text, .5)}` : `0 1px 2px ${tint(C.text, .08)}, 0 0 0 1px ${tint(C.text, .04)}`,
           transition: `transform .55s ${EASE}, width .55s ${EASE}, opacity .3s`,
           willChange: "transform",
         }}
@@ -963,7 +999,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
             aria-pressed={active}
             onClick={() => onChange(o.value)}
             className={`press relative z-10 flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full font-medium ${full ? "flex-1" : ""} ${sm ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"}`}
-            style={{ color: active ? (ink ? "#fff" : C.brand) : C.taupe }}
+            style={{ color: active ? (ink ? C.onBrand : C.onCard.brand) : C.fgMuted }}
           >
             {Icon && <Icon size={sm ? 13 : 15} strokeWidth={2} aria-hidden="true" />}
             {o.label}
@@ -979,7 +1015,8 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
     <div
       ref={scrollRef}
       className={`no-scrollbar max-w-full overflow-x-auto rounded-full ${glass ? "glass-white hair" : ""}`}
-      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: `0 6px 20px -12px ${tint(C.ink, .25)}` } : { background: C.stone }) }}
+      data-surface={glass ? "card" : "surface"}
+      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: `0 6px 20px -12px ${tint(C.text, .25)}` } : { background: C.surface }) }}
     >
       {track}
     </div>
@@ -1002,7 +1039,7 @@ function BookmarkButton({ saved, onToggle, size = 17, className = "" }) {
       style={{ background: saved ? C.brandSoft : "transparent" }}
     >
       <span key={pop} className={`inline-flex ${pop ? "a-pop" : ""}`}>
-        <Bookmark size={size} strokeWidth={1.9} color={saved ? C.brand : C.taupe} fill={saved ? C.brand : "none"} />
+        <Bookmark size={size} strokeWidth={1.9} color={saved ? C.brand : C.muted} fill={saved ? C.brand : "none"} />
       </span>
     </button>
   );
@@ -1012,10 +1049,11 @@ function ScoreChip({ value, digits = 1, strong = false }) {
   return (
     <span
       className="tabular inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-      style={{ background: strong ? C.brand : C.stone, color: strong ? "#fff" : C.ink }}
+      data-surface={strong ? undefined : "surface"}
+      style={{ background: strong ? C.brand : C.surface, color: strong ? C.onBrand : C.fg }}
     >
       {value.toFixed(digits)}
-      <Star size={11} strokeWidth={0} fill={strong ? "#fff" : C.brand} aria-hidden="true" />
+      <Star size={11} strokeWidth={0} fill={strong ? C.onBrand : C.brand} aria-hidden="true" />
     </span>
   );
 }
@@ -1024,21 +1062,21 @@ function PickBadge({ small = false }) {
   return (
     <span
       className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full font-medium ${small ? "px-1.5 py-0.5 text-xs" : "px-2 py-0.5 text-xs"}`}
-      style={{ background: C.latteSoft, color: C.latte }}
+      style={{ background: C.highlightSoft, color: C.fgHighlight }}
     >
       samia's pick ✦
     </span>
   );
 }
 
-function Tag({ children, tone = "stone" }) {
+function Tag({ children, tone = "surface" }) {
   const tones = {
-    stone: { background: C.stone, color: C.taupe },
-    sage: { background: C.matchaSoft, color: C.matcha },
-    outline: { background: "#fff", color: C.taupe, boxShadow: `inset 0 0 0 1px ${C.line}` },
+    surface: { background: C.surface, color: C.fgMuted },
+    accent: { background: C.accentSoft, color: C.fgAccent },
+    outline: { background: C.card, color: C.fgMuted, boxShadow: `inset 0 0 0 1px ${C.line}` },
   };
   return (
-    <span className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium" style={tones[tone]}>
+    <span data-surface={tone === "surface" ? "surface" : tone === "outline" ? "card" : undefined} className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium" style={tones[tone]}>
       {children}
     </span>
   );
@@ -1050,7 +1088,7 @@ function SectionTitle({ eyebrow, title, right }) {
     <div className="mb-4 flex items-end justify-between gap-3">
       <div>
         {eyebrow && (
-          <p className="mb-1 text-sm" style={{ color: C.taupe }}>
+          <p className="mb-1 text-sm" style={{ color: C.fgMuted }}>
             {eyebrow}
           </p>
         )}
@@ -1086,7 +1124,10 @@ const LOGO_GLYPHS = [
  * glossy highlight on every letter.
  */
 // Logo colours follow the theme's brand colour.
-const logoColors = () => ({ sam: C.brand, sFrom: C.brand, sTo: C.brand, presso: C.brand, shine: "#FFFFFF" });
+const logoColors = () => {
+  const b = C.onPage.brand; // the logo always sits on the page background
+  return { sam: b, sFrom: b, sTo: b, presso: b, shine: isDark(b) ? "#FFFFFF" : mixHex(b, "#000000", 0.25) };
+};
 
 function Logo({ height = 28, colors = logoColors() }) {
   const gid = "sp-logo-s-" + React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
@@ -1127,7 +1168,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
   const [dy, setDy] = useState(0);
   const [dragging, setDragging] = useState(false);
   const drag = useRef(null);
-  const surface = tone === "grouped" ? C.bg : "#fff";
+  const surface = tone === "grouped" ? C.background : C.card;
   const panelRef = useRef(null);
   const contentRef = useRef(null);
   const scrollRef = useRef(null);
@@ -1236,12 +1277,13 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal="true" aria-label={label}>
       <div
         className={`absolute inset-0 ${open ? "ov-in" : "ov-out"}`}
-        style={{ background: `${tint(C.ink, .32)}`, opacity: open ? clamp(1 - dy / 500, 0.2, 1) : undefined, transition: dragging ? "none" : `opacity .4s ${EASE}` }}
+        style={{ background: `${tint(C.text, .32)}`, opacity: open ? clamp(1 - dy / 500, 0.2, 1) : undefined, transition: dragging ? "none" : `opacity .4s ${EASE}` }}
         onClick={onClose}
       />
       <div ref={panelRef} className={`relative w-full md:max-w-xl ${morph && !reduce ? "" : open ? "sheet-in" : "sheet-out"}`} style={{ willChange: "transform", transformOrigin: "0 0" }}>
         <div
           ref={scrollRef}
+          data-surface={tone === "grouped" ? undefined : "card"}
           className="no-scrollbar relative overflow-y-auto overflow-x-hidden rounded-t-3xl md:rounded-3xl"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -1251,7 +1293,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
             background: surface,
             maxHeight: "90vh",
             overscrollBehavior: "contain",
-            boxShadow: `0 -10px 40px -20px ${tint(C.ink, .35)}`,
+            boxShadow: `0 -10px 40px -20px ${tint(C.text, .35)}`,
             paddingBottom: "env(safe-area-inset-bottom)",
             transform: `translate3d(0, ${dy}px, 0)`,
             transition: dragging ? "none" : `transform .55s ${SPRING}`,
@@ -1265,7 +1307,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
                 {chromeOverlay && (
                   // grabber rides the same sticky rail, so it never scrolls away
                   <div data-sheet-handle className="absolute inset-x-16 top-0 flex h-7 justify-center pt-2 md:hidden" style={{ touchAction: "none" }}>
-                    <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.ink, .28)}`, boxShadow: "0 0 0 1px rgba(255,255,255,.35)" }} />
+                    <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.text, .28)}`, boxShadow: `0 0 0 1px ${tint(C.card, 0.35)}` }} />
                   </div>
                 )}
                 <button
@@ -1273,11 +1315,12 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
                   onClick={onClose}
                   aria-label="Close"
                   className="press absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full"
+                  data-surface={chromeOverlay ? "card" : "surface"}
                   style={{
-                    background: chromeOverlay ? "rgba(255,255,255,.72)" : C.stone,
+                    background: chromeOverlay ? tint(C.card, 0.72) : C.surface,
                     WebkitBackdropFilter: chromeOverlay ? "blur(14px) saturate(1.5)" : "none",
                     backdropFilter: chromeOverlay ? "blur(14px) saturate(1.5)" : "none",
-                    boxShadow: `0 4px 14px -8px ${tint(C.ink, .35)}`,
+                    boxShadow: `0 4px 14px -8px ${tint(C.text, .35)}`,
                   }}
                 >
                   <X size={17} strokeWidth={2} />
@@ -1285,7 +1328,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
               </div>
               {!chromeOverlay && (
                 <div data-sheet-handle className="sticky top-0 z-20 flex justify-center pb-1 pt-2 md:hidden" style={{ background: surface, touchAction: "none" }}>
-                  <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.ink, .18)}` }} />
+                  <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.text, .18)}` }} />
                 </div>
               )}
             </>
@@ -1309,13 +1352,13 @@ function MatchBar({ score, delay }) {
   const high = score >= 90;
   return (
     <div>
-      <p className="tabular mb-2 text-xs font-medium" style={{ color: high ? C.sage : C.taupe }}>
+      <p className="tabular mb-2 text-xs font-medium" style={{ color: high ? C.fgAccent : C.fgMuted }}>
         {shown}% match
       </p>
-      <div className="h-1 overflow-hidden rounded-full" style={{ background: C.stone }}>
+      <div className="h-1 overflow-hidden rounded-full" data-surface="surface" style={{ background: C.surface }}>
         <div
           className="a-grow h-full w-full rounded-full"
-          style={{ transform: `scaleX(${score / 100})`, transformOrigin: "0 50%", background: high ? C.matcha : C.taupe, animationDelay: `${delay}ms` }}
+          style={{ transform: `scaleX(${score / 100})`, transformOrigin: "0 50%", background: high ? C.accent : C.muted, animationDelay: `${delay}ms` }}
         />
       </div>
     </div>
@@ -1338,7 +1381,7 @@ function RecCard({ r, cafe, saved, toggleSave, onOpenCafe, live }) {
           onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))}
           className="min-w-0 flex-1 text-left"
         >
-          <p className="truncate text-xs font-medium" style={{ color: C.taupe }}>
+          <p className="truncate text-xs font-medium" style={{ color: C.fgMuted }}>
             {cafe.name}
           </p>
           <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-lg font-medium tracking-tight">
@@ -1353,7 +1396,7 @@ function RecCard({ r, cafe, saved, toggleSave, onOpenCafe, live }) {
       <div className="mt-4">
         <MatchBar score={r.score} delay={150} />
       </div>
-      <p className="mt-4 flex-1 text-sm leading-relaxed" style={{ color: C.taupe }}>
+      <p className="mt-4 flex-1 text-sm leading-relaxed" style={{ color: C.fgMuted }}>
         {r.why}
       </p>
       <div className="mt-4 flex flex-wrap gap-1.5">
@@ -1526,23 +1569,23 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
             aria-hidden="true"
             className={`pointer-events-none absolute inset-y-6 ${trail.dir > 0 ? "a-trail-r left-1/4 right-0" : "a-trail-l left-0 right-1/4"} rounded-full`}
             style={{
-              background: trail.dir > 0 ? `linear-gradient(90deg, ${tint(C.matcha, 0)}, ${tint(C.matcha, .55)})` : `linear-gradient(270deg, ${tint(C.taupe, 0)}, ${tint(C.taupe, .45)})`,
+              background: trail.dir > 0 ? `linear-gradient(90deg, ${tint(C.accent, 0)}, ${tint(C.accent, .55)})` : `linear-gradient(270deg, ${tint(C.muted, 0)}, ${tint(C.muted, .45)})`,
               filter: "blur(28px)",
               zIndex: 0,
             }}
           />
         )}
         {left === 0 && (
-          <div key={`done-${deal}`} className="a-fadeup absolute inset-0 flex flex-col items-center justify-center rounded-3xl text-center" style={{ background: C.stone }}>
+          <div key={`done-${deal}`} className="a-fadeup absolute inset-0 flex flex-col items-center justify-center rounded-3xl text-center" data-surface="surface" style={{ background: C.surface }}>
             <p className="serif text-3xl">that's the lot</p>
-            <p className="mt-1 text-sm" style={{ color: C.taupe }}>
+            <p className="mt-1 text-sm" style={{ color: C.fgMuted }}>
               you've seen every match for this drink
             </p>
             <button
               type="button"
               onClick={rewind}
-              className="press relative mt-5 flex items-center gap-2 overflow-hidden rounded-full py-2.5 pl-4 pr-5 text-sm font-medium text-white"
-              style={{ background: C.brand, boxShadow: `0 10px 24px -12px ${tint(C.brand, .7)}` }}
+              className="press relative mt-5 flex items-center gap-2 overflow-hidden rounded-full py-2.5 pl-4 pr-5 text-sm font-medium"
+              style={{ color: C.onBrand, background: C.brand, boxShadow: `0 10px 24px -12px ${tint(C.brand, .7)}` }}
             >
               <RotateCcw size={16} /> Rewind
             </button>
@@ -1596,8 +1639,8 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
                         style={{
                           background:
                             (leaving || Math.sign(drag.x)) > 0
-                              ? `linear-gradient(90deg, ${tint(C.matcha, 0.32 * (leaving > 0 ? 1 : progress))}, ${tint(C.matcha, 0)} 70%)`
-                              : `linear-gradient(270deg, ${tint(C.taupe, 0.3 * (leaving < 0 ? 1 : progress))}, ${tint(C.taupe, 0)} 70%)`,
+                              ? `linear-gradient(90deg, ${tint(C.accent, 0.32 * (leaving > 0 ? 1 : progress))}, ${tint(C.accent, 0)} 70%)`
+                              : `linear-gradient(270deg, ${tint(C.muted, 0.3 * (leaving < 0 ? 1 : progress))}, ${tint(C.muted, 0)} 70%)`,
                           opacity: leaving || drag.x ? 1 : 0,
                           transition: drag.active ? "none" : "opacity .3s",
                         }}
@@ -1613,18 +1656,18 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
       </div>
 
       <div className="relative z-20 mt-6 flex items-center justify-center gap-5" style={{ opacity: left ? 1 : 0, transition: `opacity .3s ${EASE}`, pointerEvents: left ? "auto" : "none" }}>
-        <button type="button" aria-label="Skip this match" onClick={() => dismiss(-1)} className="press flex h-12 w-12 items-center justify-center rounded-full bg-white soft" style={{ color: C.taupe }}>
+        <button type="button" aria-label="Skip this match" onClick={() => dismiss(-1)} className="press flex h-12 w-12 items-center justify-center rounded-full bg-white soft" style={{ color: C.fgMuted }}>
           <span key={skipPop} className={`inline-flex ${skipPop ? "a-nope" : ""}`}>
             <X size={18} />
           </span>
         </button>
-        <span className="tabular w-14 text-center text-sm" style={{ color: C.taupe }}>
+        <span className="tabular w-14 text-center text-sm" style={{ color: C.fgMuted }}>
           {Math.min(index + 1, recs.length)} / {recs.length}
         </span>
         <span className="relative">
-          <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.matcha, boxShadow: `0 6px 16px -10px ${tint(C.matcha, .7)}` }}>
+          <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full" style={{ color: C.onAccent, background: C.accent, boxShadow: `0 6px 16px -10px ${tint(C.accent, .7)}` }}>
             <span key={savedPop} className={`relative inline-flex ${savedPop ? "a-pop" : ""}`}>
-              <Bookmark size={18} fill={justSaved ? "#fff" : "none"} style={{ transition: `fill .25s ${EASE}` }} />
+              <Bookmark size={18} fill={justSaved ? C.onAccent : "none"} style={{ transition: `fill .25s ${EASE}` }} />
             </span>
           </button>
         </span>
@@ -1706,18 +1749,19 @@ function PickRow({ title, sub, active, onClick, lead, right }) {
       onClick={onClick}
       aria-current={active ? "true" : undefined}
       className="press flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left"
-      style={{ background: active ? C.brandSoft : C.bg }}
+      data-surface={active ? undefined : "page"}
+      style={{ background: active ? C.brandSoft : C.background }}
     >
       {lead}
       <span className="min-w-0 flex-1">
         <span className="block truncate font-medium">{title}</span>
         {sub && (
-          <span className="block truncate text-xs" style={{ color: C.taupe }}>
+          <span className="block truncate text-xs" style={{ color: C.fgMuted }}>
             {sub}
           </span>
         )}
       </span>
-      {active ? <Check size={18} strokeWidth={2.2} style={{ color: C.brand }} aria-label="selected" /> : right}
+      {active ? <Check size={18} strokeWidth={2.2} style={{ color: C.fgBrand }} aria-label="selected" /> : right}
     </button>
   );
 }
@@ -1769,7 +1813,7 @@ function DrinkPicker({ items, cafesById, itemsById, history, taste, current, onC
             <>
               {i.name}
               {i.pick && (
-                <span className="ml-1.5" style={{ color: C.latte }} aria-label="Samia's Pick">
+                <span className="ml-1.5" style={{ color: C.fgHighlight }} aria-label="Samia's Pick">
                   ✦
                 </span>
               )}
@@ -1779,7 +1823,7 @@ function DrinkPicker({ items, cafesById, itemsById, history, taste, current, onC
           active={current === i.id}
           onClick={() => onChoose(i.id)}
           right={
-            <span className="tabular text-sm" style={{ color: C.taupe }}>
+            <span className="tabular text-sm" style={{ color: C.fgMuted }}>
               {f2(i.rating)}
             </span>
           }
@@ -1789,7 +1833,7 @@ function DrinkPicker({ items, cafesById, itemsById, history, taste, current, onC
   };
   const Section = ({ title, children }) => (
     <section className="mt-6">
-      <h3 className="mb-2 text-sm" style={{ color: C.taupe }}>
+      <h3 className="mb-2 text-sm" style={{ color: C.fgMuted }}>
         {title}
       </h3>
       <ul className="space-y-2">{children}</ul>
@@ -1799,7 +1843,7 @@ function DrinkPicker({ items, cafesById, itemsById, history, taste, current, onC
     <div className="px-5 pb-8 pt-4 md:px-8 md:pt-8">
       <h2 className="serif pr-12 text-3xl">pick a cup</h2>
       <div className="relative mt-4">
-        <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" style={{ color: C.taupe }} aria-hidden="true" />
+        <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" style={{ color: C.fgMuted }} aria-hidden="true" />
         <input
           ref={inputRef}
           type="search"
@@ -1809,11 +1853,11 @@ function DrinkPicker({ items, cafesById, itemsById, history, taste, current, onC
           aria-label="Search drinks, cafés and notes"
           enterKeyHint="search"
           className="w-full rounded-full py-3 pl-11 pr-11 text-base outline-none"
-          style={{ background: C.stone }}
+          data-surface="surface" style={{ background: C.surface }}
         />
         {q && (
           <button type="button" aria-label="Clear search" onClick={() => { setQ(""); inputRef.current && inputRef.current.focus(); }} className="press absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full">
-            <X size={16} style={{ color: C.taupe }} />
+            <X size={16} style={{ color: C.fgMuted }} />
           </button>
         )}
       </div>
@@ -1821,7 +1865,7 @@ function DrinkPicker({ items, cafesById, itemsById, history, taste, current, onC
         results.length ? (
           <Section title={`${results.length} ${results.length === 1 ? "drink" : "drinks"}`}>{results.map(drinkRow)}</Section>
         ) : (
-          <p className="a-fade mt-10 text-center text-sm" style={{ color: C.taupe }}>
+          <p className="a-fade mt-10 text-center text-sm" style={{ color: C.fgMuted }}>
             Nothing matches “{q.trim()}”.
           </p>
         )
@@ -1836,7 +1880,7 @@ function DrinkPicker({ items, cafesById, itemsById, history, taste, current, onC
                   active={current === "taste"}
                   onClick={() => onChoose("taste")}
                   lead={
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: C.matchaSoft, color: C.matcha }}>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: C.accentSoft, color: C.fgAccent }}>
                       <Sparkles size={17} aria-hidden="true" />
                     </span>
                   }
@@ -1907,7 +1951,7 @@ function TasteMatch({ items, cafesById, itemsById, taste, history, sourceId, onP
   return (
     <section className="relative" aria-labelledby="tm-title">
       <LargeTitle>
-      <p className="mb-4 text-sm" style={{ color: C.sage }}>
+      <p className="mb-4 text-sm" style={{ color: C.fgAccent }}>
         your taste match
       </p>
       </LargeTitle>
@@ -1926,16 +1970,16 @@ function TasteMatch({ items, cafesById, itemsById, taste, history, sourceId, onP
               "your taste"
             ) : (
               <>
-                {src.name} <span style={{ color: C.taupe }}>at {short(srcCafe ? srcCafe.name : "")}</span>
+                {src.name} <span style={{ color: C.fgMuted }}>at {short(srcCafe ? srcCafe.name : "")}</span>
               </>
             )}
           </span>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: C.stone }}>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }}>
             <ChevronDown size={17} strokeWidth={1.7} aria-hidden="true" />
           </span>
         </button>
       </h1>
-      <p className="mt-3 text-sm md:text-base" style={{ color: C.taupe }}>
+      <p className="mt-3 text-sm md:text-base" style={{ color: C.fgMuted }}>
         {recs.length === 0
           ? mine
             ? "you've tried everything that suits you. rate a few more cups to widen it."
@@ -1950,16 +1994,16 @@ function TasteMatch({ items, cafesById, itemsById, taste, history, sourceId, onP
       {recs.length ? (
         <SwipeStack key={deckKey} recs={recs} src={src} cafesById={cafesById} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} />
       ) : (
-        <div key={deckKey} className="a-fadeup mx-auto mt-8 flex max-w-md flex-col items-center rounded-3xl px-6 py-10 text-center" style={{ background: C.stone }}>
+        <div key={deckKey} className="a-fadeup mx-auto mt-8 flex max-w-md flex-col items-center rounded-3xl px-6 py-10 text-center" data-surface="surface" style={{ background: C.surface }}>
           <p className="serif text-3xl">a one-of-a-kind cup</p>
-          <p className="mt-1 text-sm" style={{ color: C.taupe }}>
+          <p className="mt-1 text-sm" style={{ color: C.fgMuted }}>
             found something similar? rate it and it'll show up here.
           </p>
           <button
             type="button"
             onClick={() => onRate && onRate()}
-            className="press relative mt-5 flex items-center gap-2 overflow-hidden rounded-full py-2.5 pl-4 pr-5 text-sm font-medium text-white"
-            style={{ background: C.brand, boxShadow: `0 10px 24px -12px ${tint(C.brand, .7)}` }}
+            className="press relative mt-5 flex items-center gap-2 overflow-hidden rounded-full py-2.5 pl-4 pr-5 text-sm font-medium"
+            style={{ color: C.onBrand, background: C.brand, boxShadow: `0 10px 24px -12px ${tint(C.brand, .7)}` }}
           >
             <Plus size={16} /> Rate a drink
           </button>
@@ -1971,103 +2015,6 @@ function TasteMatch({ items, cafesById, itemsById, taste, history, sourceId, onP
 
 /* ───────────────────────────── Café art ───────────────────────────── */
 
-const ART_PALETTES = [
-  ["#EADFD2", "#D9C3AE"], // oat → latte
-  ["#E3E8D8", "#C9D3B4"], // matcha milk
-  ["#EFE3DC", "#DCC2B4"], // blush clay
-  ["#E9E5DD", "#D3CCC0"], // stone
-  ["#E6E1D3", "#CFC3A6"], // honey
-];
-const hashStr = (str) => [...str].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7);
-
-/**
- * Illustrated cover for a café: an overhead cup with latte art on a soft,
- * café-specific backdrop. Pass `cafe.photo` (an image URL or data: URI) to
- * use a real photograph instead.
- */
-const CafeArt = memo(function CafeArt({ cafe, className = "", rounded = "" }) {
-  if (cafe.photo) {
-    return <img src={cafe.photo} alt="" className={`h-full w-full object-cover ${rounded} ${className}`} loading="lazy" decoding="async" />;
-  }
-  const h = hashStr(cafe.id);
-  const [c1, c2] = ART_PALETTES[h % ART_PALETTES.length];
-  const top = cafe.items && cafe.items[0];
-  const matcha = top && top.styles.includes("Matcha");
-  const pastry = top && top.styles.includes("Pastries");
-  const coffee = matcha ? "#9DB06A" : "#8A5A3B";
-  const crema = matcha ? "#C9D69E" : "#B07A52";
-  const art = h % 3; // 0 heart, 1 tulip, 2 rosetta
-  const cx = 230 + (h % 5) * 18;
-  const cy = 108 + ((h >> 3) % 3) * 6;
-  const rot = ((h >> 5) % 40) - 20;
-  const id = `art-${cafe.id}`;
-  return (
-    <svg viewBox="0 0 400 220" preserveAspectRatio="xMidYMid slice" className={`block h-full w-full ${rounded} ${className}`} aria-hidden="true">
-      <defs>
-        <linearGradient id={`${id}-bg`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor={c1} />
-          <stop offset="1" stopColor={c2} />
-        </linearGradient>
-        <radialGradient id={`${id}-cup`} cx=".5" cy=".45" r=".55">
-          <stop offset="0" stopColor={crema} />
-          <stop offset="1" stopColor={coffee} />
-        </radialGradient>
-        <radialGradient id={`${id}-light`} cx=".2" cy=".1" r=".9">
-          <stop offset="0" stopColor="#fff" stopOpacity=".55" />
-          <stop offset=".6" stopColor="#fff" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <rect width="400" height="220" fill={`url(#${id}-bg)`} />
-      {/* table grain */}
-      <g stroke="#fff" strokeOpacity=".18" strokeWidth="1.2" fill="none">
-        <path d={`M-10 ${40 + (h % 20)} C 120 ${20 + (h % 30)}, 260 ${70 - (h % 25)}, 420 ${45 + (h % 15)}`} />
-        <path d={`M-10 ${170 + (h % 15)} C 140 ${150 + (h % 20)}, 280 ${200 - (h % 20)}, 420 ${175 + (h % 10)}`} />
-      </g>
-      {pastry && (
-        <g transform={`translate(${cx - 150} ${cy + 20}) rotate(${-rot})`}>
-          <ellipse cx="0" cy="8" rx="46" ry="12" fill="#000" opacity=".07" />
-          <path d="M-42 0 C-30 -26 30 -26 42 0 C30 10 -30 10 -42 0Z" fill="#D9A46A" />
-          <path d="M-26 -12 C-14 -4 -6 -4 4 -16 M6 -16 C14 -4 22 -4 30 -10" stroke="#B9844C" strokeWidth="3" fill="none" strokeLinecap="round" />
-        </g>
-      )}
-      <g transform={`translate(${cx} ${cy}) scale(.72) translate(${-cx} ${-cy}) rotate(${rot} ${cx} ${cy})`}>
-        <ellipse cx={cx + 6} cy={cy + 12} rx="86" ry="80" fill="#000" opacity=".08" />
-        <circle cx={cx} cy={cy} r="82" fill="#FBF9F5" />
-        <circle cx={cx} cy={cy} r="82" fill="none" stroke="#000" strokeOpacity=".05" />
-        {/* handle */}
-        <rect x={cx + 52} y={cy - 9} width="40" height="18" rx="9" fill="#FBF9F5" />
-        <circle cx={cx} cy={cy} r="56" fill="#fff" />
-        <circle cx={cx} cy={cy} r="49" fill={`url(#${id}-cup)`} />
-        <g fill="#F6EBDD" opacity=".95">
-          {art === 0 && <path d={`M${cx} ${cy + 22} C ${cx - 34} ${cy} ${cx - 22} ${cy - 26} ${cx} ${cy - 10} C ${cx + 22} ${cy - 26} ${cx + 34} ${cy} ${cx} ${cy + 22}Z`} />}
-          {art === 1 && (
-            <>
-              <path d={`M${cx - 20} ${cy - 18} C ${cx - 8} ${cy - 30} ${cx + 8} ${cy - 30} ${cx + 20} ${cy - 18} C ${cx + 8} ${cy - 22} ${cx - 8} ${cy - 22} ${cx - 20} ${cy - 18}Z`} />
-              <path d={`M${cx - 24} ${cy - 2} C ${cx - 10} ${cy - 16} ${cx + 10} ${cy - 16} ${cx + 24} ${cy - 2} C ${cx + 10} ${cy - 7} ${cx - 10} ${cy - 7} ${cx - 24} ${cy - 2}Z`} />
-              <path d={`M${cx} ${cy + 26} C ${cx - 26} ${cy + 14} ${cx - 22} ${cy - 2} ${cx} ${cy + 6} C ${cx + 22} ${cy - 2} ${cx + 26} ${cy + 14} ${cx} ${cy + 26}Z`} />
-              <rect x={cx - 1.2} y={cy - 30} width="2.4" height="56" rx="1.2" />
-            </>
-          )}
-          {art === 2 && (
-            <>
-              {[-24, -14, -4, 6, 16].map((dy, i) => (
-                <path key={i} d={`M${cx - (20 - i * 2)} ${cy + dy} C ${cx - 6} ${cy + dy - 9} ${cx + 6} ${cy + dy - 9} ${cx + (20 - i * 2)} ${cy + dy} C ${cx + 6} ${cy + dy - 4} ${cx - 6} ${cy + dy - 4} ${cx - (20 - i * 2)} ${cy + dy}Z`} />
-              ))}
-              <path d={`M${cx} ${cy + 30} C ${cx - 14} ${cy + 22} ${cx - 12} ${cy + 12} ${cx} ${cy + 18} C ${cx + 12} ${cy + 12} ${cx + 14} ${cy + 22} ${cx} ${cy + 30}Z`} />
-              <rect x={cx - 1} y={cy - 30} width="2" height="58" rx="1" />
-            </>
-          )}
-        </g>
-        {/* spoon */}
-        <g transform={`rotate(${30 + (h % 30)} ${cx} ${cy})`}>
-          <rect x={cx - 3} y={cy + 60} width="6" height="54" rx="3" fill="#E7E2DA" />
-          <ellipse cx={cx} cy={cy + 62} rx="8" ry="11" fill="#EEE9E1" />
-        </g>
-      </g>
-      <rect width="400" height="220" fill={`url(#${id}-light)`} />
-    </svg>
-  );
-});
 
 /* ───────────────────────────── Filters & café cards ───────────────────────────── */
 
@@ -2086,7 +2033,8 @@ function PromoTag({ promo }) {
   return (
     <span
       className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium"
-      style={sponsored ? { background: C.stone, color: C.taupe } : { background: C.brand, color: "#fff" }}
+      data-surface={sponsored ? "surface" : undefined}
+      style={sponsored ? { background: C.surface, color: C.fgMuted } : { background: C.brand, color: C.onBrand }}
     >
       {!sponsored && <span className="a-dot h-1.5 w-1.5 rounded-full bg-white" />}
       {sponsored ? "sponsored" : promo.label}
@@ -2097,7 +2045,7 @@ function PromoTag({ promo }) {
 // The pinned surface for a promoted item: latte wash with an olive hairline.
 const promoRowStyle = {
   get background() {
-    return `linear-gradient(100deg, ${tint(C.latte, 0.2)}, ${tint(C.matcha, 0.1)})`;
+    return `linear-gradient(100deg, ${tint(C.highlight, 0.2)}, ${tint(C.accent, 0.1)})`;
   },
   get boxShadow() {
     return `inset 0 0 0 1px ${tint(C.brand, 0.22)}`;
@@ -2107,8 +2055,8 @@ const promoRowStyle = {
 function OpenDot({ status }) {
   if (!status) return null;
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap" style={{ color: status.open ? C.matcha : C.taupe }}>
-      <span className={`h-1.5 w-1.5 rounded-full ${status.open ? "a-dot" : ""}`} style={{ background: status.open ? C.matcha : C.line }} />
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap" style={{ color: status.open ? C.fgAccent : C.fgMuted }}>
+      <span className={`h-1.5 w-1.5 rounded-full ${status.open ? "a-dot" : ""}`} style={{ background: status.open ? C.accent : C.line }} />
       {status.label}
     </span>
   );
@@ -2133,9 +2081,9 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
             <div className="min-w-0">
               <h3 className="flex items-center gap-2 truncate text-lg font-medium tracking-tight">
                 {cafe.name}
-                {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
+                {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.fgHighlight }}>✦</span>}
               </h3>
-              <p className="truncate text-sm" style={{ color: C.taupe }}>
+              <p className="truncate text-sm" style={{ color: C.fgMuted }}>
                 {cafe.areas[0].toLowerCase()} · {cafe.tube}
               </p>
             </div>
@@ -2144,7 +2092,7 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
           {(status || distance != null) && (
             <p className="mt-1.5 flex items-center gap-3 text-xs">
               {distance != null && (
-                <span className="tabular flex items-center gap-1" style={{ color: C.ink }}>
+                <span className="tabular flex items-center gap-1" style={{ color: C.fg }}>
                   <Footprints size={12} aria-hidden="true" /> {walkMins(distance)} min
                 </span>
               )}
@@ -2156,13 +2104,13 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
           {shown.map((it) => {
             const dim = drink !== "All Drinks" && !it.styles.includes(drink);
             return (
-              <li key={it.id} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ ...(it.promo ? promoRowStyle : { background: C.bg }), opacity: dim && !it.promo ? 0.45 : 1 }}>
+              <li key={it.id} data-surface={it.promo ? undefined : "page"} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ ...(it.promo ? promoRowStyle : { background: C.background }), opacity: dim && !it.promo ? 0.45 : 1 }}>
                 <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm">
                   <span className="truncate">{it.name}</span>
-                  {it.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
+                  {it.pick && <span aria-label="Samia's Pick" style={{ color: C.fgHighlight }}>✦</span>}
                   {it.promo && <PromoTag promo={it.promo} />}
                 </button>
-                <span className="tabular text-sm" style={{ color: C.taupe }}>{isNewItem(it) ? "new" : f1(it.rating)}</span>
+                <span className="tabular text-sm" style={{ color: C.fgMuted }}>{isNewItem(it) ? "new" : f1(it.rating)}</span>
                 <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
               </li>
             );
@@ -2175,13 +2123,13 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
 
 function EmptyState({ onReset }) {
   return (
-    <div className="a-fadeup rounded-3xl p-10 text-center hair" style={{ background: "#fff" }}>
-      <Coffee size={28} className="mx-auto" color={C.taupe} aria-hidden="true" />
+    <div data-surface="card" className="a-fadeup rounded-3xl p-10 text-center hair" style={{ background: C.card }}>
+      <Coffee size={28} className="mx-auto" color={C.onCard.muted} aria-hidden="true" />
       <p className="mt-3 font-medium">No cafés match that combo yet</p>
-      <p className="mt-1 text-sm" style={{ color: C.taupe }}>
+      <p className="mt-1 text-sm" style={{ color: C.fgMuted }}>
         Try another neighbourhood or drink style.
       </p>
-      <button type="button" onClick={onReset} className="press mt-4 rounded-full px-4 py-2 text-sm font-medium text-white" style={{ background: C.brand }}>
+      <button type="button" onClick={onReset} className="press mt-4 rounded-full px-4 py-2 text-sm font-medium" style={{ color: C.onBrand, background: C.brand }}>
         Reset filters
       </button>
     </div>
@@ -2274,13 +2222,13 @@ const MapBase = memo(function MapBase({ v }) {
         <rect x="498" y="222" width="30" height="26" rx="6" />
         <rect x="572" y="320" width="28" height="24" rx="6" />
       </g>
-      <g fill={C.matcha} opacity=".6" fontSize="13" fontStyle="italic" fontWeight="500" textAnchor="middle">
+      <g fill={C.accent} opacity=".6" fontSize="13" fontStyle="italic" fontWeight="500" textAnchor="middle">
         <text x="165" y="488">Hyde Park</text>
         <text x="290" y="96">Regent's Park</text>
         <text x="420" y="572" fontSize="10">Green Park</text>
       </g>
       {/* roads */}
-      <g fill="none" stroke="#FFFFFF" strokeLinecap="round" strokeLinejoin="round">
+      <g fill="none" stroke={C.road} strokeLinecap="round" strokeLinejoin="round">
         {ROADS.map((d, i) => (
           <path key={i} d={d} strokeWidth="6" opacity=".85" />
         ))}
@@ -2294,7 +2242,7 @@ const MapBase = memo(function MapBase({ v }) {
         strokeWidth="30"
         strokeLinecap="round"
       />
-      <text fontSize="11" letterSpacing="3" fill={C.taupe} fontWeight="500">
+      <text fontSize="11" letterSpacing="3" fill={C.mapLabel} fontWeight="500">
         <textPath href="#sp-thames" startOffset="48%">
           RIVER THAMES
         </textPath>
@@ -2308,15 +2256,15 @@ const MapBase = memo(function MapBase({ v }) {
       <g>
         {TUBE_STATIONS.map(([n, x, y]) => (
           <g key={n}>
-            <circle cx={x} cy={y} r="4" fill="#fff" stroke={C.mapLine} strokeWidth="1.5" />
-            <text x={x + 7} y={y + 3.5} fontSize="9" fill={C.taupe}>
+            <circle cx={x} cy={y} r="4" fill={C.road} stroke={C.mapLine} strokeWidth="1.5" />
+            <text x={x + 7} y={y + 3.5} fontSize="9" fill={C.mapLabel}>
               {n}
             </text>
           </g>
         ))}
       </g>
       {/* neighbourhoods */}
-      <g fill={C.taupe} opacity=".5" fontSize="12" fontWeight="600" letterSpacing="3.5" textAnchor="middle">
+      <g fill={C.mapLabel} opacity=".5" fontSize="12" fontWeight="600" letterSpacing="3.5" textAnchor="middle">
         {HOODS.map(([n, x, y]) => (
           <text key={n} x={x} y={y}>
             {n}
@@ -2512,7 +2460,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
             <MapBase v={THEME_VERSION} />
             {here && (
               <div className="pointer-events-none absolute" style={{ left: here.x, top: here.y, zIndex: 9, transform: `scale(${1 / k})`, transformOrigin: "0 0", transition: anim ? `transform .7s ${EASE}` : "none" }}>
-                <span className="absolute -left-2 -top-2 h-4 w-4 rounded-full" style={{ background: C.brand, boxShadow: `0 0 0 3px #fff, 0 4px 12px ${tint(C.ink, .3)}` }} />
+                <span className="absolute -left-2 -top-2 h-4 w-4 rounded-full" style={{ background: C.brand, boxShadow: `0 0 0 3px ${C.card}, 0 4px 12px ${tint(C.text, .3)}` }} />
                 <span className="a-pulse absolute -left-2 -top-2 h-4 w-4 rounded-full" style={{ boxShadow: `0 0 0 3px ${C.brand}` }} />
               </div>
             )}
@@ -2553,33 +2501,34 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                   >
                     <span className="relative flex flex-col items-center">
                       {c.drop && vis && (
-                        <span aria-label="Live drop" className="absolute -right-1 -top-1 z-10 h-3 w-3 rounded-full" style={{ background: C.brand, boxShadow: "0 0 0 2px #fff" }} />
+                        <span aria-label="Live drop" className="absolute -right-1 -top-1 z-10 h-3 w-3 rounded-full" style={{ background: C.brand, boxShadow: `0 0 0 2px ${C.card}` }} />
                       )}
                       {c.pick && vis && !isSel && (
-                        <span aria-hidden="true" className="a-pulse absolute inset-x-0 top-0 h-8 rounded-full" style={{ boxShadow: `0 0 0 2px ${C.clay}` }} />
+                        <span aria-hidden="true" className="a-pulse absolute inset-x-0 top-0 h-8 rounded-full" style={{ boxShadow: `0 0 0 2px ${C.highlight}` }} />
                       )}
                       <span
+                        data-surface={isSel ? undefined : "card"}
                         className="tabular relative flex h-8 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-sm font-medium"
                         style={{
-                          background: isSel ? C.brand : "#fff",
-                          color: isSel ? "#fff" : C.ink,
-                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.clay : isSel || isHov ? C.brand : C.line}, 0 6px 16px -6px ${tint(C.ink, .35)}`,
+                          background: isSel ? C.brand : C.card,
+                          color: isSel ? C.onBrand : C.fg,
+                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.highlight : isSel || isHov ? C.brand : C.line}, 0 6px 16px -6px ${tint(C.text, .35)}`,
                           transition: `background-color .35s ${EASE}, color .35s ${EASE}, box-shadow .35s ${EASE}`,
                         }}
                       >
                         {f1(c.avg)}
-                        <Star size={11} strokeWidth={0} fill={isSel ? "#fff" : C.brand} aria-hidden="true" />
+                        <Star size={11} strokeWidth={0} fill={isSel ? C.onBrand : C.brand} aria-hidden="true" />
                       </span>
                       <span
                         aria-hidden="true"
                         className="-mt-1 h-2.5 w-2.5 rotate-45"
-                        style={{ background: isSel ? C.brand : "#fff", boxShadow: c.pick ? `1.5px 1.5px 0 0.5px ${C.clay}` : `1px 1px 0 0 ${C.line}` }}
+                        style={{ background: isSel ? C.brand : C.card, boxShadow: c.pick ? `1.5px 1.5px 0 0.5px ${C.highlight}` : `1px 1px 0 0 ${C.line}` }}
                       />
-                      <span
+                      <span data-surface="card"
                         className="pointer-events-none absolute top-full mt-1 whitespace-nowrap rounded-md px-1.5 text-xs font-medium"
                         style={{
-                          color: C.ink,
-                          background: "rgba(255,255,255,.9)",
+                          color: C.fg,
+                          background: tint(C.card, 0.9),
                           opacity: showNames || isSel || isHov ? 1 : 0,
                           transform: showNames || isSel || isHov ? "none" : "translate3d(0,-4px,0)",
                           transition: `opacity .35s ${EASE}, transform .35s ${EASE}`,
@@ -2598,7 +2547,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 
       {overlay && <div className="absolute inset-x-0 top-0 z-20 p-3">{overlay}</div>}
 
-      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: `0 8px 24px -14px ${tint(C.ink, .35)}` }}>
+      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: `0 8px 24px -14px ${tint(C.text, .35)}` }}>
         <button type="button" aria-label="Zoom in" className="press flex h-10 w-10 items-center justify-center" onClick={() => zoomAt(center().x, center().y, 1.45)}>
           <Plus size={17} />
         </button>
@@ -2622,7 +2571,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
       </div>
 
       {!sel && (
-        <p className="pointer-events-none absolute bottom-3 left-4 z-10 text-xs" style={{ color: C.taupe, opacity: 0.7 }}>
+        <p className="pointer-events-none absolute bottom-3 left-4 z-10 text-xs" style={{ color: C.fgMuted, opacity: 0.7 }}>
           Stylised map · not to scale
         </p>
       )}
@@ -2639,13 +2588,13 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 function MapPreview({ cafe, onOpen, onClose }) {
   const top = cafe.items[0];
   return (
-    <div data-morph className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: `0 20px 50px -24px ${tint(C.ink, .45)}` }}>
+    <div data-morph className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: `0 20px 50px -24px ${tint(C.text, .45)}` }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-base font-medium tracking-tight">
             {cafe.name} {cafe.pick && <PickBadge small />}
           </p>
-          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: C.taupe }}>
+          <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: C.fgMuted }}>
             <span className="flex items-center gap-1">
               <TrainFront size={13} aria-hidden="true" /> {cafe.tube}
             </span>
@@ -2657,14 +2606,14 @@ function MapPreview({ cafe, onOpen, onClose }) {
             <span>{cafe.price}</span>
           </p>
         </div>
-        <button type="button" aria-label="Close preview" onClick={onClose} className="press -mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: C.stone }}>
+        <button type="button" aria-label="Close preview" onClick={onClose} className="press -mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }}>
           <X size={15} />
         </button>
       </div>
       {top && (
-        <div className="mt-3 flex items-center justify-between rounded-2xl px-3 py-2.5" style={{ background: C.stone }}>
+        <div className="mt-3 flex items-center justify-between rounded-2xl px-3 py-2.5" data-surface="surface" style={{ background: C.surface }}>
           <div className="min-w-0">
-            <p className="text-xs" style={{ color: C.taupe }}>
+            <p className="text-xs" style={{ color: C.fgMuted }}>
               Top-rated here
             </p>
             <p className="truncate text-sm font-medium">{top.name}</p>
@@ -2672,7 +2621,7 @@ function MapPreview({ cafe, onOpen, onClose }) {
           <ScoreChip value={top.rating} />
         </div>
       )}
-      <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} className="press mt-3 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium text-white" style={{ background: C.brand }}>
+      <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} className="press mt-3 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium" style={{ color: C.onBrand, background: C.brand }}>
         View Menu &amp; Ratings <ArrowRight size={15} />
       </button>
     </div>
@@ -2686,25 +2635,26 @@ function CafeListRow({ cafe, selected, onSelect, onHover, onOpen, index, rowRef 
       <div
         data-morph
         className={`tr flex items-center gap-3 rounded-3xl p-3 ${selected ? "bg-white soft" : ""}`}
-        style={{ background: selected ? "#fff" : "transparent" }}
+        data-surface={selected ? "card" : undefined}
+        style={{ background: selected ? C.card : "transparent" }}
         onMouseEnter={() => onHover(cafe.id)}
         onMouseLeave={() => onHover(null)}
       >
         <button type="button" onClick={() => onSelect(cafe.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left" aria-label={`Show ${cafe.name} on map`}>
-          <span className="tabular flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-full text-sm font-light" style={{ background: selected ? C.brand : "#fff", color: selected ? "#fff" : C.ink }}>
+          <span className="tabular flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-full text-sm font-light" style={{ background: selected ? C.brand : C.card, color: selected ? C.onBrand : C.fg }}>
             {f1(cafe.avg)}
           </span>
           <span className="min-w-0">
             <span className="flex items-center gap-1.5">
               <span className="truncate font-medium">{cafe.name}</span>
-              {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
+              {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.fgHighlight }}>✦</span>}
             </span>
-            <span className="block truncate text-xs" style={{ color: C.taupe }}>
+            <span className="block truncate text-xs" style={{ color: C.fgMuted }}>
               {cafe.areas[0].toLowerCase()} · {top ? top.name.toLowerCase() : "no ratings yet"}
             </span>
           </span>
         </button>
-        <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} aria-label={`Open ${cafe.name} details`} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ color: C.taupe }}>
+        <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} aria-label={`Open ${cafe.name} details`} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ color: C.fgMuted }}>
           <ArrowRight size={15} />
         </button>
       </div>
@@ -2718,16 +2668,16 @@ const ROW_H = 80;
 
 // Podium styling for the top three, using the design-system colours only.
 const podium = () => [
-  { bg: C.brand, fg: "#fff", tint: tint(C.brand, 0.07), label: "1st" },
-  { bg: C.matcha, fg: "#fff", tint: tint(C.matcha, 0.08), label: "2nd" },
-  { bg: C.latte, fg: "#fff", tint: tint(C.latte, 0.1), label: "3rd" },
+  { bg: C.brand, fg: C.onBrand, tint: tint(C.brand, 0.07), label: "1st" },
+  { bg: C.accent, fg: C.onAccent, tint: tint(C.accent, 0.08), label: "2nd" },
+  { bg: C.highlight, fg: C.onHighlight, tint: tint(C.highlight, 0.1), label: "3rd" },
 ];
 
 /** Rank marker: glossy medal for the podium, plain numeral after that. */
 function Medal({ place }) {
   if (place > 2) {
     return (
-      <span className="tabular relative w-9 shrink-0 text-center text-xl font-light" style={{ color: C.taupe }}>
+      <span className="tabular relative w-9 shrink-0 text-center text-xl font-light" style={{ color: C.fgMuted }}>
         {place + 1}
       </span>
     );
@@ -2766,7 +2716,7 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
       <SectionTitle
         eyebrow="live from the community"
         title={<span className="serif whitespace-nowrap text-3xl md:text-4xl">the leaderboard</span>}
-        right={<span className="a-dot mb-2 h-2 w-2 rounded-full" style={{ background: C.sage }} aria-label="Live" />}
+        right={<span className="a-dot mb-2 h-2 w-2 rounded-full" style={{ background: C.accent }} aria-label="Live" />}
       />
       <div className="mb-4">
         <Segmented
@@ -2793,16 +2743,16 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
               className="absolute inset-x-0 top-0 flex items-center gap-4 px-5 md:px-6"
               style={{ height: ROW_H, transform: `translate3d(0, ${i * ROW_H}px, 0)`, transition: `transform .8s ${EASE}` }}
             >
-              {flashing && <span key={flash.t} aria-hidden="true" className="a-flash pointer-events-none absolute inset-0" style={{ background: C.latteSoft }} />}
+              {flashing && <span key={flash.t} aria-hidden="true" className="a-flash pointer-events-none absolute inset-0" style={{ background: C.highlightSoft }} />}
               {i < 3 && <span aria-hidden="true" className="pointer-events-none absolute inset-y-1.5 inset-x-2 rounded-2xl" style={{ background: podium()[i].tint }} />}
               {i === 0 && <span aria-hidden="true" className="a-shine pointer-events-none absolute inset-y-1.5 inset-x-2 overflow-hidden rounded-2xl" />}
               <Medal place={i} />
               <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="relative min-w-0 flex-1 text-left">
                 <span className="flex items-center gap-2">
                   <span className="truncate font-medium">{r.name}</span>
-                  {r.pick && <span aria-label="Samia's Pick" style={{ color: C.clay }}>✦</span>}
+                  {r.pick && <span aria-label="Samia's Pick" style={{ color: C.fgHighlight }}>✦</span>}
                 </span>
-                <span className="mt-0.5 block truncate text-sm" style={{ color: !isCafe && bestOf[r.id] ? C.sage : C.taupe }}>
+                <span className="mt-0.5 block truncate text-sm" style={{ color: !isCafe && bestOf[r.id] ? C.fgAccent : C.fgMuted }}>
                   {isCafe ? `${r.areas[0].toLowerCase()} · ${r.total} ratings` : bestOf[r.id] ? `${cafe.name} · ${bestOf[r.id].toLowerCase()}` : cafe.name}
                 </span>
               </button>
@@ -2830,15 +2780,15 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
     <div className="space-y-6">
       <section>
         <LargeTitle>
-          <p className="text-sm" style={{ color: C.sage }}>
+          <p className="text-sm" style={{ color: C.fgAccent }}>
             your cup log
           </p>
           <h1 className="serif mt-1 whitespace-nowrap text-4xl md:text-5xl">sip, rate, repeat.</h1>
           {taste && (
-            <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm" style={{ color: C.taupe }}>
+            <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm" style={{ color: C.fgMuted }}>
               your taste:
               {tasteWords(taste).map((w) => (
-                <Tag key={w} tone="sage">
+                <Tag key={w} tone="accent">
                   {w}
                 </Tag>
               ))}
@@ -2851,7 +2801,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
               <dd key={String(s.value)} className="a-pop tabular inline-block text-3xl font-light tracking-tight">
                 {s.value}
               </dd>
-              <dt className="mt-1 text-xs" style={{ color: C.taupe }}>
+              <dt className="mt-1 text-xs" style={{ color: C.fgMuted }}>
                 {s.label.toLowerCase()}
               </dt>
             </div>
@@ -2876,12 +2826,12 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
             history.map((h, i) => (
               <div key={h.id} className="a-fadeup" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
                 <button type="button" data-morph onClick={(e) => cafesById[h.cafeId] && onOpenCafe(h.cafeId, e.currentTarget)} className="lift flex w-full items-center gap-4 rounded-3xl bg-white p-4 text-left soft">
-                  <span className="tabular flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-light" style={{ background: C.stone }}>
+                  <span className="tabular flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-light" data-surface="surface" style={{ background: C.surface }}>
                     {f1(h.rating)}
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{h.name}</span>
-                    <span className="block truncate text-xs" style={{ color: C.taupe }}>
+                    <span className="block truncate text-xs" style={{ color: C.fgMuted }}>
                       {h.cafeName} · {timeAgo(h.ts)}
                     </span>
                     {h.notes.length > 0 && (
@@ -2898,7 +2848,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
           ) : (
             <div className="a-fadeup rounded-3xl bg-white p-8 text-center hair">
               <p className="font-medium">No ratings yet</p>
-              <button type="button" onClick={onRate} className="press mt-3 rounded-full px-4 py-2 text-sm font-medium text-white" style={{ background: C.brand }}>
+              <button type="button" onClick={onRate} className="press mt-3 rounded-full px-4 py-2 text-sm font-medium" style={{ color: C.onBrand, background: C.brand }}>
                 Rate your first cup
               </button>
             </div>
@@ -2911,7 +2861,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
                 <div key={it.id} className="a-fadeup" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
                   <div data-morph className="lift flex items-center gap-3 rounded-3xl bg-white p-4 soft">
                     <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" style={{ background: C.stone }}>
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" data-surface="surface" style={{ background: C.surface }}>
                         <Coffee size={20} strokeWidth={1.7} aria-hidden="true" />
                       </span>
                       <span className="min-w-0">
@@ -2919,7 +2869,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
                           <span className="truncate font-medium">{it.name}</span>
                           {it.pick && <PickBadge small />}
                         </span>
-                        <span className="block truncate text-xs" style={{ color: C.taupe }}>
+                        <span className="block truncate text-xs" style={{ color: C.fgMuted }}>
                           {cafe.name} · {cafe.tube}
                         </span>
                       </span>
@@ -2932,9 +2882,9 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
             })
           ) : (
             <div className="a-fadeup rounded-3xl bg-white p-8 text-center hair">
-              <Bookmark size={24} className="mx-auto" color={C.taupe} aria-hidden="true" />
+              <Bookmark size={24} className="mx-auto" color={C.onCard.muted} aria-hidden="true" />
               <p className="mt-3 font-medium">Your Want to Try list is empty</p>
-              <p className="mt-1 text-sm" style={{ color: C.taupe }}>
+              <p className="mt-1 text-sm" style={{ color: C.fgMuted }}>
                 Tap the bookmark on any drink to save it here.
               </p>
             </div>
@@ -2955,13 +2905,13 @@ function CoffeeProfile({ coffee, myNotes = [], onAddNote }) {
   const theirs = coffee.notes.filter((n) => !mine.has(noteKey(n)));
   return (
     <div className="mt-6">
-      <h3 className="text-sm" style={{ color: C.taupe }}>
+      <h3 className="text-sm" style={{ color: C.fgMuted }}>
         the coffee
       </h3>
       {line && <p className="mt-1 font-medium">{line}</p>}
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {[...mine].map((n) => (
-          <span key={n} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: C.matchaSoft, color: C.matcha }}>
+          <span key={n} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: C.accentSoft, color: C.fgAccent }}>
             <Check size={12} strokeWidth={2.6} aria-hidden="true" /> {n}
             <span className="sr-only">(you tasted this)</span>
           </span>
@@ -2974,7 +2924,7 @@ function CoffeeProfile({ coffee, myNotes = [], onAddNote }) {
             type="button"
             onClick={onAddNote}
             className="press inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
-            style={{ fontSize: 12, color: C.taupe, boxShadow: `inset 0 0 0 1px ${C.line}` }}
+            style={{ fontSize: 12, color: C.fgMuted, boxShadow: `inset 0 0 0 1px ${C.line}` }}
           >
             <Plus size={12} aria-hidden="true" /> {mine.size ? "add a note" : "what did you taste?"}
           </button>
@@ -2988,7 +2938,7 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
   return (
     <div>
     <div className="px-5 pb-6 pt-3 md:px-8 md:pt-8">
-      <p className="flex items-center gap-1.5 pr-12 text-sm" style={{ color: C.taupe }}>
+      <p className="flex items-center gap-1.5 pr-12 text-sm" style={{ color: C.fgMuted }}>
         <MapPin size={13} aria-hidden="true" /> {cafe.hood}
       </p>
       <div className="mt-2 flex items-start justify-between gap-4">
@@ -2996,11 +2946,11 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
       </div>
       <p className="tabular mt-3 flex items-baseline gap-3">
         <span className="text-4xl font-light tracking-tight">{f2(cafe.avg)}</span>
-        <span className="text-sm" style={{ color: C.taupe }}>
+        <span className="text-sm" style={{ color: C.fgMuted }}>
           {rank ? `#${rank} in london` : "new"} · {cafe.total} ratings
         </span>
       </p>
-      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm" style={{ color: C.taupe }}>
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm" style={{ color: C.fgMuted }}>
         <span className="flex items-center gap-1.5">
           <TrainFront size={15} aria-hidden="true" /> {cafe.tube}
           {cafe.tubeAlt ? ` · ${cafe.tubeAlt}` : ""}
@@ -3019,14 +2969,14 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
       )}
       {cafe.blurb && <p className="mt-4 text-sm leading-relaxed">{cafe.blurb}</p>}
       {cafe.vibes.length > 0 && (
-        <p className="mt-2 text-xs" style={{ color: C.taupe }}>
+        <p className="mt-2 text-xs" style={{ color: C.fgMuted }}>
           {cafe.vibes.map((v) => v.toLowerCase()).join(" · ")}
         </p>
       )}
 
       <CoffeeProfile coffee={cafe.coffee} myNotes={myNotes} onAddNote={() => onRate(cafe.id)} />
 
-      <h3 className="mb-2 mt-7 text-sm" style={{ color: C.taupe }}>
+      <h3 className="mb-2 mt-7 text-sm" style={{ color: C.fgMuted }}>
         Menu &amp; Ratings
       </h3>
       <ul className="space-y-2">
@@ -3035,41 +2985,41 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
             <li key={it.id} className="a-fadeup rounded-3xl p-4" style={{ ...promoRowStyle, animationDelay: `${120 + i * 60}ms` }}>
               <div className="flex items-center gap-2">
                 <PromoTag promo={it.promo} />
-                <span className="text-xs" style={{ color: C.taupe }}>
+                <span className="text-xs" style={{ color: C.fgMuted }}>
                   {it.promo.endsAt ? timeLeft(it.promo.endsAt - Date.now()) : ""}
                 </span>
               </div>
               <div className="mt-2 flex items-center gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="serif text-2xl leading-tight">{it.name.toLowerCase()}</p>
-                  <p className="mt-0.5 truncate text-xs" style={{ color: C.taupe }}>
+                  <p className="mt-0.5 truncate text-xs" style={{ color: C.fgMuted }}>
                     {it.promo.partner ? `${it.promo.partner} · ` : ""}
                     {it.flavours.slice(0, 2).join(", ").toLowerCase()}
                   </p>
                 </div>
-                <span className="tabular text-sm" style={{ color: C.taupe }}>
+                <span className="tabular text-sm" style={{ color: C.fgMuted }}>
                   {isNewItem(it) ? "new" : f2(it.rating)}
                 </span>
                 <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
               </div>
               <div className="mt-3 flex gap-2">
-                <button type="button" onClick={() => onRate(cafe.id, it.name)} className="press rounded-full px-3.5 py-1.5 text-xs font-medium text-white" style={{ background: C.brand }}>
+                <button type="button" onClick={() => onRate(cafe.id, it.name)} className="press rounded-full px-3.5 py-1.5 text-xs font-medium" style={{ color: C.onBrand, background: C.brand }}>
                   {isNewItem(it) ? "be the first to rate" : "rate it"}
                 </button>
                 {it.promo.journalId && onOpenStory && (
-                  <button type="button" onClick={() => onOpenStory(it.promo.journalId)} className="press rounded-full bg-white px-3.5 py-1.5 text-xs font-medium" style={{ color: C.ink }}>
+                  <button type="button" onClick={() => onOpenStory(it.promo.journalId)} className="press rounded-full bg-white px-3.5 py-1.5 text-xs font-medium" style={{ color: C.fg }}>
                     read the story
                   </button>
                 )}
               </div>
             </li>
           ) : (
-          <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-1" style={{ background: C.bg, animationDelay: `${120 + i * 60}ms` }}>
+          <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-1" data-surface="page" style={{ background: C.background, animationDelay: `${120 + i * 60}ms` }}>
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-2 font-medium">
                 {it.name} {it.pick && <PickBadge small />}
               </p>
-              <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs" style={{ color: C.taupe }}>
+              <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs" style={{ color: C.fgMuted }}>
                 <span className="truncate">{it.flavours.slice(0, 2).join(", ").toLowerCase()}</span>
                 {onMoreLike && it.count > 0 && (
                   <>
@@ -3079,7 +3029,7 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
                       onClick={() => onMoreLike(it.id)}
                       aria-label={`More like the ${it.name}`}
                       className="press shrink-0 font-medium"
-                      style={{ color: C.matcha, fontSize: 12 }}
+                      style={{ color: C.fgAccent, fontSize: 12 }}
                     >
                       more like this
                     </button>
@@ -3093,40 +3043,40 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
           )
         )}
         {cafe.items.length === 0 && (
-          <li className="rounded-2xl p-4 text-sm hair" style={{ color: C.taupe }}>
+          <li className="rounded-2xl p-4 text-sm hair" style={{ color: C.fgMuted }}>
             No items rated yet.
           </li>
         )}
       </ul>
       <div className="mt-6 flex gap-2">
-        <button type="button" onClick={() => onRate(cafe.id)} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-sm font-medium text-white" style={{ background: C.brand }}>
+        <button type="button" onClick={() => onRate(cafe.id)} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-3 text-sm font-medium" style={{ color: C.onBrand, background: C.brand }}>
           <Plus size={16} /> Rate an item here
         </button>
         {cafe.x != null && (
-          <button type="button" onClick={() => onShowMap(cafe.id)} className="press flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium" style={{ background: C.stone }}>
+          <button type="button" onClick={() => onShowMap(cafe.id)} className="press flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium" data-surface="surface" style={{ background: C.surface }}>
             <MapIcon size={16} /> Map
           </button>
         )}
       </div>
       {similar.length > 0 && (
         <div className="mt-8">
-          <h3 className="mb-2 text-sm" style={{ color: C.taupe }}>
+          <h3 className="mb-2 text-sm" style={{ color: C.fgMuted }}>
             cafés like this
           </h3>
           <ul className="space-y-2">
             {similar.map((m) => (
               <li key={m.cafe.id}>
-                <button type="button" onClick={() => onOpenCafe && onOpenCafe(m.cafe.id)} className="press flex w-full items-center gap-3 rounded-2xl p-3 text-left" style={{ background: C.bg }}>
+                <button type="button" onClick={() => onOpenCafe && onOpenCafe(m.cafe.id)} className="press flex w-full items-center gap-3 rounded-2xl p-3 text-left" data-surface="page" style={{ background: C.background }}>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{m.cafe.name}</span>
-                    <span className="block truncate text-xs" style={{ color: C.taupe }}>
+                    <span className="block truncate text-xs" style={{ color: C.fgMuted }}>
                       {m.traits.length ? m.traits.slice(0, 2).join(" · ") : m.cafe.areas[0].toLowerCase()}
                     </span>
                   </span>
-                  <span className="tabular rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: C.matchaSoft, color: C.matcha }}>
+                  <span className="tabular rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: C.accentSoft, color: C.fgAccent }}>
                     {m.score}%
                   </span>
-                  <ArrowRight size={15} style={{ color: C.taupe }} />
+                  <ArrowRight size={15} style={{ color: C.fgMuted }} />
                 </button>
               </li>
             ))}
@@ -3166,7 +3116,7 @@ function FormSection({ title, aside, children }) {
   return (
     <section>
       <div className="mb-2 flex items-baseline justify-between px-1">
-        <h3 className="text-sm" style={{ color: C.taupe }}>
+        <h3 className="text-sm" style={{ color: C.fgMuted }}>
           {title}
         </h3>
         {aside}
@@ -3187,7 +3137,8 @@ function Chip({ on, onClick, children, className = "", small = false }) {
         onClick();
       }}
       className={`press flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${small ? "px-3 py-1.5 text-xs" : "px-3.5 py-2 text-sm"} ${className}`}
-      style={{ background: on ? C.brand : C.stone, color: on ? "#fff" : C.ink }}
+      data-surface={on ? undefined : "surface"}
+      style={{ background: on ? C.brand : C.surface, color: on ? C.onBrand : C.fg }}
     >
       <span
         aria-hidden="true"
@@ -3227,7 +3178,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
     setNoteDraft(null);
   };
   const inputCls = "w-full rounded-2xl px-4 py-3 text-base outline-none tr";
-  const inputStyle = { background: C.stone };
+  const inputStyle = { background: C.surface };
 
   useEffect(() => {
     if (adding && nameRef.current) {
@@ -3244,12 +3195,12 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
   return (
     <form onSubmit={submit} noValidate>
       {/* iOS navigation bar: always visible, doubles as the drag handle */}
-      <div data-sheet-handle className="sticky top-0 z-20" style={{ background: C.bg, boxShadow: `0 1px 0 ${C.line}`, touchAction: "none" }}>
+      <div data-sheet-handle className="sticky top-0 z-20" data-surface="page" style={{ background: C.background, boxShadow: `0 1px 0 ${C.line}`, touchAction: "none" }}>
         <div className="flex justify-center pt-2 md:hidden">
-          <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.ink, .18)}` }} />
+          <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.text, .18)}` }} />
         </div>
         <div className="relative flex items-center justify-between px-4 pb-3 pt-2 md:pt-4">
-          <button type="button" onClick={onCancel} className="press -ml-1 rounded-full px-2 py-1 text-base" style={{ color: C.brand }}>
+          <button type="button" onClick={onCancel} className="press -ml-1 rounded-full px-2 py-1 text-base" style={{ color: C.fgBrand }}>
             Cancel
           </button>
           <p className="pointer-events-none absolute inset-x-0 text-center text-base font-medium">New Rating</p>
@@ -3257,7 +3208,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
             type="submit"
             disabled={!valid}
             className="press relative -mr-1 rounded-full px-3 py-1 text-base font-semibold"
-            style={{ color: valid ? "#fff" : C.taupe, background: valid ? C.brand : "transparent", transition: `background-color .35s ${EASE}, color .35s ${EASE}` }}
+            style={{ color: valid ? C.onBrand : C.fgMuted, background: valid ? C.brand : "transparent", transition: `background-color .35s ${EASE}, color .35s ${EASE}` }}
           >
             Save
           </button>
@@ -3291,7 +3242,8 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
                 setItemName("");
               }}
               className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-              style={{ background: adding ? C.brand : C.stone, color: adding ? "#fff" : C.brand, transition: `background-color .35s ${EASE}, color .35s ${EASE}` }}
+              data-surface={adding ? undefined : "surface"}
+              style={{ background: adding ? C.brand : C.surface, color: adding ? C.onBrand : C.fgBrand, transition: `background-color .35s ${EASE}, color .35s ${EASE}` }}
             >
               <Plus size={18} strokeWidth={2.2} style={{ transform: adding ? "rotate(135deg)" : "none", transition: `transform .5s ${SPRING}` }} />
             </button>
@@ -3302,7 +3254,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
                 ref={nameRef}
                 id="rate-new-cafe"
                 className={inputCls}
-                style={inputStyle}
+                data-surface="surface" style={inputStyle}
                 placeholder="New café name"
                 aria-label="New café name"
                 value={newCafe.name}
@@ -3314,7 +3266,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
                 id="rate-new-area"
                 list="rate-area-list"
                 className={inputCls}
-                style={inputStyle}
+                data-surface="surface" style={inputStyle}
                 placeholder="Area, e.g. White City"
                 aria-label="Neighbourhood (type any area)"
                 value={newCafe.area}
@@ -3331,7 +3283,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
                   id="rate-new-station"
                   aria-label="Nearest Tube station"
                   className={`${inputCls} appearance-none pr-10`}
-                  style={{ ...inputStyle, color: newCafe.station ? C.ink : C.taupe }}
+                  style={{ ...inputStyle, color: newCafe.station ? C.fg : C.fgMuted }}
                   value={newCafe.station}
                   tabIndex={adding ? 0 : -1}
                   onChange={(e) => setNewCafe((n) => ({ ...n, station: e.target.value }))}
@@ -3366,7 +3318,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
           <input
             id="rate-item"
             className={inputCls}
-            style={inputStyle}
+            data-surface="surface" style={inputStyle}
             placeholder={cafeItems.length ? "or type something else" : "e.g. Oat Flat White"}
             aria-label="Menu item name"
             value={itemName}
@@ -3375,7 +3327,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
         </FormSection>
 
         <section>
-          <h3 className="mb-2 px-1 text-sm" style={{ color: C.taupe }}>
+          <h3 className="mb-2 px-1 text-sm" style={{ color: C.fgMuted }}>
             your rating
           </h3>
           {/* Big popping number, word, large stars and slider, in the same white card as the other sections */}
@@ -3385,11 +3337,11 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
                 <span key={f1(rating)} className="a-pop tabular inline-block text-6xl font-light leading-none tracking-tight">
                   {f1(rating)}
                 </span>
-                <span className="ml-1 text-sm" style={{ color: C.taupe }}>
+                <span className="ml-1 text-sm" style={{ color: C.fgMuted }}>
                   / 5.0
                 </span>
               </div>
-              <span key={ratingWord(rating)} className="a-fade pb-1 text-base" style={{ color: C.taupe }}>
+              <span key={ratingWord(rating)} className="a-fade pb-1 text-base" style={{ color: C.fgMuted }}>
                 {ratingWord(rating)}
               </span>
             </div>
@@ -3408,7 +3360,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
                     className="press relative h-10 w-10"
                   >
                     <span key={starPop.n === n ? starPop.k : 0} className={`absolute inset-0 ${starPop.n === n && starPop.k ? "a-pop" : ""}`}>
-                      <Star size={34} strokeWidth={1.2} color={C.line} fill={C.stone} className="absolute inset-0 m-auto" />
+                      <Star size={34} strokeWidth={1.2} color={C.line} fill={C.surface} className="absolute inset-0 m-auto" />
                       <span className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - fill * 100}% 0 0)`, transition: `clip-path .45s ${EASE}` }}>
                         <Star size={34} strokeWidth={1.2} color={C.brand} fill={C.brand} className="absolute inset-0 m-auto" />
                       </span>
@@ -3427,9 +3379,9 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
               aria-label="Rating from 1.0 to 5.0"
               onChange={(e) => setRating(parseFloat(e.target.value))}
               className="sp-range mt-6 w-full"
-              style={{ background: `linear-gradient(to right, ${C.brand} ${pct}%, ${C.stone} ${pct}%)` }}
+              style={{ background: `linear-gradient(to right, ${C.brand} ${pct}%, ${C.surface} ${pct}%)` }}
             />
-            <div className="tabular mt-2 flex justify-between text-xs" style={{ color: C.taupe }}>
+            <div className="tabular mt-2 flex justify-between text-xs" style={{ color: C.fgMuted }}>
               <span>1.0</span>
               <span>3.0</span>
               <span>5.0</span>
@@ -3437,7 +3389,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
           </div>
         </section>
 
-        <FormSection title="tasting notes" aside={notes.length ? <span className="a-fade text-sm" style={{ color: C.taupe }}>{notes.length} selected</span> : null}>
+        <FormSection title="tasting notes" aside={notes.length ? <span className="a-fade text-sm" style={{ color: C.fgMuted }}>{notes.length} selected</span> : null}>
           <div className="flex flex-wrap gap-2">
             {noteOptions.map((n) => (
               <Chip key={n} on={notes.includes(n)} onClick={() => toggleNote(n)}>
@@ -3449,7 +3401,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
                 type="button"
                 onClick={() => setNoteDraft("")}
                 className="press flex shrink-0 items-center gap-1 rounded-full px-3.5 py-2 text-sm"
-                style={{ color: C.taupe, boxShadow: `inset 0 0 0 1px ${C.line}` }}
+                style={{ color: C.fgMuted, boxShadow: `inset 0 0 0 1px ${C.line}` }}
               >
                 <Plus size={14} aria-hidden="true" /> your own
               </button>
@@ -3469,7 +3421,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
                 }}
                 onBlur={addNote}
                 className="w-40 rounded-full px-3.5 py-2 text-base outline-none"
-                style={{ background: C.stone }}
+                data-surface="surface" style={{ background: C.surface }}
               />
             )}
           </div>
@@ -3499,15 +3451,15 @@ function TopNav({ tab, setTab, onRate, savedCount }) {
           <Segmented label="Sections" options={TABS} value={tab} onChange={setTab} />
         </nav>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setTab("profile")} className="press relative flex h-10 w-10 items-center justify-center rounded-full" style={{ background: C.stone }} aria-label={`Want to Try list, ${savedCount} saved`}>
+          <button type="button" onClick={() => setTab("profile")} className="press relative flex h-10 w-10 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }} aria-label={`Want to Try list, ${savedCount} saved`}>
             <Bookmark size={17} />
             {savedCount > 0 && (
-              <span key={savedCount} className="a-pop tabular absolute -right-0.5 -top-0.5 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium text-white" style={{ background: C.brand, minWidth: 20 }}>
+              <span key={savedCount} className="a-pop tabular absolute -right-0.5 -top-0.5 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium" style={{ color: C.onBrand, background: C.brand, minWidth: 20 }}>
                 {savedCount}
               </span>
             )}
           </button>
-          <button type="button" onClick={() => onRate()} className="press flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium text-white" style={{ background: C.brand }}>
+          <button type="button" onClick={() => onRate()} className="press flex items-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-medium" style={{ color: C.onBrand, background: C.brand }}>
             <Plus size={16} /> Rate
           </button>
         </div>
@@ -3521,8 +3473,8 @@ function TopNav({ tab, setTab, onRate, savedCount }) {
 function Gloss() {
   return (
     <svg aria-hidden="true" viewBox="0 0 56 56" className="pointer-events-none absolute inset-0 h-full w-full">
-      <path d="M8.6 23.5 C9.8 15.8 15.8 9.8 23.5 8.6" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" opacity=".85" />
-      <path d="M8.4 29.2 L8.4 29.4" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" opacity=".85" />
+      <path d="M8.6 23.5 C9.8 15.8 15.8 9.8 23.5 8.6" fill="none" stroke={C.onBrand} strokeWidth="2.4" strokeLinecap="round" opacity=".85" />
+      <path d="M8.4 29.2 L8.4 29.4" fill="none" stroke={C.onBrand} strokeWidth="2.4" strokeLinecap="round" opacity=".85" />
     </svg>
   );
 }
@@ -3550,9 +3502,9 @@ function BottomNav({ tab, setTab, onRate }) {
               aria-label={s.label === "Leaderboard" ? "Ranks" : s.label}
               aria-current={tab === s.value ? "page" : undefined}
               className="tab-btn relative flex items-center justify-center"
-              style={{ color: tab === s.value ? C.brand : C.taupe, transition: `color .35s ${EASE}` }}
+              style={{ color: tab === s.value ? C.fgBrand : C.fgMuted, transition: `color .35s ${EASE}` }}
             >
-              <span aria-hidden="true" className="tab-halo absolute h-11 w-11 rounded-full" style={{ background: C.stone }} />
+              <span aria-hidden="true" className="tab-halo absolute h-11 w-11 rounded-full" data-surface="surface" style={{ background: C.surface }} />
               <span className="tab-icon relative inline-flex">
                 <s.icon
                   size={24}
@@ -3564,7 +3516,7 @@ function BottomNav({ tab, setTab, onRate }) {
             </button>
           ) : (
             <div key="rate" className="flex items-center justify-center">
-              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press relative -mt-7 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: `0 10px 24px -10px ${tint(C.ink, .6)}, 0 0 0 4px ${C.bg}` }}>
+              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press relative -mt-7 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full" style={{ color: C.onBrand, background: C.brand, boxShadow: `0 10px 24px -10px ${tint(C.text, .6)}, 0 0 0 4px ${C.background}` }}>
                 <Gloss />
                 <Plus size={24} strokeWidth={2.2} className="relative" />
               </button>
@@ -3580,15 +3532,15 @@ function Toast({ toast }) {
   if (!toast) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-auto md:top-20" role="status" aria-live="polite">
-      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-white" style={{ background: C.brand, boxShadow: `0 18px 40px -16px ${tint(C.ink, .55)}` }}>
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,.12)" }}>
+      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3" style={{ color: C.onBrand, background: C.brand, boxShadow: `0 18px 40px -16px ${tint(C.text, .55)}` }}>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: tint(C.onBrand, 0.12) }}>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-            <path className="a-draw" d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+            <path className="a-draw" d="M5 12.5l4.2 4.2L19 7" fill="none" stroke={C.onBrand} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </span>
         <div className="min-w-0">
           <p className="text-sm font-medium">{toast.title}</p>
-          <p className="truncate text-xs" style={{ color: "rgba(255,255,255,.7)" }}>
+          <p className="truncate text-xs" style={{ color: tint(C.onBrand, 0.72) }}>
             {toast.sub}
           </p>
         </div>
@@ -3604,6 +3556,11 @@ function Toast({ toast }) {
 /* ───────────────────────────── The journal ───────────────────────────── */
 
 const H_MS = 3600000;
+/** Journal tile colours, blended from the theme so they follow any palette. */
+function toneOf(name) {
+  const [base, a, b] = { highlight: [C.highlight, 0.2, 0.42], accent: [C.accent, 0.18, 0.38], neutral: [C.muted, 0.1, 0.24], "highlight-soft": [C.highlight, 0.12, 0.28], "accent-soft": [C.accent, 0.1, 0.24] }[name] || [C.muted, 0.1, 0.24];
+  return [mixHex(C.background, base, a), mixHex(C.background, base, b)];
+}
 // Sample editorial content. Drops carry an end time and disappear once it passes.
 const JOURNAL = [
   {
@@ -3611,7 +3568,7 @@ const JOURNAL = [
     kind: "drop",
     title: "the iced cardamom latte",
     dek: "WatchHouse × sam'spresso. Cardamom-bun flavours, poured over ice. This weekend only.",
-    tone: ["#EFE3D6", "#D9BFA6"],
+    tone: "highlight",
     publishedAt: Date.now() - 20 * H_MS,
     endsAt: DROP_ENDS,
     read: 2,
@@ -3626,7 +3583,7 @@ const JOURNAL = [
     kind: "edit",
     title: "the post-reformer iced edit",
     dek: "Five cold, clean, oat-friendly cups for after class.",
-    tone: ["#E5EBDC", "#C9D3B4"],
+    tone: "accent",
     publishedAt: Date.now() - 2 * 24 * H_MS,
     read: 3,
     body: [
@@ -3643,7 +3600,7 @@ const JOURNAL = [
     kind: "spotlight",
     title: "the tiny counter at the top",
     dek: "How a standing-room spot by Bank became London's best-rated café.",
-    tone: ["#E9E5DD", "#D3CCC0"],
+    tone: "neutral",
     publishedAt: Date.now() - 4 * 24 * H_MS,
     read: 4,
     body: [
@@ -3657,7 +3614,7 @@ const JOURNAL = [
     kind: "edit",
     title: "where to work when it's grey out",
     dek: "Bright rooms, good Wi-Fi, no side-eye for staying a while.",
-    tone: ["#EAE4DA", "#D6C9B6"],
+    tone: "highlight-soft",
     publishedAt: Date.now() - 6 * 24 * H_MS,
     read: 3,
     body: [
@@ -3672,7 +3629,7 @@ const JOURNAL = [
     kind: "news",
     title: "new on the map",
     dek: "Marylebone, Victoria and South Ken are in. Three new cafés to rate.",
-    tone: ["#E8EDE3", "#D3DCC6"],
+    tone: "accent-soft",
     publishedAt: Date.now() - 9 * 24 * H_MS,
     read: 1,
     body: [
@@ -3708,7 +3665,8 @@ function KindTag({ kind, light = false }) {
   return (
     <span
       className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
-      style={drop ? { background: C.brand, color: "#fff" } : { background: light ? "rgba(255,255,255,.7)" : C.stone, color: C.ink }}
+      data-surface={drop ? undefined : light ? "card" : "surface"}
+      style={drop ? { background: C.brand, color: C.onBrand } : { background: light ? tint(C.card, 0.7) : C.surface, color: C.fg }}
     >
       {drop && <span className="a-dot h-1.5 w-1.5 rounded-full bg-white" />}
       {KIND_LABEL[kind]}
@@ -3744,14 +3702,14 @@ function JournalRow({ entries, readIds, onOpen }) {
     <section aria-labelledby="journal-title">
       <div className="mb-4 flex items-end justify-between">
         <div>
-          <p className="mb-1 text-sm" style={{ color: C.taupe }}>
+          <p className="mb-1 text-sm" style={{ color: C.fgMuted }}>
             from samia
           </p>
           <h2 id="journal-title" className="serif whitespace-nowrap text-3xl md:text-4xl">
             the journal
           </h2>
         </div>
-        <p className="tabular pb-1 text-sm" style={{ color: C.taupe }}>
+        <p className="tabular pb-1 text-sm" style={{ color: C.fgMuted }}>
           {entries.length} stories
         </p>
       </div>
@@ -3771,18 +3729,18 @@ function JournalRow({ entries, readIds, onOpen }) {
                 data-morph
                 onClick={(e) => onOpen(j.id, e.currentTarget)}
                 className="lift relative flex h-72 w-56 flex-col justify-between overflow-hidden rounded-3xl p-4 text-left soft md:w-60"
-                style={{ background: `linear-gradient(160deg, ${j.tone[0]}, ${j.tone[1]})` }}
+                style={{ background: `linear-gradient(160deg, ${toneOf(j.tone)[0]}, ${toneOf(j.tone)[1]})` }}
                 aria-label={`${KIND_LABEL[j.kind]}: ${j.title}${unread ? ", new" : ""}`}
               >
                 <span className="flex items-start justify-between gap-2">
                   <KindTag kind={j.kind} light />
-                  {unread && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: C.brand, boxShadow: "0 0 0 3px rgba(255,255,255,.7)" }} aria-hidden="true" />}
+                  {unread && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: C.brand, boxShadow: `0 0 0 3px ${tint(C.card, 0.7)}` }} aria-hidden="true" />}
                 </span>
                 <span>
-                  <span className="serif block text-3xl leading-none" style={{ color: C.ink }}>
+                  <span className="serif block text-3xl leading-none" style={{ color: C.fg }}>
                     {j.title}
                   </span>
-                  <span className="mt-2 block text-xs leading-relaxed" style={{ color: `${tint(C.ink, .7)}` }}>
+                  <span className="mt-2 block text-xs leading-relaxed" style={{ color: `${tint(C.fg, .7)}` }}>
                     {j.kind === "drop" ? timeLeft(j.endsAt - Date.now()) : `${j.read} min read`}
                   </span>
                 </span>
@@ -3805,12 +3763,12 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
         className="relative flex h-64 flex-col justify-end px-5 pb-4 md:h-72 md:px-8"
         style={{
           // runs under the grabber to the sheet's edge, then melts into the page
-          background: `linear-gradient(180deg, ${entry.tone[0]} 0%, ${entry.tone[1]} 58%, #fff 100%)`,
+          background: `linear-gradient(180deg, ${toneOf(entry.tone)[0]} 0%, ${toneOf(entry.tone)[1]} 58%, ${C.card} 100%)`,
         }}
       >
         <div className="flex items-center gap-2">
           <KindTag kind={entry.kind} light />
-          <span className="text-xs" style={{ color: `${tint(C.ink, .7)}` }}>
+          <span className="text-xs" style={{ color: `${tint(C.fg, .7)}` }}>
             {entry.kind === "drop" ? timeLeft(entry.endsAt - Date.now()) : timeAgo(entry.publishedAt).toLowerCase()}
           </span>
         </div>
@@ -3818,14 +3776,14 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
       </div>
       <div className="px-5 pb-8 pt-5 md:px-8">
         <p className="text-base leading-relaxed">{entry.dek}</p>
-        <p className="mt-2 text-xs" style={{ color: C.taupe }}>
+        <p className="mt-2 text-xs" style={{ color: C.fgMuted }}>
           samia · {entry.read} min read
         </p>
         <div className="mt-6 space-y-4">
           {entry.body.map((b, i) => {
             if (b.p) {
               return (
-                <p key={i} className="a-fadeup text-sm leading-relaxed" style={{ color: C.ink, animationDelay: `${100 + i * 50}ms` }}>
+                <p key={i} className="a-fadeup text-sm leading-relaxed" style={{ color: C.fg, animationDelay: `${100 + i * 50}ms` }}>
                   {b.p}
                 </p>
               );
@@ -3834,25 +3792,25 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
             if (!cafe) return null;
             const it = b.item ? itemsById[b.item] : cafe.items[0];
             return (
-              <div key={i} className="a-fadeup rounded-3xl p-4" style={{ background: C.bg, animationDelay: `${100 + i * 50}ms` }}>
+              <div key={i} className="a-fadeup rounded-3xl p-4" data-surface="page" style={{ background: C.background, animationDelay: `${100 + i * 50}ms` }}>
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={() => onOpenCafe(cafe.id)} className="min-w-0 flex-1 text-left">
                     <span className="flex items-center gap-2">
                       <span className="truncate font-medium">{cafe.name}</span>
-                      {cafe.pick && <span style={{ color: C.latte }} aria-label="Samia's Pick">✦</span>}
+                      {cafe.pick && <span style={{ color: C.fgHighlight }} aria-label="Samia's Pick">✦</span>}
                     </span>
-                    <span className="block truncate text-xs" style={{ color: C.taupe }}>
+                    <span className="block truncate text-xs" style={{ color: C.fgMuted }}>
                       {cafe.areas[0].toLowerCase()}
                       {it ? ` · ${it.name.toLowerCase()} ${isNewItem(it) ? "· new" : f1(it.rating)}` : ""}
                     </span>
                   </button>
                   {it && <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />}
-                  <button type="button" onClick={() => onOpenCafe(cafe.id)} aria-label={`Open ${cafe.name}`} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white" style={{ color: C.taupe }}>
+                  <button type="button" onClick={() => onOpenCafe(cafe.id)} aria-label={`Open ${cafe.name}`} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white" style={{ color: C.fgMuted }}>
                     <ArrowRight size={15} />
                   </button>
                 </div>
                 {b.note && (
-                  <p className="mt-2 text-sm leading-relaxed" style={{ color: C.taupe }}>
+                  <p className="mt-2 text-sm leading-relaxed" style={{ color: C.fgMuted }}>
                     {b.note}
                   </p>
                 )}
@@ -3867,8 +3825,40 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
 
 /* ───────────────────────────── Theme playground ───────────────────────────── */
 
-const DISPLAY_FONTS = ["Instrument Serif", "Playfair Display", "Cormorant Garamond", "DM Serif Display", "Fraunces", "EB Garamond", "Bodoni Moda", "Italiana", "Libre Caslon Display"];
-const BODY_FONTS = ["Manrope", "Inter", "DM Sans", "Outfit", "Plus Jakarta Sans", "Work Sans", "Karla", "Nunito Sans", "Figtree"];
+// Curated Google Fonts for the playground, grouped by style. Any other family can be typed in.
+const FONT_GROUPS = {
+  serif: ["Instrument Serif", "Playfair Display", "Cormorant Garamond", "DM Serif Display", "Fraunces", "EB Garamond", "Bodoni Moda", "Libre Caslon Display", "Lora", "Libre Baskerville", "Newsreader", "Crimson Pro", "Young Serif", "Gloock", "Prata", "Cormorant", "Gilda Display", "Marcellus", "Cinzel", "Italiana", "Abril Fatface", "Source Serif 4", "Merriweather"],
+  sans: ["Manrope", "Inter", "DM Sans", "Outfit", "Plus Jakarta Sans", "Work Sans", "Karla", "Nunito Sans", "Figtree", "Poppins", "Montserrat", "Lato", "Open Sans", "Raleway", "Rubik", "Mulish", "Urbanist", "Sora", "Lexend", "Albert Sans", "Be Vietnam Pro", "Onest", "Geist", "Instrument Sans", "Hanken Grotesk", "Space Grotesk", "Bricolage Grotesque", "IBM Plex Sans", "Source Sans 3", "Josefin Sans", "Quicksand", "Nunito", "Jost"],
+  display: ["Syne", "Unbounded", "Righteous", "Shrikhand", "Lobster", "Pacifico", "Caveat", "Dancing Script", "Great Vibes", "Playwrite GB S", "Monoton", "Bungee"],
+};
+const FONT_CHOICES = {
+  display: [["Serif", FONT_GROUPS.serif], ["Sans serif", FONT_GROUPS.sans], ["Display & script", FONT_GROUPS.display]],
+  body: [["Sans serif", FONT_GROUPS.sans], ["Serif", FONT_GROUPS.serif]],
+};
+
+/**
+ * Checks a family name against Google Fonts, trying Title Case too. Resolves to
+ * the exact name, or null if Google doesn't have it. Unknown names come back as
+ * an error without CORS headers (so fetch throws); a request for a known family
+ * tells that apart from being offline, in which case the name is used as typed.
+ */
+const fontCss = (n) => `https://fonts.googleapis.com/css2?family=${encodeURIComponent(n).replace(/%20/g, "+")}`;
+async function findGoogleFont(name) {
+  for (const n of [...new Set([name, titleCase(name.toLowerCase())])]) {
+    try {
+      if ((await fetch(fontCss(n))).ok) return n;
+    } catch (_) {
+      /* not found, or offline: checked below */
+    }
+  }
+  try {
+    await fetch(fontCss("Inter"));
+    return null; // online, so the name really isn't on Google Fonts
+  } catch (_) {
+    return name; // offline: can't check, use it as typed
+  }
+}
+
 const isDesignMode = () => {
   try {
     return /(^|[?&])design(=|&|$)/.test(window.location.search.slice(1)) || window.location.hash === "#design";
@@ -3877,43 +3867,135 @@ const isDesignMode = () => {
   }
 };
 
-function FontPicker({ label, value, options, onChange }) {
-  const custom = !options.includes(value);
+/* The playground is a tool: fixed neutral styling so it stays readable whatever theme is being edited. */
+const T = { panel: "#FFFFFF", field: "#F2F2F7", ink: "#1C1C1E", muted: "#6E6E73", line: "#E5E5EA", accent: "#1C1C1E", onAccent: "#FFFFFF", noteBg: "#FFF6E0", note: "#8A5A00" };
+
+function FontPicker({ label, value, groups, onChange }) {
+  const listed = groups.some(([, fonts]) => fonts.includes(value));
+  const [typing, setTyping] = useState(!listed);
+  const [draft, setDraft] = useState(listed ? "" : value);
+  const [status, setStatus] = useState(null); // null | "checking" | "missing"
+  const inputRef = useRef(null);
+  const opened = useRef(false);
+  useEffect(() => {
+    // focus the box when someone picks "Other Google Font…" (not on first render)
+    if (typing && opened.current && inputRef.current) inputRef.current.focus();
+    opened.current = true;
+  }, [typing]);
+  const apply = async () => {
+    const n = draft.trim();
+    if (n.length < 2 || !FONT_NAME.test(n)) {
+      setStatus(n ? "missing" : null);
+      return;
+    }
+    if (n === value) return;
+    setStatus("checking");
+    const found = await findGoogleFont(n);
+    if (!found) return setStatus("missing");
+    setStatus(null);
+    setDraft(found);
+    if (groups.some(([, fonts]) => fonts.includes(found))) setTyping(false); // it's in the list after all
+    onChange(found);
+  };
   return (
     <div>
-      <p className="mb-1 text-xs" style={{ color: C.taupe }}>
+      <p className="mb-1 text-xs" style={{ color: T.muted }}>
         {label}
       </p>
       <div className="relative">
         <select
           aria-label={label}
-          value={custom ? "__custom" : value}
-          onChange={(e) => onChange(e.target.value === "__custom" ? "" : e.target.value)}
+          value={typing ? "__custom" : value}
+          onChange={(e) => {
+            if (e.target.value === "__custom") {
+              setDraft(listed ? "" : value);
+              setStatus(null);
+              setTyping(true);
+            } else {
+              setTyping(false);
+              setStatus(null);
+              onChange(e.target.value);
+            }
+          }}
           className="w-full appearance-none rounded-2xl px-4 py-2.5 pr-10 text-base"
-          style={{ background: C.stone, fontFamily: `"${value}"` }}
+         
+          style={{ background: T.field }}
         >
-          {options.map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
+          {groups.map(([name, fonts]) => (
+            <optgroup key={name} label={name}>
+              {fonts.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </optgroup>
           ))}
-          <option value="__custom">Other Google Font…</option>
+          <option value="__custom">{listed ? "Other Google Font…" : `${value} (typed)`}</option>
         </select>
         <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true" />
       </div>
-      {custom && (
-        <input
-          aria-label={`${label}: Google Font name`}
-          placeholder="Exact Google Fonts name, e.g. Lora"
-          defaultValue={value}
-          onBlur={(e) => e.target.value.trim() && onChange(e.target.value.trim())}
-          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-          className="mt-2 w-full rounded-2xl px-4 py-2.5 text-base"
-          style={{ background: C.stone }}
-        />
+      {typing && (
+        <div className="a-fade mt-2">
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              aria-label={`${label}: Google Font name`}
+              placeholder="Any Google Font, e.g. Lora"
+              value={draft}
+              maxLength={40}
+              autoCapitalize="words"
+              autoCorrect="off"
+              spellCheck={false}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                setStatus(null);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), apply())}
+              className="min-w-0 flex-1 rounded-2xl px-4 py-2.5 text-base"
+             
+              style={{ background: T.field }}
+            />
+            <button
+              type="button"
+              onClick={apply}
+              disabled={status === "checking" || draft.trim().length < 2}
+              className="press shrink-0 rounded-full px-4 text-sm font-medium"
+              style={{ background: T.accent, color: T.onAccent, opacity: status === "checking" || draft.trim().length < 2 ? 0.5 : 1 }}
+            >
+              {status === "checking" ? "Checking…" : "Use"}
+            </button>
+          </div>
+          <p className="mt-1.5 text-xs" role="status" style={{ color: status === "missing" ? T.note : T.muted }}>
+            {status === "missing" ? (
+              <>Couldn't find that on Google Fonts. Check the spelling on fonts.google.com.</>
+            ) : (
+              <>
+                Browse at{" "}
+                <a href="https://fonts.google.com" target="_blank" rel="noopener noreferrer" className="underline">
+                  fonts.google.com
+                </a>{" "}
+                and type the name exactly as shown.
+              </>
+            )}
+          </p>
+        </div>
       )}
     </div>
   );
+}
+
+/** Plain-language contrast notes for the playground: what doesn't read, and what the app does about it. */
+function themeWarnings(k) {
+  const out = [];
+  const pair = (fg, bg, min) => contrast(fg, bg) < min;
+  if (pair(k.text, k.background, 4.5)) out.push("Text is hard to read on the page background, so it's shown in a stronger shade there.");
+  if (pair(k.text, k.card, 4.5)) out.push("Text is hard to read on cards & sheets, so it's shown in a stronger shade on them.");
+  if (pair(k.text, k.surface, 4.5)) out.push("Text is hard to read on pills & rows, so it's shown in a stronger shade on them.");
+  if (pair(k.muted, k.background, 3) || pair(k.muted, k.card, 3)) out.push("Secondary text is faint, so it's strengthened where it would be hard to read.");
+  if (pair(k.brand, k.background, 3)) out.push("Brand is too close to the page background, so the logo and brand-coloured text use a stronger shade.");
+  if (contrast("#FFFFFF", k.brand) < 3) out.push("Brand is light, so text on brand buttons switches to dark.");
+  if (contrast(k.background, k.card) < 1.04) out.push("Cards are the same colour as the page, so they only stand out by their shadow.");
+  return out;
 }
 
 /** Live theme editor for designers: change colours, fonts and corners, then copy theme.json. */
@@ -3947,8 +4029,8 @@ function DesignPanel({ theme, published, onChange, onReset }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="press fixed left-4 z-[60] flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium soft md:bottom-6"
-        style={{ bottom: "calc(76px + env(safe-area-inset-bottom))", color: C.ink }}
+        className="sp-tool press fixed left-4 z-[60] flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium md:bottom-6"
+        style={{ bottom: "calc(76px + env(safe-area-inset-bottom))", color: T.ink, background: T.panel, boxShadow: "0 8px 24px -10px rgba(0,0,0,.3)" }}
       >
         <Palette size={16} /> theme
       </button>
@@ -3957,23 +4039,35 @@ function DesignPanel({ theme, published, onChange, onReset }) {
   return (
     <aside
       aria-label="Theme playground"
-      className="a-cardup fixed inset-x-0 bottom-0 z-[60] flex flex-col rounded-t-3xl bg-white md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:w-96 md:rounded-3xl"
-      style={{ maxHeight: "56vh", boxShadow: `0 -12px 40px -16px ${tint(C.ink, 0.35)}`, paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="sp-tool a-cardup fixed inset-x-0 bottom-0 z-[60] flex flex-col rounded-t-3xl max-h-[56vh] md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:max-h-none md:w-96 md:rounded-3xl"
+      style={{ background: T.panel, color: T.ink, boxShadow: `0 -12px 40px -16px ${"rgba(0,0,0,.18)"}`, paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex items-center justify-between px-5 pb-2 pt-4">
         <div>
-          <p className="serif text-2xl leading-none">theme playground</p>
-          <p className="mt-1 text-xs" style={{ color: C.taupe }}>
+          <p className="text-lg font-semibold leading-tight">Theme playground</p>
+          <p className="mt-1 text-xs" style={{ color: T.muted }}>
             {changed ? "Previewing on this device only" : "Matches the published theme"}
           </p>
         </div>
-        <button type="button" aria-label="Minimise playground" onClick={() => setOpen(false)} className="press flex h-9 w-9 items-center justify-center rounded-full" style={{ background: C.stone }}>
+        <button type="button" aria-label="Minimise playground" onClick={() => setOpen(false)} className="press flex h-9 w-9 items-center justify-center rounded-full" style={{ background: T.field }}>
           <ChevronUp size={17} style={{ transform: "rotate(180deg)" }} />
         </button>
       </div>
       <div className="no-scrollbar flex-1 space-y-6 overflow-y-auto px-5 pb-4 md:max-h-none">
         <section>
           <p className="mb-2 text-sm font-medium">Colours</p>
+          {themeWarnings(theme.colors).length > 0 && (
+            <ul className="mb-3 space-y-1.5 rounded-2xl p-3 text-xs leading-relaxed" style={{ background: T.noteBg }} aria-label="Contrast notes">
+              {themeWarnings(theme.colors).map((w) => (
+                <li key={w} className="flex gap-2">
+                  <span aria-hidden="true" style={{ color: T.note }}>
+                    ●
+                  </span>
+                  <span>{w}</span>
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="space-y-2">
             {COLOR_ROLES.map(([key, label]) => (
               <div key={key} className="flex items-center gap-3">
@@ -3993,7 +4087,7 @@ function DesignPanel({ theme, published, onChange, onReset }) {
                   onBlur={(e) => HEX.test(e.target.value.trim()) && set(["colors", key], e.target.value.trim().toUpperCase())}
                   onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
                   className="tabular w-24 rounded-xl px-2 py-1.5 text-center text-sm uppercase"
-                  style={{ background: C.stone }}
+                  style={{ background: T.field }}
                 />
               </div>
             ))}
@@ -4001,16 +4095,16 @@ function DesignPanel({ theme, published, onChange, onReset }) {
         </section>
         <section className="space-y-3">
           <p className="text-sm font-medium">Fonts</p>
-          <FontPicker label="Headings (display)" value={theme.fonts.display} options={DISPLAY_FONTS} onChange={(v) => v && set(["fonts", "display"], v)} />
+          <FontPicker label="Headings (display)" value={theme.fonts.display} groups={FONT_CHOICES.display} onChange={(v) => v && set(["fonts", "display"], v)} />
           <label className="flex items-center justify-between text-sm">
             <span>Italic headings</span>
-            <input type="checkbox" checked={theme.fonts.displayItalic} onChange={(e) => set(["fonts", "displayItalic"], e.target.checked)} className="h-5 w-5" style={{ accentColor: C.brand }} />
+            <input type="checkbox" checked={theme.fonts.displayItalic} onChange={(e) => set(["fonts", "displayItalic"], e.target.checked)} className="h-5 w-5" style={{ accentColor: T.accent }} />
           </label>
-          <FontPicker label="Body text" value={theme.fonts.body} options={BODY_FONTS} onChange={(v) => v && set(["fonts", "body"], v)} />
+          <FontPicker label="Body text" value={theme.fonts.body} groups={FONT_CHOICES.body} onChange={(v) => v && set(["fonts", "body"], v)} />
         </section>
         <section>
           <p className="mb-2 flex justify-between text-sm font-medium">
-            Corner roundness <span className="tabular" style={{ color: C.taupe }}>{theme.corners}px</span>
+            Corner roundness <span className="tabular" style={{ color: T.muted }}>{theme.corners}px</span>
           </p>
           <input
             type="range"
@@ -4020,22 +4114,22 @@ function DesignPanel({ theme, published, onChange, onReset }) {
             value={theme.corners}
             aria-label="Corner roundness"
             onChange={(e) => set(["corners"], parseInt(e.target.value, 10))}
-            className="sp-range w-full"
-            style={{ background: `linear-gradient(to right, ${C.brand} ${((theme.corners - 4) / 32) * 100}%, ${C.stone} ${((theme.corners - 4) / 32) * 100}%)` }}
+            className="sp-range sp-tool-range w-full"
+            style={{ background: `linear-gradient(to right, ${T.accent} ${((theme.corners - 4) / 32) * 100}%, ${T.field} ${((theme.corners - 4) / 32) * 100}%)` }}
           />
         </section>
         {showJson && (
-          <textarea readOnly value={json} rows={8} onFocus={(e) => e.target.select()} className="w-full rounded-2xl p-3 font-mono text-xs" style={{ background: C.stone }} aria-label="Theme JSON" />
+          <textarea readOnly value={json} rows={8} onFocus={(e) => e.target.select()} className="w-full rounded-2xl p-3 font-mono text-xs" style={{ background: T.field }} aria-label="Theme JSON" />
         )}
       </div>
-      <div className="flex gap-2 border-t px-5 py-3" style={{ borderColor: C.line }}>
-        <button type="button" onClick={copy} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium text-white" style={{ background: C.brand }}>
+      <div className="flex gap-2 border-t px-5 py-3" style={{ borderColor: T.line }}>
+        <button type="button" onClick={copy} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium" style={{ color: T.onAccent, background: T.accent }}>
           {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Copied" : "Copy theme"}
         </button>
-        <button type="button" onClick={() => setShowJson((v) => !v)} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: C.stone }}>
+        <button type="button" onClick={() => setShowJson((v) => !v)} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: T.field }}>
           {showJson ? "Hide" : "Show"} code
         </button>
-        <button type="button" onClick={onReset} disabled={!changed} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: C.stone, opacity: changed ? 1 : 0.4 }}>
+        <button type="button" onClick={onReset} disabled={!changed} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: T.field, opacity: changed ? 1 : 0.4 }}>
           Reset
         </button>
       </div>
@@ -4078,7 +4172,7 @@ function useAppIcon() {
       meta("application-name", "sam'spresso");
       meta("apple-mobile-web-app-capable", "yes");
       meta("mobile-web-app-capable", "yes");
-      meta("theme-color", C.bg);
+      meta("theme-color", C.background);
     } catch (_) {}
   }, []);
 }
@@ -4421,13 +4515,13 @@ export default function Samspresso() {
       <JournalRow entries={journal} readIds={readIds} onOpen={openArticle} />
       <section aria-labelledby="explore-title">
         <div className="mb-4 min-w-0">
-          <p className="mb-1 text-sm" style={{ color: C.taupe }}>
+          <p className="mb-1 text-sm" style={{ color: C.fgMuted }}>
             explore
           </p>
           <h2 id="explore-title" className="text-xl font-medium tracking-tight md:text-2xl">
             <span className="serif block truncate whitespace-nowrap text-3xl md:text-4xl">{area === "All London" ? "the london edit" : `the ${area.toLowerCase()} edit`}</span>
           </h2>
-          <p className="tabular mt-1 text-sm" style={{ color: C.taupe }}>
+          <p className="tabular mt-1 text-sm" style={{ color: C.fgMuted }}>
             {filtered.length} café{filtered.length === 1 ? "" : "s"}
             {drink !== "All Drinks" ? ` · ${drink.toLowerCase()}` : ""}
           </p>
@@ -4457,7 +4551,7 @@ export default function Samspresso() {
     <div className="grid gap-4" style={{ gridTemplateColumns: "340px 1fr", height: "calc(100vh - 64px - 64px)", minHeight: 520 }}>
       <aside className="flex min-h-0 flex-col" aria-label="Café list">
         <div className="mb-3">
-          <p className="text-sm" style={{ color: C.sage }}>
+          <p className="text-sm" style={{ color: C.fgAccent }}>
             {filtered.length} cafés
           </p>
           <h1 className="serif text-3xl">the map</h1>
