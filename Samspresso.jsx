@@ -211,6 +211,12 @@ const buildCSS = () => `
 .sp{font-family:"${THEME.fonts.body}","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;${fgVars(C.onPage)}color:var(--sp-text);background:${C.background};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
 .sp .serif{font-family:"${THEME.fonts.display}",ui-serif,Georgia,serif;font-style:${THEME.fonts.displayItalic ? "italic" : "normal"};font-weight:400;letter-spacing:-.01em}
 .sp .bg-white{background-color:${C.card}}
+.sp{touch-action:manipulation}
+/* invisible hit areas: small controls stay small but are at least ~44pt to tap */
+.sp .hit::after,.sp .hit-y::after,.sp .hit-x::after{content:"";position:absolute;border-radius:999px}
+.sp .hit::after{inset:-4px}
+.sp .hit-y::after{inset:-9px -2px}
+.sp .hit-x::after{inset:-14px -6px}
 .sp .bg-white,.sp .glass-white,.sp [data-surface=card]{${fgVars(C.onCard)}color:var(--sp-text)}
 .sp [data-surface=surface]{${fgVars(C.onSurface)}color:var(--sp-text)}
 .sp [data-surface=page]{${fgVars(C.onPage)}color:var(--sp-text)}
@@ -872,7 +878,7 @@ function MobileHeader({ tab, savedCount, onSaved }) {
       >
         {COMPACT_TITLES[tab]}
       </p>
-      <button type="button" onClick={onSaved} className="press relative flex h-9 w-9 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }} aria-label={`Want to Try list, ${savedCount} saved`}>
+      <button type="button" onClick={onSaved} className="press hit relative flex h-9 w-9 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }} aria-label={`Want to Try list, ${savedCount} saved`}>
         <Bookmark size={16} />
         {savedCount > 0 && (
           <span key={savedCount} className="a-pop tabular absolute -right-1 -top-1 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium" style={{ color: C.onBrand, background: C.brand, minWidth: 20 }}>
@@ -1032,7 +1038,7 @@ function BookmarkButton({ saved, onToggle, size = 17, className = "" }) {
         setPop((p) => p + 1);
         onToggle();
       }}
-      className={`press flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${className}`}
+      className={`press hit relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${className}`}
       style={{ background: saved ? C.brandSoft : "transparent" }}
     >
       <span key={pop} className={`inline-flex ${pop ? "a-pop" : ""}`}>
@@ -1311,7 +1317,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
                   type="button"
                   onClick={onClose}
                   aria-label="Close"
-                  className="press absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full"
+                  className="press hit absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full"
                   data-surface={chromeOverlay ? "card" : "surface"}
                   style={{
                     background: chromeOverlay ? tint(C.card, 0.72) : C.surface,
@@ -1953,16 +1959,16 @@ function TasteMatch({ items, cafesById, itemsById, taste, history, sourceId, onP
       </p>
       </LargeTitle>
       <h1 id="tm-title" className="flex flex-wrap items-center gap-x-3 gap-y-3">
-        <span className="serif whitespace-nowrap text-4xl leading-tight md:text-5xl">{mine ? "Picked for" : "If you love the"}</span>
+        <span className="serif whitespace-nowrap text-[clamp(1.8rem,9.3vw,2.25rem)] leading-tight md:text-5xl">{mine ? "Picked for" : "If you love the"}</span>
         {/* The pill opens a short, searchable picker. The visible label never wraps. */}
         <button
           type="button"
           onClick={onPick}
           aria-haspopup="dialog"
           aria-label={`Choose a drink you love. Now: ${mine ? "your taste" : `${src.name} at ${srcCafe ? srcCafe.name : ""}`}`}
-          className="press focus-within-ring relative inline-flex max-w-full items-center gap-2 rounded-full bg-white py-2 pl-5 pr-2 text-left soft"
+          className="press focus-within-ring relative inline-flex max-w-full items-center gap-2 rounded-full bg-white py-2 pl-4 pr-2 text-left soft min-[380px]:pl-5"
         >
-          <span className="truncate whitespace-nowrap text-xl font-light tracking-tight md:text-3xl">
+          <span className="truncate whitespace-nowrap text-[clamp(1.05rem,5.2vw,1.25rem)] font-light tracking-tight md:text-3xl">
             {mine ? (
               "your taste"
             ) : (
@@ -2488,7 +2494,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                     aria-pressed={isSel}
                     onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => onSelect(isSel ? null : c.id)}
-                    className="absolute left-0 top-0 flex flex-col items-center"
+                    className="hit absolute left-0 top-0 flex flex-col items-center"
                     style={{
                       transform: `translate(-50%, -100%) scale(${vis ? s : 0.4})`,
                       transformOrigin: "50% 100%",
@@ -2920,7 +2926,7 @@ function CoffeeProfile({ coffee, myNotes = [], onAddNote }) {
           <button
             type="button"
             onClick={onAddNote}
-            className="press inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
+            className="press hit-y relative inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
             style={{ fontSize: 12, color: C.fgMuted, boxShadow: `inset 0 0 0 1px ${C.line}` }}
           >
             <Plus size={12} aria-hidden="true" /> {mine.size ? "add a note" : "what did you taste?"}
@@ -3025,7 +3031,7 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
                       type="button"
                       onClick={() => onMoreLike(it.id)}
                       aria-label={`More like the ${it.name}`}
-                      className="press shrink-0 font-medium"
+                      className="press hit-x relative shrink-0 font-medium"
                       style={{ color: C.fgAccent, fontSize: 12 }}
                     >
                       more like this
@@ -3133,7 +3139,7 @@ function Chip({ on, onClick, children, className = "", small = false }) {
         setPop((p) => p + 1);
         onClick();
       }}
-      className={`press flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${small ? "px-3 py-1.5 text-xs" : "px-3.5 py-2 text-sm"} ${className}`}
+      className={`press hit relative flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${small ? "px-3 py-1.5 text-xs" : "px-3.5 py-2 text-sm"} ${className}`}
       data-surface={on ? undefined : "surface"}
       style={{ background: on ? C.brand : C.surface, color: on ? C.onBrand : C.fg }}
     >
@@ -3197,14 +3203,14 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
           <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.text, .18)}` }} />
         </div>
         <div className="relative flex items-center justify-between px-4 pb-3 pt-2 md:pt-4">
-          <button type="button" onClick={onCancel} className="press -ml-1 rounded-full px-2 py-1 text-base" style={{ color: C.fgBrand }}>
+          <button type="button" onClick={onCancel} className="press hit-y relative -ml-1 rounded-full px-2 py-1 text-base" style={{ color: C.fgBrand }}>
             Cancel
           </button>
           <p className="pointer-events-none absolute inset-x-0 text-center text-base font-medium">New Rating</p>
           <button
             type="submit"
             disabled={!valid}
-            className="press relative -mr-1 rounded-full px-3 py-1 text-base font-semibold"
+            className="press hit-y relative -mr-1 rounded-full px-3 py-1 text-base font-semibold"
             style={{ color: valid ? C.onBrand : C.fgMuted, background: valid ? C.brand : "transparent", transition: `background-color .35s ${EASE}, color .35s ${EASE}` }}
           >
             Save
@@ -3448,7 +3454,7 @@ function TopNav({ tab, setTab, onRate, savedCount }) {
           <Segmented label="Sections" options={TABS} value={tab} onChange={setTab} />
         </nav>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setTab("profile")} className="press relative flex h-10 w-10 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }} aria-label={`Want to Try list, ${savedCount} saved`}>
+          <button type="button" onClick={() => setTab("profile")} className="press hit relative flex h-10 w-10 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }} aria-label={`Want to Try list, ${savedCount} saved`}>
             <Bookmark size={17} />
             {savedCount > 0 && (
               <span key={savedCount} className="a-pop tabular absolute -right-0.5 -top-0.5 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium" style={{ color: C.onBrand, background: C.brand, minWidth: 20 }}>
@@ -4029,7 +4035,7 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
                     </span>
                   </button>
                   {it && <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />}
-                  <button type="button" onClick={() => onOpenCafe(cafe.id)} aria-label={`Open ${cafe.name}`} className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white" style={{ color: C.fgMuted }}>
+                  <button type="button" onClick={() => onOpenCafe(cafe.id)} aria-label={`Open ${cafe.name}`} className="press hit relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white" style={{ color: C.fgMuted }}>
                     <ArrowRight size={15} />
                   </button>
                 </div>
