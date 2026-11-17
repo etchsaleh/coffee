@@ -207,7 +207,7 @@ Object.assign(C, { fg: "var(--sp-text)", fgMuted: "var(--sp-muted)", fgBrand: "v
  * Used for testing: records full sessions (nothing masked except password fields,
  * which PostHog always hides). Leave `key` empty to switch it off.
  */
-const POSTHOG = { key: "", host: "https://eu.i.posthog.com" };
+const POSTHOG = { key: "phc_rvSuiCa4hn3rvhr5uz5agCvvYGnagbEsqmPxoiehpcn3", host: "https://us.i.posthog.com" };
 // Loads PostHog from its own servers after the app has started, so the app bundle stays small.
 function startAnalytics() {
   if (!POSTHOG.key || typeof window === "undefined" || window.posthog) return;
