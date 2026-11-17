@@ -70,6 +70,15 @@ Lighter tints (soft backgrounds, shadows, glows) are worked out automatically fr
 }
 ```
 
+## Readability is automatic
+
+Any combination is safe to try. On each surface (page, cards, pills, brand buttons), the app checks whether text is readable:
+
+- If it isn't, the app uses a stronger shade of the same colour there. For example, dark text on a dark card becomes light on that card only.
+- Text on brand-coloured buttons switches between white and dark to suit the brand colour.
+
+The playground shows a short **contrast note** whenever this happens, so you know which pairing was adjusted. If you'd rather keep your exact colour everywhere, pick a combination that doesn't trigger a note.
+
 ## Good to know
 
 - A typo can't break the app. Any value it doesn't understand is ignored, and the original is used for that one setting.
