@@ -1577,20 +1577,57 @@ function tasteWords(t) {
 // Only recommend genuinely close matches; how many depends on the drink.
 const MATCH_MIN = 75;
 
-function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, toggleSave, onOpenCafe, onRate }) {
-  const src = items.find((i) => i.id === sourceId) || items[0];
-  const srcCafe = cafesById[src.cafeId];
+const short = (name) => name.replace(/ (Coffee|Espresso Bar|Espresso|Café)$/, "");
+
+/**
+ * Drinks for "your taste": untried coffees at cafés whose profile is close to
+ * yours, scored against the cups you loved, and explained by the closest one.
+ */
+function tasteRecs(taste, history, items, cafesById, itemsById) {
+  if (!taste) return [];
+  const loved = history.filter((h) => h.rating >= 4 && isCoffeeRating(h, itemsById) && itemsById[h.itemId] && cafesById[h.cafeId] && cafesById[h.cafeId].coffee);
+  if (!loved.length) return [];
+  const tried = new Set(history.map((h) => h.cafeId)); // discovery: cafés you haven't been to
+  const perCafe = {};
+  return items
+    .filter((i) => i.count > 0 && !tried.has(i.cafeId) && !i.styles.includes("Pastries") && cafesById[i.cafeId] && cafesById[i.cafeId].coffee)
+    .map((i) => {
+      const cafe = cafesById[i.cafeId];
+      let best = null;
+      loved.forEach((h, idx) => {
+        const m = matchScore(itemsById[h.itemId], i) + (idx === 0 ? 2 : 0); // the most recent love wins near-ties
+        if (!best || m > best.m) best = { m, h };
+      });
+      const score = Math.min(98, Math.round((best.m + tasteMatch(taste, cafe.coffee.taste)) / 2));
+      const lc = cafesById[best.h.cafeId];
+      const traits = sharedTraits(lc.coffee.taste, cafe.coffee.taste);
+      const why = `Because you loved the ${best.h.name.toLowerCase()} at ${short(lc.name)}${traits.length ? `: ${traits.slice(0, 2).join(", ")}` : ""}.`;
+      return { item: i, score, why };
+    })
+    .filter((r) => r.score >= MATCH_MIN - 5)
+    .sort((a, b) => b.score - a.score || b.item.rating - a.item.rating)
+    .filter((r) => (perCafe[r.item.cafeId] = (perCafe[r.item.cafeId] || 0) + 1) <= 2) // keep the deck varied
+    .slice(0, 10);
+}
+
+function TasteMatch({ items, cafes, cafesById, itemsById, taste, history, sourceId, setSourceId, saved, toggleSave, onOpenCafe, onRate }) {
+  const mine = sourceId === "taste" && !!taste;
+  const src = mine ? null : items.find((i) => i.id === sourceId) || items[0];
+  const srcCafe = src && cafesById[src.cafeId];
+  const loves = useMemo(() => history.filter((h) => h.rating >= 4 && isCoffeeRating(h, itemsById)).length, [history, itemsById]);
   const recs = useMemo(
     () =>
-      items
-        .filter((i) => i.id !== src.id && i.cafeId !== src.cafeId && i.count > 0)
-        .map((i) => ({ item: i, score: matchScore(src, i), why: reasonFor(src, i) }))
-        .filter((r) => r.score >= MATCH_MIN)
-        .sort((a, b) => b.score - a.score || b.item.rating - a.item.rating)
-        .slice(0, 10),
-    [items, src]
+      mine
+        ? tasteRecs(taste, history, items, cafesById, itemsById)
+        : items
+            .filter((i) => i.id !== src.id && i.cafeId !== src.cafeId && i.count > 0)
+            .map((i) => ({ item: i, score: matchScore(src, i), why: reasonFor(src, i) }))
+            .filter((r) => r.score >= MATCH_MIN)
+            .sort((a, b) => b.score - a.score || b.item.rating - a.item.rating)
+            .slice(0, 10),
+    [mine, taste, history, items, cafesById, itemsById, src]
   );
-  const short = (name) => name.replace(/ (Coffee|Espresso Bar|Espresso|Café)$/, "");
+  const deckKey = mine ? "taste" : src.id;
 
   return (
     <section className="relative" aria-labelledby="tm-title">
@@ -1600,22 +1637,29 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
       </p>
       </LargeTitle>
       <h1 id="tm-title" className="flex flex-wrap items-center gap-x-3 gap-y-3">
-        <span className="serif whitespace-nowrap text-4xl leading-tight md:text-5xl">If you love the</span>
+        <span className="serif whitespace-nowrap text-4xl leading-tight md:text-5xl">{mine ? "Picked for" : "If you love the"}</span>
         {/* Native select for speed; styled as a pill. The visible label never wraps. */}
         <span className="focus-within-ring relative inline-flex max-w-full items-center gap-2 rounded-full bg-white py-2 pl-5 pr-2 soft">
           <span className="truncate whitespace-nowrap text-xl font-light tracking-tight md:text-3xl">
-            {src.name} <span style={{ color: C.taupe }}>at {short(srcCafe ? srcCafe.name : "")}</span>
+            {mine ? (
+              "your taste"
+            ) : (
+              <>
+                {src.name} <span style={{ color: C.taupe }}>at {short(srcCafe ? srcCafe.name : "")}</span>
+              </>
+            )}
           </span>
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: C.stone }}>
             <ChevronDown size={17} strokeWidth={1.7} aria-hidden="true" />
           </span>
           <select
             aria-label="Choose a drink you love"
-            value={src.id}
+            value={mine ? "taste" : src.id}
             onChange={(e) => setSourceId(e.target.value)}
             className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
             style={{ fontSize: 16 }}
           >
+            {taste && <option value="taste">your taste · from {loves} {loves === 1 ? "cup" : "cups"} you loved</option>}
             {cafes.map((c) => (
               <optgroup key={c.id} label={c.name}>
                 {items
@@ -1633,16 +1677,20 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
       </h1>
       <p className="mt-3 text-sm md:text-base" style={{ color: C.taupe }}>
         {recs.length === 0
-          ? "nothing on the list tastes quite like it yet."
+          ? mine
+            ? "you've tried everything that suits you. rate a few more cups to widen it."
+            : "nothing on the list tastes quite like it yet."
+          : mine
+          ? `${recs.length === 1 ? "one cup" : `${recs.length} cups`} we think you'll love.`
           : recs.length === 1
           ? "you'll probably love this one too."
           : `you'll probably love these ${recs.length} too.`}
       </p>
 
       {recs.length ? (
-        <SwipeStack key={src.id} recs={recs} src={src} cafesById={cafesById} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} />
+        <SwipeStack key={deckKey} recs={recs} src={src} cafesById={cafesById} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} />
       ) : (
-        <div key={src.id} className="a-fadeup mx-auto mt-8 flex max-w-md flex-col items-center rounded-3xl px-6 py-10 text-center" style={{ background: C.stone }}>
+        <div key={deckKey} className="a-fadeup mx-auto mt-8 flex max-w-md flex-col items-center rounded-3xl px-6 py-10 text-center" style={{ background: C.stone }}>
           <p className="serif text-3xl">a one-of-a-kind cup</p>
           <p className="mt-1 text-sm" style={{ color: C.taupe }}>
             found something similar? rate it and it'll show up here.
@@ -3112,11 +3160,6 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
         </section>
 
         <FormSection title="tasting notes" aside={notes.length ? <span className="a-fade text-sm" style={{ color: C.taupe }}>{notes.length} selected</span> : null}>
-          {cafeNotes.length > 0 && (
-            <p className="-mt-1 mb-2 text-xs" style={{ color: C.taupe }}>
-              {selCafeObj.name}'s notes come first
-            </p>
-          )}
           <div className="flex flex-wrap gap-2">
             {noteOptions.map((n) => (
               <Chip key={n} on={notes.includes(n)} onClick={() => toggleNote(n)}>
@@ -3279,64 +3322,6 @@ function Toast({ toast }) {
 /* ───────────────────────────── Sort & "near me" ───────────────────────────── */
 
 /* ───────────────────────────── For you ───────────────────────────── */
-
-function ForYouRow({ picks, onOpen, onRate }) {
-  return (
-    <section aria-labelledby="foryou-title">
-      <div className="mb-4">
-        <p className="mb-1 text-sm" style={{ color: C.sage }}>
-          based on what you've loved
-        </p>
-        <h2 id="foryou-title" className="serif whitespace-nowrap text-3xl md:text-4xl">
-          picked for your taste
-        </h2>
-      </div>
-      {picks.length === 0 ? (
-        <div className="rounded-3xl p-5 text-sm" style={{ background: C.stone, color: C.taupe }}>
-          Rate a few cups you love and we'll learn your taste: roast, fruit, chocolate, milk.{" "}
-          <button type="button" onClick={onRate} className="font-medium underline" style={{ color: C.brand }}>
-            Rate a drink
-          </button>
-        </div>
-      ) : (
-        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0" style={{ scrollPaddingLeft: 16 }}>
-          {picks.map((p, i) => (
-            <div key={p.cafe.id} className="a-fadeup shrink-0 snap-start" style={{ animationDelay: `${i * 60}ms` }}>
-              <button
-                type="button"
-                data-morph
-                onClick={(e) => onOpen(p.cafe.id, e.currentTarget)}
-                className="lift flex h-full w-64 flex-col rounded-3xl bg-white p-4 text-left soft"
-              >
-                <span className="flex items-start justify-between gap-2">
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{p.cafe.name}</span>
-                    <span className="block truncate text-xs" style={{ color: C.taupe }}>
-                      {[p.cafe.areas[0], p.cafe.coffee.roaster && p.cafe.coffee.roaster.split(" (")[0].split(" +")[0]].filter(Boolean).join(" · ").toLowerCase()}
-                    </span>
-                  </span>
-                  <span className="tabular shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: C.matchaSoft, color: C.matcha }}>
-                    {p.score}%
-                  </span>
-                </span>
-                <span className="mt-3 block text-sm leading-relaxed" style={{ color: C.taupe }}>
-                  {p.reason}
-                </span>
-                {p.cafe.coffee.notes.length > 0 && (
-                  <span className="mt-3 flex flex-wrap gap-1.5">
-                    {p.cafe.coffee.notes.slice(0, 2).map((n) => (
-                      <Tag key={n}>{n}</Tag>
-                    ))}
-                  </span>
-                )}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
-  );
-}
 
 /* ───────────────────────────── The journal ───────────────────────────── */
 
@@ -3685,7 +3670,7 @@ export default function Samspresso() {
   }, [cafes, items, history, saved]);
   const [area, setArea] = useState("All London");
   const [drink, setDrink] = useState("All Drinks");
-  const [sourceId, setSourceId] = useState("mon-fw");
+  const [pickedSource, setSourceId] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [hoveredId, setHoveredId] = useState(null);
   const [detailId, setDetailId] = useState(null);
@@ -3730,32 +3715,7 @@ export default function Samspresso() {
   }, [cafes]);
   const itemsById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
   const taste = useMemo(() => userTaste(history, cafesById, itemsById), [history, cafesById, itemsById]);
-  const forYou = useMemo(() => {
-    if (!taste) return [];
-    const loved = history.filter((h) => h.rating >= 4 && isCoffeeRating(h, itemsById) && cafesById[h.cafeId] && cafesById[h.cafeId].coffee);
-    const tried = new Set(history.map((h) => h.cafeId));
-    return cafesFull
-      .filter((c) => c.coffee && !tried.has(c.id))
-      .map((c) => {
-        const score = tasteMatch(taste, c.coffee.taste);
-        // explain it with the loved café it's closest to
-        // credit the closest loved café; the most recent one wins near-ties
-        let best = null;
-        loved.forEach((h, idx) => {
-          const lc = cafesById[h.cafeId];
-          const m = tasteMatch(lc.coffee.taste, c.coffee.taste) + (idx === 0 ? 8 : 0);
-          if (!best || m > best.m) best = { m, h, lc };
-        });
-        const traits = best ? sharedTraits(best.lc.coffee.taste, c.coffee.taste) : [];
-        const reason = best
-          ? `Because you loved the ${best.h.name.toLowerCase()} at ${best.lc.name}${traits.length ? `: ${traits.slice(0, 2).join(", ")}` : ""}.`
-          : "Close to your taste so far.";
-        return { cafe: c, score, reason };
-      })
-      .filter((p) => p.score >= 70)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-  }, [taste, history, cafesFull, cafesById, itemsById]);
+  const sourceId = pickedSource || (taste ? "taste" : "mon-fw");
   const notesByCafe = useMemo(() => {
     const m = {};
     history.forEach((h) => (h.notes || []).forEach((n) => {
@@ -3934,8 +3894,7 @@ export default function Samspresso() {
 
   const discover = (
     <div className="space-y-8">
-      <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} onRate={() => openRate()} />
-      <ForYouRow picks={forYou} onOpen={openCafe} onRate={() => openRate()} />
+      <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} itemsById={itemsById} taste={taste} history={history} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} onRate={() => openRate()} />
       <JournalRow entries={journal} readIds={readIds} onOpen={openArticle} />
       <section aria-labelledby="explore-title">
         <div className="mb-4 min-w-0">
