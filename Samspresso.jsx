@@ -217,6 +217,8 @@ const buildCSS = () => `
 .sp .sp-tool,.sp .sp-tool [data-surface]{--sp-text:#1C1C1E;--sp-muted:#6E6E73;--sp-brand:#1C1C1E;--sp-accent:#1C1C1E;--sp-highlight:#8A5A00;color:#1C1C1E}
 .sp .sp-tool{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,"Segoe UI",Roboto,sans-serif;letter-spacing:0}
 .sp .sp-tool .rounded-2xl{border-radius:14px}
+.sp .sp-tool-date{-webkit-appearance:none;appearance:none;display:block;min-height:46px;text-align:left}
+.sp .sp-tool-date::-webkit-date-and-time-value{text-align:left;margin:0}
 .sp .sp-tool.rounded-t-3xl{border-top-left-radius:22px;border-top-right-radius:22px}
 @media (min-width:768px){.sp .sp-tool.md\\:rounded-3xl{border-radius:22px}}
 .sp .sp-tool-range::-webkit-slider-thumb{background:#FFFFFF;border-color:#E5E5EA;box-shadow:0 2px 8px -2px rgba(0,0,0,.25)}
@@ -4201,8 +4203,7 @@ function themeWarnings(k) {
 }
 
 /** Live theme editor for designers: change colours, fonts and corners, then copy theme.json. */
-function DesignPanel({ theme, published, onChange, onReset, onPublished }) {
-  const [open, setOpen] = useState(true);
+function DesignPanel({ theme, published, onChange, onReset, onPublished, open, setOpen, hidePill, onSwitch }) {
   const [copied, setCopied] = useState(false);
   const [showJson, setShowJson] = useState(false);
   const json = JSON.stringify(theme, null, 2);
@@ -4227,6 +4228,7 @@ function DesignPanel({ theme, published, onChange, onReset, onPublished }) {
   };
 
   if (!open) {
+    if (hidePill) return null;
     return (
       <button
         type="button"
@@ -4251,9 +4253,16 @@ function DesignPanel({ theme, published, onChange, onReset, onPublished }) {
             {changed ? "Previewing on this device only" : "Matches the published theme"}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          {onSwitch && (
+            <button type="button" onClick={onSwitch} className="press flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium" style={{ background: T.field }}>
+              <Pencil size={15} /> Content
+            </button>
+          )}
         <button type="button" aria-label="Minimise playground" onClick={() => setOpen(false)} className="press flex h-9 w-9 items-center justify-center rounded-full" style={{ background: T.field }}>
           <ChevronUp size={17} style={{ transform: "rotate(180deg)" }} />
         </button>
+        </div>
       </div>
       <div className="no-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto px-5 pb-4 md:max-h-none">
         <section>
@@ -4675,6 +4684,30 @@ function ToolField({ label, hint, children }) {
   );
 }
 
+/** Full-width date / date-time field (native pickers), with an optional Clear. */
+function DateField({ label, hint, value, onChange, type = "datetime-local", clearable = false }) {
+  return (
+    <div>
+      <span className="mb-1 block text-xs font-medium" style={{ color: T.muted }}>
+        {label}
+      </span>
+      <div className="flex items-center gap-2">
+        <input type={type} aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className={`${toolInput} sp-tool-date min-w-0 flex-1`} style={{ background: T.field }} />
+        {clearable && value && (
+          <button type="button" onClick={() => onChange("")} className={`${toolBtn} shrink-0 px-3`} style={{ background: T.field }}>
+            Clear
+          </button>
+        )}
+      </div>
+      {hint && (
+        <span className="mt-1 block text-xs" style={{ color: T.muted }}>
+          {hint}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ToolSelect({ label, value, onChange, children }) {
   return (
     <div className="relative">
@@ -4877,14 +4910,14 @@ function StoryForm({ story, cafes, items, onChange, onDelete, onBack, onPreview 
           })}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <ToolField label="Publish on" hint="A future date schedules it.">
-          <input type="date" aria-label="Publish on" value={story.published.slice(0, 10)} onChange={(e) => e.target.value && set("published", e.target.value === new Date().toISOString().slice(0, 10) ? new Date().toISOString() : `${e.target.value}T00:00:00.000Z`)} className={toolInput} style={{ background: T.field }} />
-        </ToolField>
-        <ToolField label="Ends (optional)" hint="Hidden after this.">
-          <input type="datetime-local" aria-label="Ends" value={toLocalInput(story.ends)} onChange={(e) => set("ends", fromLocalInput(e.target.value))} className={toolInput} style={{ background: T.field }} />
-        </ToolField>
-      </div>
+      <DateField
+        label="Publish on"
+        type="date"
+        hint="A future date schedules it."
+        value={story.published.slice(0, 10)}
+        onChange={(v) => v && set("published", v === new Date().toISOString().slice(0, 10) ? new Date().toISOString() : `${v}T00:00:00.000Z`)}
+      />
+      <DateField label="Ends (optional)" hint="The story is hidden after this." value={toLocalInput(story.ends)} onChange={(v) => set("ends", fromLocalInput(v))} clearable />
       <div>
         <span className="mb-2 block text-xs font-medium" style={{ color: T.muted }}>
           Story
@@ -4959,9 +4992,7 @@ function DropForm({ drop, cafes, stories, onChange, onDelete, onBack }) {
       <ToolField label="Partner line">
         <input aria-label="Partner line" value={drop.partner} maxLength={80} onChange={(e) => set("partner", e.target.value)} placeholder="WatchHouse × sam'spresso" className={toolInput} style={{ background: T.field }} />
       </ToolField>
-      <ToolField label="Ends" hint="The drop disappears from the menu after this.">
-        <input type="datetime-local" aria-label="Drop ends" value={toLocalInput(drop.ends)} onChange={(e) => set("ends", fromLocalInput(e.target.value))} className={toolInput} style={{ background: T.field }} />
-      </ToolField>
+      <DateField label="Ends" hint="The drop leaves the menu after this." value={toLocalInput(drop.ends)} onChange={(v) => set("ends", fromLocalInput(v))} clearable />
       <ToolField label="Flavours" hint="Up to five, separated by commas.">
         <input
           aria-label="Flavours"
@@ -5042,8 +5073,7 @@ function PicksList({ picks, cafes, items, onToggle }) {
 }
 
 /** Samia's content editor: stories, drops and picks, previewed live in the app and published to GitHub. */
-function ContentPanel({ content, published, cafes, items, onChange, onReset, onPublished, onPreview }) {
-  const [open, setOpen] = useState(true);
+function ContentPanel({ content, published, cafes, items, onChange, onReset, onPublished, onPreview, open, setOpen, hidePill, onSwitch }) {
   const [tab, setTab] = useState("stories");
   const [editing, setEditing] = useState(null); // story or drop id
   const changed = !sameJson(JSON.stringify(content), JSON.stringify(published));
@@ -5074,6 +5104,7 @@ function ContentPanel({ content, published, cafes, items, onChange, onReset, onP
   ];
 
   if (!open) {
+    if (hidePill) return null;
     return (
       <button
         type="button"
@@ -5081,7 +5112,12 @@ function ContentPanel({ content, published, cafes, items, onChange, onReset, onP
         className="sp-tool press fixed right-4 z-[60] flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium md:bottom-6"
         style={{ bottom: "calc(76px + env(safe-area-inset-bottom))", color: T.ink, background: T.panel, boxShadow: "0 8px 24px -10px rgba(0,0,0,.3)" }}
       >
-        <Pencil size={15} /> content{changed ? " •" : ""}
+        <Pencil size={15} /> content
+        {changed && (
+          <span className="text-xs font-normal" style={{ color: T.note }}>
+            · not published
+          </span>
+        )}
       </button>
     );
   }
@@ -5095,12 +5131,19 @@ function ContentPanel({ content, published, cafes, items, onChange, onReset, onP
         <div>
           <p className="text-lg font-semibold leading-tight">Content</p>
           <p className="mt-0.5 text-xs" style={{ color: T.muted }}>
-            {changed ? "Unpublished changes, previewing on this device" : "Matches what's live"}
+            {changed ? "Unpublished changes" : "Matches what's live"}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          {onSwitch && (
+            <button type="button" onClick={onSwitch} className="press flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium" style={{ background: T.field }}>
+              <Palette size={15} /> Theme
+            </button>
+          )}
         <button type="button" aria-label="Minimise editor" onClick={() => setOpen(false)} className="press flex h-9 w-9 items-center justify-center rounded-full" style={{ background: T.field }}>
           <ChevronDown size={17} />
         </button>
+        </div>
       </div>
       {!editing && (
         <div className="mx-5 mb-3 flex rounded-full p-1" role="tablist" style={{ background: T.field }}>
@@ -5353,6 +5396,8 @@ export default function Samspresso() {
     } catch (_) {}
   }, []);
   const journalAll = useMemo(() => toJournal(content.stories), [content]);
+  // the theme playground and the content editor: only one is open at a time
+  const [tool, setTool] = useState(() => (editMode ? "content" : designMode ? "design" : null));
   const [tab, setTabRaw] = useState("discover");
   // Saved on this device: cafés/items you added, your ratings, history and Want to Try.
   const stored = useMemo(() => {
@@ -5761,7 +5806,9 @@ export default function Samspresso() {
       </Sheet>
 
       <Toast toast={toast} />
-      {designMode && <DesignPanel theme={THEME} published={publishedTheme} onChange={editTheme} onReset={resetTheme} onPublished={themePublished} />}
+      {designMode && (
+        <DesignPanel theme={THEME} published={publishedTheme} onChange={editTheme} onReset={resetTheme} onPublished={themePublished} open={tool === "design"} setOpen={(o) => setTool(o ? "design" : null)} hidePill={!!tool} onSwitch={editMode ? () => setTool("content") : null} />
+      )}
       {editMode && (
         <ContentPanel
           content={content}
@@ -5772,6 +5819,10 @@ export default function Samspresso() {
           onReset={resetContent}
           onPublished={contentPublished}
           onPreview={(id) => openArticle(id)}
+          open={tool === "content"}
+          setOpen={(o) => setTool(o ? "content" : null)}
+          hidePill={!!tool}
+          onSwitch={designMode ? () => setTool("design") : null}
         />
       )}
     </div>
