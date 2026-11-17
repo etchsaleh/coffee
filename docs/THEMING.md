@@ -14,21 +14,18 @@ A **theme playground** panel appears. Changes show straight away, but **only on 
 - **Fonts:** pick a heading font and a body font from about 70 Google Fonts, grouped into serif, sans serif, and display & script. For anything else, choose **Other Google Font…**, type the name from [fonts.google.com](https://fonts.google.com) and tap **Use**. The app checks the name and fixes capitals for you ("lora" becomes "Lora").
 - **Italic headings:** on or off.
 - **Corner roundness:** how round cards and buttons are.
-- **Reset:** goes back to the theme everyone currently sees.
+- **Reset:** throws away your changes and goes back to the theme everyone currently sees.
 - The chevron minimises the panel so you can browse the app. Tap **theme** at the bottom left to bring it back.
 
 Your draft is remembered on that device, even after closing the page.
 
 ## 2. Publish it
 
-1. In the playground, tap **Copy theme**. If copying doesn't work, tap **Show code** and copy all of the text in the box.
-2. Go to **https://github.com/etchsaleh/coffee/edit/main/theme.json** and sign in. You need to have been added as a collaborator.
-3. Select everything in the editor and paste over it.
-4. Click **Commit changes…**, then **Commit changes** again.
+Tap **Publish theme** at the bottom of the playground. Everyone sees the new theme at https://etchsaleh.github.io/coffee/ about a minute later (refresh if it hasn't changed yet).
 
-After about a minute, everyone sees the new theme at https://etchsaleh.github.io/coffee/. Refresh if it hasn't changed yet.
+The first time, the button says **Connect to publish**. Follow the steps it shows (they're also in [EDITING.md](EDITING.md#connect-github-once)). The same connection works for the content editor.
 
-To undo, open the file on GitHub, click **History**, and copy back an older version. Or paste in the original theme below.
+**Undo:** every publish is saved in GitHub's history. Open [theme.json's history](https://github.com/etchsaleh/coffee/commits/main/theme.json), find the version you want and copy it back, or paste in the original theme below. **Code** shows the theme as text if you ever need to copy it by hand.
 
 ## What each colour does
 

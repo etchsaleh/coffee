@@ -31,6 +31,13 @@ import {
   ChevronUp,
   Search,
   Sparkles,
+  Pencil,
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  ChevronLeft,
+  Eye,
+  Upload,
 } from "lucide-react";
 
 /* ───────────────────────────── Design tokens ───────────────────────────── */
@@ -210,6 +217,8 @@ const buildCSS = () => `
 .sp .sp-tool,.sp .sp-tool [data-surface]{--sp-text:#1C1C1E;--sp-muted:#6E6E73;--sp-brand:#1C1C1E;--sp-accent:#1C1C1E;--sp-highlight:#8A5A00;color:#1C1C1E}
 .sp .sp-tool{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,"Segoe UI",Roboto,sans-serif;letter-spacing:0}
 .sp .sp-tool .rounded-2xl{border-radius:14px}
+.sp .sp-tool-date{-webkit-appearance:none;appearance:none;display:block;min-height:46px;text-align:left}
+.sp .sp-tool-date::-webkit-date-and-time-value{text-align:left;margin:0}
 .sp .sp-tool.rounded-t-3xl{border-top-left-radius:22px;border-top-right-radius:22px}
 @media (min-width:768px){.sp .sp-tool.md\\:rounded-3xl{border-radius:22px}}
 .sp .sp-tool-range::-webkit-slider-thumb{background:#FFFFFF;border-color:#E5E5EA;box-shadow:0 2px 8px -2px rgba(0,0,0,.25)}
@@ -606,35 +615,23 @@ const SEED_CAFES = [
   },
 ];
 
-// Featured / promoted listings. `promo.type` is "drop" (a limited-time item)
-// or "sponsored" (a paid showcase); both expire at `endsAt` and render as a
-// pinned, clearly labelled entry at the top of the café's menu.
-const DROP_ENDS = Date.now() + 52 * 3600000;
+// Featured / promoted listings come from content.json (`drops`). `promo.type` is
+// "drop" (a limited-time item) or "sponsored" (a paid showcase); both expire at
+// `endsAt` and render as a pinned, clearly labelled entry at the top of the menu.
 const promoLive = (it) => !it.promo || !it.promo.endsAt || it.promo.endsAt > Date.now();
 const isNewItem = (it) => !it.count;
 
 // p = taste profile: [body, sweetness, brightness, milk, roast/cocoa, cold, pastry]
 const SEED_ITEMS = [
-  { id: "mon-fw", cafeId: "monmouth", name: "Flat White", rating: 4.9, count: 64, pick: true, styles: ["Flat White"], flavours: ["Nutty", "Velvety Microfoam", "Chocolatey"], p: [0.75, 0.55, 0.3, 0.8, 0.7, 0, 0] },
+  { id: "mon-fw", cafeId: "monmouth", name: "Flat White", rating: 4.9, count: 64, styles: ["Flat White"], flavours: ["Nutty", "Velvety Microfoam", "Chocolatey"], p: [0.75, 0.55, 0.3, 0.8, 0.7, 0, 0] },
   { id: "mon-batch", cafeId: "monmouth", name: "Filter Batch Brew", rating: 4.8, count: 41, styles: ["Pour Over"], flavours: ["Clean", "Fruity", "Bright"], p: [0.35, 0.5, 0.75, 0, 0.3, 0, 0] },
   { id: "mon-bun", cafeId: "monmouth", name: "Cinnamon Bun", rating: 4.7, count: 33, styles: ["Pastries"], flavours: ["Buttery", "Spiced", "Sticky"], p: [0.6, 0.9, 0.1, 0.2, 0.4, 0, 1] },
   { id: "wh-oat", cafeId: "watchhouse", name: "Oat Flat White", rating: 4.8, count: 52, styles: ["Flat White", "Oat Milk"], flavours: ["Oat-Friendly", "Velvety Microfoam", "Caramel"], p: [0.65, 0.65, 0.3, 0.85, 0.6, 0, 0] },
   { id: "wh-matcha", cafeId: "watchhouse", name: "Iced Matcha Latte", rating: 4.6, count: 38, styles: ["Matcha", "Oat Milk"], flavours: ["Grassy", "Creamy", "Refreshing"], p: [0.4, 0.55, 0.2, 0.8, 0.1, 1, 0] },
-  {
-    id: "wh-iced-cardamom",
-    cafeId: "watchhouse",
-    name: "Iced Cardamom Latte",
-    rating: 0,
-    count: 0,
-    styles: ["Oat Milk"],
-    flavours: ["Spiced", "Oat-Friendly", "Refreshing"],
-    p: [0.5, 0.75, 0.2, 0.85, 0.35, 1, 0],
-    promo: { type: "drop", label: "limited drop", partner: "WatchHouse × sam'spresso", endsAt: DROP_ENDS, journalId: "j-drop-cardamom" },
-  },
-  { id: "wh-card", cafeId: "watchhouse", name: "Cardamom Bun", rating: 4.8, count: 29, pick: true, styles: ["Pastries"], flavours: ["Spiced", "Buttery", "Aromatic"], p: [0.6, 0.8, 0.15, 0.2, 0.3, 0, 1] },
-  { id: "or-v60", cafeId: "origin", name: "V60 Pour Over", rating: 4.9, count: 36, pick: true, styles: ["Pour Over"], flavours: ["Floral", "Fruity", "Tea-like"], p: [0.25, 0.55, 0.85, 0, 0.15, 0, 0] },
+  { id: "wh-card", cafeId: "watchhouse", name: "Cardamom Bun", rating: 4.8, count: 29, styles: ["Pastries"], flavours: ["Spiced", "Buttery", "Aromatic"], p: [0.6, 0.8, 0.15, 0.2, 0.3, 0, 1] },
+  { id: "or-v60", cafeId: "origin", name: "V60 Pour Over", rating: 4.9, count: 36, styles: ["Pour Over"], flavours: ["Floral", "Fruity", "Tea-like"], p: [0.25, 0.55, 0.85, 0, 0.15, 0, 0] },
   { id: "or-tonic", cafeId: "origin", name: "Espresso Tonic", rating: 4.7, count: 22, styles: [], flavours: ["Citrus", "Sparkling", "Bright"], p: [0.3, 0.45, 0.8, 0, 0.3, 1, 0] },
-  { id: "ro-cort", cafeId: "rosslyn", name: "Cortado", rating: 4.9, count: 47, pick: true, styles: [], flavours: ["Chocolatey", "Silky", "Punchy"], p: [0.85, 0.5, 0.35, 0.6, 0.75, 0, 0] },
+  { id: "ro-cort", cafeId: "rosslyn", name: "Cortado", rating: 4.9, count: 47, styles: [], flavours: ["Chocolatey", "Silky", "Punchy"], p: [0.85, 0.5, 0.35, 0.6, 0.75, 0, 0] },
   { id: "ro-fw", cafeId: "rosslyn", name: "Flat White", rating: 4.9, count: 58, styles: ["Flat White"], flavours: ["Velvety Microfoam", "Toffee", "Nutty"], p: [0.75, 0.6, 0.35, 0.8, 0.65, 0, 0] },
   { id: "pr-batch", cafeId: "prufrock", name: "Batch Brew", rating: 4.8, count: 27, styles: ["Pour Over"], flavours: ["Juicy", "Clean", "Stone Fruit"], p: [0.35, 0.55, 0.7, 0, 0.25, 0, 0] },
   { id: "pr-oatcort", cafeId: "prufrock", name: "Oat Cortado", rating: 4.7, count: 24, styles: ["Oat Milk"], flavours: ["Oat-Friendly", "Nutty", "Punchy"], p: [0.8, 0.55, 0.3, 0.65, 0.65, 0, 0] },
@@ -649,7 +646,7 @@ const SEED_ITEMS = [
   { id: "cb-musakhan", cafeId: "commonbreads", name: "Musakhan Manouche", rating: 4.7, count: 18, styles: ["Pastries"], flavours: ["Sumac", "Tangy", "Savoury"], p: [0.6, 0.3, 0.4, 0.1, 0.4, 0, 1] },
   { id: "bg-bergamot", cafeId: "bergamot", name: "Bergamot Latte", rating: 4.7, count: 14, styles: [], flavours: ["Aromatic", "Citrus", "Creamy"], p: [0.5, 0.6, 0.45, 0.85, 0.35, 0, 0] },
   { id: "bg-saffron", cafeId: "bergamot", name: "Saffron Latte", rating: 4.6, count: 11, styles: [], flavours: ["Saffron", "Aromatic", "Creamy"], p: [0.55, 0.7, 0.25, 0.85, 0.35, 0, 0] },
-  { id: "cb-iced", cafeId: "commonbreads", name: "Iced Latte", rating: 4.8, count: 24, pick: true, styles: [], flavours: ["Creamy", "Caramel", "Refreshing"], p: [0.5, 0.6, 0.25, 0.85, 0.55, 1, 0] },
+  { id: "cb-iced", cafeId: "commonbreads", name: "Iced Latte", rating: 4.8, count: 24, styles: [], flavours: ["Creamy", "Caramel", "Refreshing"], p: [0.5, 0.6, 0.25, 0.85, 0.55, 1, 0] },
 ];
 
 const DAY = 86400000;
@@ -3562,86 +3559,287 @@ function toneOf(name) {
   return [mixHex(C.background, base, a), mixHex(C.background, base, b)];
 }
 // Sample editorial content. Drops carry an end time and disappear once it passes.
-const JOURNAL = [
-  {
-    id: "j-drop-cardamom",
-    kind: "drop",
-    title: "the iced cardamom latte",
-    dek: "WatchHouse × sam'spresso. Cardamom-bun flavours, poured over ice. This weekend only.",
-    tone: "highlight",
-    publishedAt: Date.now() - 20 * H_MS,
-    endsAt: DROP_ENDS,
-    read: 2,
-    body: [
-      { p: "We asked WatchHouse to bottle the thing everyone queues for: the cardamom bun. The answer is a spiced oat latte, shaken cold, with a cinnamon-sugar rim." },
-      { p: "It's on at Bermondsey and Soho until Sunday close, or until they run out of the syrup, which last time took about four hours." },
-      { cafe: "watchhouse", item: "wh-iced-cardamom", note: "Order it with an extra shot if you like it less sweet." },
-    ],
-  },
-  {
-    id: "j-edit-iced",
-    kind: "edit",
-    title: "the post-reformer iced edit",
-    dek: "Five cold, clean, oat-friendly cups for after class.",
-    tone: "accent",
-    publishedAt: Date.now() - 2 * 24 * H_MS,
-    read: 3,
-    body: [
-      { p: "Class done, cheeks pink, and you want something cold that doesn't taste like a milkshake. These are the ones we keep coming back to." },
-      { cafe: "hagen", item: "hg-iced", note: "Creamy, barely sweet, and right by South Ken station." },
-      { cafe: "commonbreads", item: "cb-iced", note: "The cult one. Samia's pick for a reason." },
-      { cafe: "storestreet", item: "ss-iced", note: "Mellow and big. Good for a slow walk through Bloomsbury." },
-      { cafe: "watchhouse", item: "wh-matcha", note: "Grassy, creamy, refreshing. The only matcha on the list." },
-      { cafe: "kaffeine", item: "ka-cold", note: "No milk, all chocolate. For the purists." },
-    ],
-  },
-  {
-    id: "j-spot-rosslyn",
-    kind: "spotlight",
-    title: "the tiny counter at the top",
-    dek: "How a standing-room spot by Bank became London's best-rated café.",
-    tone: "neutral",
-    publishedAt: Date.now() - 4 * 24 * H_MS,
-    read: 4,
-    body: [
-      { p: "There are no tables at Rosslyn. There's a counter, a window and a queue of people in good coats who know exactly what they want." },
-      { p: "What they want is milk. The cortado is dense and chocolatey; the flat white is the smoothest in the Square Mile. Both sit at the top of our leaderboard." },
-      { cafe: "rosslyn", item: "ro-cort", note: "Start here. Two sips in, you'll get it." },
-    ],
-  },
-  {
-    id: "j-edit-grey",
-    kind: "edit",
-    title: "where to work when it's grey out",
-    dek: "Bright rooms, good Wi-Fi, no side-eye for staying a while.",
-    tone: "highlight-soft",
-    publishedAt: Date.now() - 6 * 24 * H_MS,
-    read: 3,
-    body: [
-      { p: "Some days the laptop has to leave the flat. These are the places that make that feel like a treat." },
-      { cafe: "prufrock", note: "Huge windows, long benches and a batch brew that keeps coming." },
-      { cafe: "origin", note: "Roastery energy. Get the V60 and stay for the afternoon." },
-      { cafe: "storestreet", note: "That skylight. Go before 10 for a table." },
-    ],
-  },
-  {
-    id: "j-news-areas",
-    kind: "news",
-    title: "new on the map",
-    dek: "Marylebone, Victoria and South Ken are in. Three new cafés to rate.",
-    tone: "accent-soft",
-    publishedAt: Date.now() - 9 * 24 * H_MS,
-    read: 1,
-    body: [
-      { p: "We've stretched the map west and south. Say hello to three new spots, and tell us what we should add next." },
-      { cafe: "monocle" },
-      { cafe: "hagen" },
-      { cafe: "commonbreads" },
-    ],
-  },
-];
+/* ───────────────────────────── Content (editable without code) ─────────────────────────────
+ * Journal stories, drops and Samia's Picks come from content.json at the site root.
+ * Samia edits them in the app at ?edit and publishes straight to GitHub. If the file is
+ * missing or unreadable, this built-in copy is used.
+ */
+const DEFAULT_CONTENT = {
+  "stories": [
+    {
+      "id": "j-drop-cardamom",
+      "kind": "drop",
+      "title": "the iced cardamom latte",
+      "dek": "WatchHouse × sam'spresso. Cardamom-bun flavours, poured over ice. This weekend only.",
+      "tone": "highlight",
+      "published": "2026-11-16",
+      "ends": "2026-11-22T18:00:00Z",
+      "body": [
+        {
+          "type": "p",
+          "text": "We asked WatchHouse to bottle the thing everyone queues for: the cardamom bun. The answer is a spiced oat latte, shaken cold, with a cinnamon-sugar rim."
+        },
+        {
+          "type": "p",
+          "text": "It's on at Bermondsey and Soho until Sunday close, or until they run out of the syrup, which last time took about four hours."
+        },
+        {
+          "type": "cafe",
+          "cafe": "watchhouse",
+          "item": "wh-iced-cardamom",
+          "note": "Order it with an extra shot if you like it less sweet."
+        }
+      ]
+    },
+    {
+      "id": "j-edit-iced",
+      "kind": "edit",
+      "title": "the post-reformer iced edit",
+      "dek": "Five cold, clean, oat-friendly cups for after class.",
+      "tone": "accent",
+      "published": "2026-11-15",
+      "ends": null,
+      "body": [
+        {
+          "type": "p",
+          "text": "Class done, cheeks pink, and you want something cold that doesn't taste like a milkshake. These are the ones we keep coming back to."
+        },
+        {
+          "type": "cafe",
+          "cafe": "hagen",
+          "item": "hg-iced",
+          "note": "Creamy, barely sweet, and right by South Ken station."
+        },
+        {
+          "type": "cafe",
+          "cafe": "commonbreads",
+          "item": "cb-iced",
+          "note": "The cult one. Samia's pick for a reason."
+        },
+        {
+          "type": "cafe",
+          "cafe": "storestreet",
+          "item": "ss-iced",
+          "note": "Mellow and big. Good for a slow walk through Bloomsbury."
+        },
+        {
+          "type": "cafe",
+          "cafe": "watchhouse",
+          "item": "wh-matcha",
+          "note": "Grassy, creamy, refreshing. The only matcha on the list."
+        },
+        {
+          "type": "cafe",
+          "cafe": "kaffeine",
+          "item": "ka-cold",
+          "note": "No milk, all chocolate. For the purists."
+        }
+      ]
+    },
+    {
+      "id": "j-spot-rosslyn",
+      "kind": "spotlight",
+      "title": "the tiny counter at the top",
+      "dek": "How a standing-room spot by Bank became London's best-rated café.",
+      "tone": "neutral",
+      "published": "2026-11-13",
+      "ends": null,
+      "body": [
+        {
+          "type": "p",
+          "text": "There are no tables at Rosslyn. There's a counter, a window and a queue of people in good coats who know exactly what they want."
+        },
+        {
+          "type": "p",
+          "text": "What they want is milk. The cortado is dense and chocolatey; the flat white is the smoothest in the Square Mile. Both sit at the top of our leaderboard."
+        },
+        {
+          "type": "cafe",
+          "cafe": "rosslyn",
+          "item": "ro-cort",
+          "note": "Start here. Two sips in, you'll get it."
+        }
+      ]
+    },
+    {
+      "id": "j-edit-grey",
+      "kind": "edit",
+      "title": "where to work when it's grey out",
+      "dek": "Bright rooms, good Wi-Fi, no side-eye for staying a while.",
+      "tone": "highlight-soft",
+      "published": "2026-11-11",
+      "ends": null,
+      "body": [
+        {
+          "type": "p",
+          "text": "Some days the laptop has to leave the flat. These are the places that make that feel like a treat."
+        },
+        {
+          "type": "cafe",
+          "cafe": "prufrock",
+          "note": "Huge windows, long benches and a batch brew that keeps coming."
+        },
+        {
+          "type": "cafe",
+          "cafe": "origin",
+          "note": "Roastery energy. Get the V60 and stay for the afternoon."
+        },
+        {
+          "type": "cafe",
+          "cafe": "storestreet",
+          "note": "That skylight. Go before 10 for a table."
+        }
+      ]
+    },
+    {
+      "id": "j-news-areas",
+      "kind": "news",
+      "title": "new on the map",
+      "dek": "Marylebone, Victoria and South Ken are in. Three new cafés to rate.",
+      "tone": "accent-soft",
+      "published": "2026-11-08",
+      "ends": null,
+      "body": [
+        {
+          "type": "p",
+          "text": "We've stretched the map west and south. Say hello to three new spots, and tell us what we should add next."
+        },
+        {
+          "type": "cafe",
+          "cafe": "monocle"
+        },
+        {
+          "type": "cafe",
+          "cafe": "hagen"
+        },
+        {
+          "type": "cafe",
+          "cafe": "commonbreads"
+        }
+      ]
+    }
+  ],
+  "drops": [
+    {
+      "id": "wh-iced-cardamom",
+      "cafe": "watchhouse",
+      "name": "Iced Cardamom Latte",
+      "type": "drop",
+      "label": "limited drop",
+      "partner": "WatchHouse × sam'spresso",
+      "ends": "2026-11-22T18:00:00Z",
+      "story": "j-drop-cardamom",
+      "flavours": [
+        "Spiced",
+        "Oat-Friendly",
+        "Refreshing"
+      ]
+    }
+  ],
+  "picks": [
+    "mon-fw",
+    "wh-card",
+    "or-v60",
+    "ro-cort",
+    "cb-iced"
+  ]
+};
 
 const KIND_LABEL = { drop: "drop", edit: "samia's edit", spotlight: "spotlight", news: "new" };
+const TONES = [["highlight", "Highlight"], ["accent", "Accent"], ["neutral", "Neutral"], ["highlight-soft", "Soft highlight"], ["accent-soft", "Soft accent"]];
+const BLOCK_TYPES = { p: "Paragraph", h: "Heading", quote: "Quote", cafe: "Café" };
+const ID_RE = /^[a-z0-9][a-z0-9-]{0,59}$/;
+const str = (v, max) => (typeof v === "string" ? v.slice(0, max) : "");
+const validDate = (v) => typeof v === "string" && !isNaN(Date.parse(v));
+// Story photos: a file in the repo (assets/journal/…), a web address, or (in an unpublished draft) the photo itself.
+const validImage = (v) =>
+  typeof v === "string" &&
+  (/^assets\/journal\/[a-z0-9-]+\.(jpe?g|png|webp)$/.test(v) || /^https:\/\/[^\s"'()]+$/.test(v) || (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) && v.length < 4e6));
+// Photos just published show from memory until the site has redeployed with the file.
+const PHOTO_CACHE = new Map();
+const photoSrc = (v) => PHOTO_CACHE.get(v) || v;
+const photoBg = (j, scrim) => `${scrim}, url("${photoSrc(j.image)}") center / cover no-repeat, linear-gradient(160deg, ${toneOf(j.tone)[0]}, ${toneOf(j.tone)[1]})`;
+
+/** Accepts only well-formed content; anything odd is dropped rather than breaking the app. */
+function sanitizeContent(raw) {
+  if (!raw || typeof raw !== "object" || !Array.isArray(raw.stories)) return null;
+  const block = (b) => {
+    if (!b || !BLOCK_TYPES[b.type]) return null;
+    if (b.type !== "cafe") return { type: b.type, text: str(b.text, 4000) };
+    if (typeof b.cafe !== "string" || !b.cafe) return null;
+    const out = { type: "cafe", cafe: b.cafe };
+    if (typeof b.item === "string" && b.item) out.item = b.item;
+    if (str(b.note, 400)) out.note = str(b.note, 400);
+    return out;
+  };
+  const stories = raw.stories
+    .filter((x) => x && ID_RE.test(x.id) && KIND_LABEL[x.kind] && str(x.title, 120).trim())
+    .slice(0, 60)
+    .map((x) => ({
+      id: x.id,
+      kind: x.kind,
+      title: str(x.title, 120),
+      dek: str(x.dek, 300),
+      tone: TONES.some(([t]) => t === x.tone) ? x.tone : "neutral",
+      published: validDate(x.published) ? x.published : new Date().toISOString().slice(0, 10),
+      ends: validDate(x.ends) ? x.ends : null,
+      body: (Array.isArray(x.body) ? x.body : []).slice(0, 80).map(block).filter(Boolean),
+      ...(validImage(x.image) ? { image: x.image, alt: str(x.alt, 200) } : {}),
+    }));
+  const drops = (Array.isArray(raw.drops) ? raw.drops : [])
+    .filter((d) => d && ID_RE.test(d.id) && typeof d.cafe === "string" && str(d.name, 60).trim())
+    .slice(0, 30)
+    .map((d) => ({
+      id: d.id,
+      cafe: d.cafe,
+      name: str(d.name, 60),
+      type: d.type === "sponsored" ? "sponsored" : "drop",
+      label: str(d.label, 40) || (d.type === "sponsored" ? "sponsored" : "limited drop"),
+      partner: str(d.partner, 80),
+      ends: validDate(d.ends) ? d.ends : null,
+      story: typeof d.story === "string" && d.story ? d.story : null,
+      flavours: (Array.isArray(d.flavours) ? d.flavours : []).map((f) => str(f, 30).trim()).filter(Boolean).slice(0, 5),
+    }));
+  const picks = [...new Set((Array.isArray(raw.picks) ? raw.picks : []).filter((x) => typeof x === "string" && x))].slice(0, 300);
+  return { stories, drops, picks };
+}
+
+const wordsIn = (x) => [x.dek, ...x.body.map((b) => b.text || b.note || "")].join(" ").split(/\s+/).filter(Boolean).length;
+/** Stories as the journal shows them: timestamps and an estimated read time. */
+const toJournal = (stories) =>
+  stories.map((x) => ({ ...x, publishedAt: Date.parse(x.published), endsAt: x.ends ? Date.parse(x.ends) : null, read: Math.max(1, Math.round(wordsIn(x) / 200)) }));
+/** Live = published (a future date schedules it) and not yet ended. */
+const storyLive = (j, now = Date.now()) => j.publishedAt <= now && (!j.endsAt || j.endsAt > now);
+
+/** The menu with Samia's Picks and drops from content applied. Ratings people gave a drop are kept. */
+function withContent(base, content, cafeIds) {
+  const picks = new Set(content.picks);
+  const drops = content.drops.filter((d) => cafeIds.has(d.cafe));
+  const dropIds = new Set(drops.map((d) => d.id));
+  const prev = Object.fromEntries(base.map((i) => [i.id, i]));
+  const out = base.filter((i) => !dropIds.has(i.id)).map((i) => (picks.has(i.id) === !!i.pick ? i : { ...i, pick: picks.has(i.id) }));
+  drops.forEach((d) => {
+    const o = prev[d.id];
+    out.push({
+      id: d.id,
+      cafeId: d.cafe,
+      name: d.name,
+      rating: o ? o.rating : 0,
+      count: o ? o.count : 0,
+      styles: inferStyles(d.name),
+      flavours: d.flavours.length ? d.flavours : ["Limited Drop"],
+      p: inferProfile(d.name),
+      pick: picks.has(d.id),
+      promo: { type: d.type, label: d.label, partner: d.partner, endsAt: d.ends ? Date.parse(d.ends) : null, journalId: d.story },
+    });
+  });
+  return out;
+}
+/** What gets stored on the device: ratings only; picks and drop details always come from content. */
+const toBase = (list, content) => {
+  const dropIds = new Set(content.drops.map((d) => d.id));
+  return list.filter((i) => !(dropIds.has(i.id) && !i.count)).map(({ promo, pick, ...i }) => i);
+};
 
 function timeLeft(ms) {
   const h = Math.max(0, Math.round(ms / H_MS));
@@ -3652,10 +3850,10 @@ function timeLeft(ms) {
 }
 
 /** Live drops (by café id), for badges elsewhere in the app. */
-const liveDrops = (now) => {
+const liveDrops = (now, journal) => {
   const m = {};
-  JOURNAL.forEach((j) => {
-    if (j.kind === "drop" && j.endsAt > now) j.body.forEach((b) => b.cafe && (m[b.cafe] = j));
+  journal.forEach((j) => {
+    if (j.kind === "drop" && storyLive(j, now)) j.body.forEach((b) => b.cafe && (m[b.cafe] = j));
   });
   return m;
 };
@@ -3729,7 +3927,12 @@ function JournalRow({ entries, readIds, onOpen }) {
                 data-morph
                 onClick={(e) => onOpen(j.id, e.currentTarget)}
                 className="lift relative flex h-72 w-56 flex-col justify-between overflow-hidden rounded-3xl p-4 text-left soft md:w-60"
-                style={{ background: `linear-gradient(160deg, ${toneOf(j.tone)[0]}, ${toneOf(j.tone)[1]})` }}
+                data-photo={j.image ? "" : undefined}
+                style={{
+                  background: j.image
+                    ? photoBg(j, "linear-gradient(180deg, rgba(0,0,0,.12) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,.6) 100%)")
+                    : `linear-gradient(160deg, ${toneOf(j.tone)[0]}, ${toneOf(j.tone)[1]})`,
+                }}
                 aria-label={`${KIND_LABEL[j.kind]}: ${j.title}${unread ? ", new" : ""}`}
               >
                 <span className="flex items-start justify-between gap-2">
@@ -3737,11 +3940,11 @@ function JournalRow({ entries, readIds, onOpen }) {
                   {unread && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: C.brand, boxShadow: `0 0 0 3px ${tint(C.card, 0.7)}` }} aria-hidden="true" />}
                 </span>
                 <span>
-                  <span className="serif block text-3xl leading-none" style={{ color: C.fg }}>
+                  <span className="serif block text-3xl leading-none" style={{ color: j.image ? "#FFFFFF" : C.fg }}>
                     {j.title}
                   </span>
-                  <span className="mt-2 block text-xs leading-relaxed" style={{ color: `${tint(C.fg, .7)}` }}>
-                    {j.kind === "drop" ? timeLeft(j.endsAt - Date.now()) : `${j.read} min read`}
+                  <span className="mt-2 block text-xs leading-relaxed" style={{ color: j.image ? "#FFFFFF" : C.fg, opacity: j.image ? 0.85 : 0.7 }}>
+                    {j.kind === "drop" && j.endsAt ? timeLeft(j.endsAt - Date.now()) : `${j.read} min read`}
                   </span>
                 </span>
               </button>
@@ -3760,19 +3963,25 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
     <article>
       <div
         data-sheet-handle
-        className="relative flex h-64 flex-col justify-end px-5 pb-4 md:h-72 md:px-8"
+        className={`relative flex flex-col justify-end px-5 pb-4 md:px-8 ${entry.image ? "h-80 md:h-96" : "h-64 md:h-72"}`}
+        role={entry.image && entry.alt ? "img" : undefined}
+        aria-label={entry.image && entry.alt ? entry.alt : undefined}
         style={{
           // runs under the grabber to the sheet's edge, then melts into the page
-          background: `linear-gradient(180deg, ${toneOf(entry.tone)[0]} 0%, ${toneOf(entry.tone)[1]} 58%, ${C.card} 100%)`,
+          background: entry.image
+            ? photoBg(entry, "linear-gradient(180deg, rgba(0,0,0,.18) 0%, rgba(0,0,0,0) 28%, rgba(0,0,0,.62) 100%)")
+            : `linear-gradient(180deg, ${toneOf(entry.tone)[0]} 0%, ${toneOf(entry.tone)[1]} 58%, ${C.card} 100%)`,
         }}
       >
         <div className="flex items-center gap-2">
           <KindTag kind={entry.kind} light />
-          <span className="text-xs" style={{ color: `${tint(C.fg, .7)}` }}>
-            {entry.kind === "drop" ? timeLeft(entry.endsAt - Date.now()) : timeAgo(entry.publishedAt).toLowerCase()}
+          <span className="text-xs" style={{ color: entry.image ? "#FFFFFF" : C.fg, opacity: entry.image ? 0.85 : 0.7 }}>
+            {entry.kind === "drop" && entry.endsAt ? timeLeft(entry.endsAt - Date.now()) : timeAgo(entry.publishedAt).toLowerCase()}
           </span>
         </div>
-        <h2 className="serif mt-2 text-4xl leading-none md:text-5xl">{entry.title}</h2>
+        <h2 className="serif mt-2 text-4xl leading-none md:text-5xl" style={entry.image ? { color: "#FFFFFF" } : undefined}>
+          {entry.title}
+        </h2>
       </div>
       <div className="px-5 pb-8 pt-5 md:px-8">
         <p className="text-base leading-relaxed">{entry.dek}</p>
@@ -3781,11 +3990,26 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
         </p>
         <div className="mt-6 space-y-4">
           {entry.body.map((b, i) => {
-            if (b.p) {
+            const delay = { animationDelay: `${100 + i * 50}ms` };
+            if (b.type === "p") {
               return (
-                <p key={i} className="a-fadeup text-sm leading-relaxed" style={{ color: C.fg, animationDelay: `${100 + i * 50}ms` }}>
-                  {b.p}
+                <p key={i} className="a-fadeup whitespace-pre-line text-sm leading-relaxed" style={{ color: C.fg, ...delay }}>
+                  {b.text}
                 </p>
+              );
+            }
+            if (b.type === "h") {
+              return (
+                <h3 key={i} className="serif a-fadeup pt-2 text-2xl leading-tight" style={delay}>
+                  {b.text}
+                </h3>
+              );
+            }
+            if (b.type === "quote") {
+              return (
+                <blockquote key={i} className="serif a-fadeup border-l-2 py-1 pl-4 text-xl leading-snug" style={{ borderColor: C.highlight, ...delay }}>
+                  {b.text}
+                </blockquote>
               );
             }
             const cafe = cafesById[b.cafe];
@@ -3861,7 +4085,7 @@ async function findGoogleFont(name) {
 
 const isDesignMode = () => {
   try {
-    return /(^|[?&])design(=|&|$)/.test(window.location.search.slice(1)) || window.location.hash === "#design";
+    return /(^|[?&])design(=|&|$)/.test(window.location.search.slice(1)) || /^#(.*\+)?design(\+|$)/.test(window.location.hash);
   } catch (_) {
     return false;
   }
@@ -3999,8 +4223,7 @@ function themeWarnings(k) {
 }
 
 /** Live theme editor for designers: change colours, fonts and corners, then copy theme.json. */
-function DesignPanel({ theme, published, onChange, onReset }) {
-  const [open, setOpen] = useState(true);
+function DesignPanel({ theme, published, onChange, onReset, onPublished, open, setOpen, hidePill, onSwitch }) {
   const [copied, setCopied] = useState(false);
   const [showJson, setShowJson] = useState(false);
   const json = JSON.stringify(theme, null, 2);
@@ -4025,6 +4248,7 @@ function DesignPanel({ theme, published, onChange, onReset }) {
   };
 
   if (!open) {
+    if (hidePill) return null;
     return (
       <button
         type="button"
@@ -4049,11 +4273,18 @@ function DesignPanel({ theme, published, onChange, onReset }) {
             {changed ? "Previewing on this device only" : "Matches the published theme"}
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          {onSwitch && (
+            <button type="button" onClick={onSwitch} className="press flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium" style={{ background: T.field }}>
+              <Pencil size={15} /> Content
+            </button>
+          )}
         <button type="button" aria-label="Minimise playground" onClick={() => setOpen(false)} className="press flex h-9 w-9 items-center justify-center rounded-full" style={{ background: T.field }}>
           <ChevronUp size={17} style={{ transform: "rotate(180deg)" }} />
         </button>
+        </div>
       </div>
-      <div className="no-scrollbar flex-1 space-y-6 overflow-y-auto px-5 pb-4 md:max-h-none">
+      <div className="no-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto px-5 pb-4 md:max-h-none">
         <section>
           <p className="mb-2 text-sm font-medium">Colours</p>
           {themeWarnings(theme.colors).length > 0 && (
@@ -4119,19 +4350,1032 @@ function DesignPanel({ theme, published, onChange, onReset }) {
           />
         </section>
         {showJson && (
-          <textarea readOnly value={json} rows={8} onFocus={(e) => e.target.select()} className="w-full rounded-2xl p-3 font-mono text-xs" style={{ background: T.field }} aria-label="Theme JSON" />
+          <div className="space-y-2">
+            <textarea readOnly value={json} rows={8} onFocus={(e) => e.target.select()} className="w-full rounded-2xl p-3 font-mono text-xs" style={{ background: T.field }} aria-label="Theme JSON" />
+            <button type="button" onClick={copy} className="press flex items-center gap-1.5 text-sm font-medium">
+              {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? "Copied" : "Copy theme code"}
+            </button>
+          </div>
         )}
       </div>
-      <div className="flex gap-2 border-t px-5 py-3" style={{ borderColor: T.line }}>
-        <button type="button" onClick={copy} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium" style={{ color: T.onAccent, background: T.accent }}>
-          {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Copied" : "Copy theme"}
+      <div className="no-scrollbar max-h-[46vh] shrink-0 overflow-y-auto border-t px-5 py-3 md:max-h-[60vh]" style={{ borderColor: T.line }}>
+        <PublishBar
+          path="theme.json"
+          what="theme"
+          text={json + "\n"}
+          published={JSON.stringify(published)}
+          onPublished={onPublished}
+          extra={
+            <>
+              <button type="button" onClick={() => setShowJson((v) => !v)} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: T.field }}>
+                Code
+              </button>
+              <button type="button" onClick={onReset} disabled={!changed} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: T.field, opacity: changed ? 1 : 0.4 }}>
+                Reset
+              </button>
+            </>
+          }
+        />
+      </div>
+    </aside>
+  );
+}
+
+/* ───────────────────────────── Publishing to GitHub ─────────────────────────────
+ * The theme playground and the content editor publish by saving theme.json /
+ * content.json to the repo with a fine-grained GitHub key that only Samia's
+ * device holds (localStorage). The key is limited to this repo's files; every
+ * publish is a normal commit, so GitHub's history can undo any change.
+ */
+// Test builds publish to a separate branch (set at build time) so the live site never changes.
+const GH = { owner: "etchsaleh", repo: "coffee", branch: typeof __SP_PUBLISH_BRANCH__ === "string" ? __SP_PUBLISH_BRANCH__ : "main" };
+const GH_TEST = GH.branch !== "main";
+const GH_KEY = "sp-gh-key";
+const ghKey = {
+  get() {
+    try {
+      return localStorage.getItem(GH_KEY) || "";
+    } catch (_) {
+      return "";
+    }
+  },
+  set(v) {
+    try {
+      localStorage.setItem(GH_KEY, v);
+    } catch (_) {}
+  },
+  clear() {
+    try {
+      localStorage.removeItem(GH_KEY);
+    } catch (_) {}
+  },
+};
+const toB64 = (text) => {
+  let bin = "";
+  new TextEncoder().encode(text).forEach((b) => (bin += String.fromCharCode(b)));
+  return btoa(bin);
+};
+const fromB64 = (b64) => new TextDecoder().decode(Uint8Array.from(atob(b64.replace(/\s/g, "")), (c) => c.charCodeAt(0)));
+const sameJson = (a, b) => {
+  try {
+    return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b));
+  } catch (_) {
+    return false;
+  }
+};
+class PublishError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+}
+async function ghFetch(path, key, init = {}) {
+  let r;
+  try {
+    r = await fetch(`https://api.github.com${path}`, {
+      ...init,
+      headers: { Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", Authorization: `Bearer ${key}`, ...(init.headers || {}) },
+    });
+  } catch (_) {
+    throw new PublishError("network", "Couldn't reach GitHub. Check your connection and try again.");
+  }
+  if (r.status === 401) throw new PublishError("auth", "GitHub didn't accept this key. Check it was copied in full, or create a new one.");
+  if (r.status === 403) throw new PublishError("perm", `This key can't edit ${GH.owner}/${GH.repo}. Give it "Contents: Read and write" for that repo.`);
+  return r;
+}
+/** Checks a key can write to the repo. */
+async function ghVerify(key) {
+  const r = await ghFetch(`/repos/${GH.owner}/${GH.repo}`, key);
+  if (r.status === 404) throw new PublishError("perm", `This key can't see ${GH.owner}/${GH.repo}. Choose that repo under "Repository access".`);
+  const j = await r.json();
+  if (!j.permissions || !j.permissions.push) throw new PublishError("perm", `This key can read but not edit ${GH.owner}/${GH.repo}. Set "Contents" to "Read and write".`);
+  return true;
+}
+/**
+ * Saves a file to the repo. If the file on GitHub no longer matches `expected`
+ * (someone published from elsewhere), stops with code "changed" unless `force`.
+ */
+async function ghPublish(path, text, message, expected, force = false) {
+  const key = ghKey.get();
+  const base = `/repos/${GH.owner}/${GH.repo}/contents/${path}`;
+  const cur = await ghFetch(`${base}?ref=${GH.branch}`, key, { cache: "no-store" });
+  let sha;
+  if (cur.ok) {
+    const j = await cur.json();
+    sha = j.sha;
+    if (!force && expected != null && !sameJson(fromB64(j.content || ""), expected)) {
+      throw new PublishError("changed", `${path} was changed on GitHub since you opened this page.`);
+    }
+  } else if (cur.status !== 404) throw new PublishError("other", `GitHub said "${cur.status}". Try again in a moment.`);
+  const put = await ghFetch(base, key, { method: "PUT", body: JSON.stringify({ message, content: toB64(text), branch: GH.branch, ...(sha ? { sha } : {}) }) });
+  if (put.status === 409 || put.status === 422) throw new PublishError("changed", `${path} changed on GitHub while publishing.`);
+  if (!put.ok) throw new PublishError("other", `GitHub said "${put.status}". Try again in a moment.`);
+  const res = await put.json();
+  return res.commit && res.commit.html_url;
+}
+
+/** Adds a new file (e.g. a story photo, given as base64) to the repo. */
+async function ghAddFile(path, base64, message) {
+  const r = await ghFetch(`/repos/${GH.owner}/${GH.repo}/contents/${path}`, ghKey.get(), { method: "PUT", body: JSON.stringify({ message, content: base64, branch: GH.branch }) });
+  if (!r.ok) throw new PublishError("other", `Couldn't upload a photo (GitHub said "${r.status}"). Try again.`);
+}
+// photos already uploaded this session (draft photo → file path), so a retry doesn't upload twice
+const UPLOADED = new Map();
+
+/** Shrinks a photo on the device (longest side 1600px, JPEG) so it loads fast for readers. */
+async function preparePhoto(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, fail) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = () => fail(new Error("unreadable"));
+      i.src = url;
+    });
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    let out = canvas.toDataURL("image/jpeg", 0.82);
+    if (out.length > 1.4e6) out = canvas.toDataURL("image/jpeg", 0.68);
+    return out;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+const toolInput = "w-full rounded-2xl px-3.5 py-2.5 text-base outline-none";
+const toolBtn = "press rounded-full px-4 py-2.5 text-sm font-medium";
+
+/** One-time setup: paste a fine-grained GitHub key limited to this repo. */
+function ConnectGitHub({ onDone, onCancel }) {
+  const [key, setKey] = useState("");
+  const [state, setState] = useState({ busy: false, error: "" });
+  const connect = async () => {
+    setState({ busy: true, error: "" });
+    try {
+      await ghVerify(key.trim());
+      ghKey.set(key.trim());
+      onDone();
+    } catch (e) {
+      setState({ busy: false, error: e.message });
+    }
+  };
+  return (
+    <div className="space-y-3 rounded-2xl p-4 text-sm" style={{ background: T.field }}>
+      <p className="font-medium">Connect GitHub (one time)</p>
+      <ol className="list-decimal space-y-1.5 pl-5 text-[13px] leading-relaxed" style={{ color: T.muted }}>
+        <li>
+          Open{" "}
+          <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer" className="underline" style={{ color: T.ink }}>
+            GitHub → new fine-grained token
+          </a>
+          .
+        </li>
+        <li>Name it "sam'spresso" and pick an expiry.</li>
+        <li>
+          Repository access: <b style={{ color: T.ink }}>Only select repositories</b> → {GH.owner}/{GH.repo}.
+        </li>
+        <li>
+          Permissions → Repository → <b style={{ color: T.ink }}>Contents: Read and write</b>.
+        </li>
+        <li>Generate, copy the token and paste it below.</li>
+      </ol>
+      <input
+        type="password"
+        aria-label="GitHub token"
+        placeholder="github_pat_…"
+        value={key}
+        autoComplete="off"
+        onChange={(e) => setKey(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && key.trim() && connect()}
+        className={toolInput}
+        style={{ background: T.panel }}
+      />
+      {state.error && (
+        <p role="alert" className="text-[13px]" style={{ color: T.note }}>
+          {state.error}
+        </p>
+      )}
+      <p className="text-xs" style={{ color: T.muted }}>
+        The token is saved only in this browser and can only edit this repo's files.
+      </p>
+      <div className="flex gap-2">
+        <button type="button" onClick={connect} disabled={!key.trim() || state.busy} className={`${toolBtn} flex-1`} style={{ background: T.accent, color: T.onAccent, opacity: !key.trim() || state.busy ? 0.5 : 1 }}>
+          {state.busy ? "Checking…" : "Connect"}
         </button>
-        <button type="button" onClick={() => setShowJson((v) => !v)} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: T.field }}>
-          {showJson ? "Hide" : "Show"} code
+        <button type="button" onClick={onCancel} className={toolBtn} style={{ background: T.panel }}>
+          Cancel
         </button>
-        <button type="button" onClick={onReset} disabled={!changed} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: T.field, opacity: changed ? 1 : 0.4 }}>
-          Reset
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Publish button + status, shared by the theme playground and the content editor.
+ * `text` is the file as it will be saved; `published` is the version currently live.
+ */
+function PublishBar({ path, what, text, published, onPublished, extra, prepare }) {
+  const [connected, setConnected] = useState(() => !!ghKey.get());
+  const [connecting, setConnecting] = useState(false);
+  const [state, setState] = useState({ kind: "idle" }); // idle | busy | done | error | changed
+  const changed = !sameJson(text, published);
+  const publish = async (force = false) => {
+    setState({ kind: "busy" });
+    try {
+      const finalText = prepare ? await prepare(() => setState({ kind: "busy", photos: true })) : text;
+      const url = await ghPublish(path, finalText, `Update ${what} from the sam'spresso editor`, published, force);
+      setState({ kind: "done", url });
+      onPublished(JSON.parse(finalText));
+    } catch (e) {
+      if (e.code === "auth") {
+        ghKey.clear();
+        setConnected(false);
+      }
+      setState({ kind: e.code === "changed" ? "changed" : "error", message: e.message });
+    }
+  };
+  if (connecting) {
+    return (
+      <ConnectGitHub
+        onDone={() => {
+          setConnected(true);
+          setConnecting(false);
+          setState({ kind: "idle" });
+        }}
+        onCancel={() => setConnecting(false)}
+      />
+    );
+  }
+  return (
+    <div className="space-y-2">
+      {state.kind === "done" && (
+        <p role="status" className="text-[13px]" style={{ color: T.muted }}>
+          {GH_TEST ? `Saved to the "${GH.branch}" test branch. The live site hasn't changed.` : "Published. Live for everyone in about a minute."}{" "}
+          {state.url && (
+            <a href={state.url} target="_blank" rel="noopener noreferrer" className="underline">
+              See it on GitHub
+            </a>
+          )}
+        </p>
+      )}
+      {(state.kind === "error" || state.kind === "changed") && (
+        <p role="alert" className="text-[13px]" style={{ color: T.note }}>
+          {state.message}
+          {state.kind === "changed" && " Publishing now will replace that version (GitHub keeps it in its history)."}
+        </p>
+      )}
+      <div className="flex gap-2">
+        {!connected ? (
+          <button type="button" onClick={() => setConnecting(true)} className={`${toolBtn} flex flex-1 items-center justify-center gap-2`} style={{ background: T.accent, color: T.onAccent }}>
+            <Upload size={16} /> Connect to publish
+          </button>
+        ) : state.kind === "changed" ? (
+          <button type="button" onClick={() => publish(true)} className={`${toolBtn} flex-1`} style={{ background: T.accent, color: T.onAccent }}>
+            Publish anyway
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => publish(false)}
+            disabled={!changed || state.kind === "busy"}
+            className={`${toolBtn} flex flex-1 items-center justify-center gap-2`}
+            style={{ background: T.accent, color: T.onAccent, opacity: !changed || state.kind === "busy" ? 0.45 : 1 }}
+          >
+            {state.kind === "busy" ? (
+              state.photos ? "Uploading photos…" : "Publishing…"
+            ) : (
+              <>
+                <Upload size={16} /> {changed ? `Publish ${what}` : "Nothing to publish"}
+              </>
+            )}
+          </button>
+        )}
+        {extra}
+      </div>
+      {(connected || GH_TEST) && (
+        <p className="text-xs" style={{ color: T.muted }}>
+          {GH_TEST ? (
+            <>
+              <b style={{ color: T.note }}>Test version:</b> publishes to the "{GH.branch}" branch, not the live site.{" "}
+            </>
+          ) : (
+            <>Publishing to {GH.owner}/{GH.repo}. </>
+          )}
+          {connected && (
+            <button
+              type="button"
+              className="underline"
+              onClick={() => {
+                ghKey.clear();
+                setConnected(false);
+                setState({ kind: "idle" });
+              }}
+            >
+              Disconnect
+            </button>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ───────────────────────────── Content editor (?edit) ───────────────────────────── */
+
+const isEditMode = () => {
+  try {
+    return /(^|[?&])edit(=|&|$)/.test(window.location.search.slice(1)) || /^#(.*\+)?edit(\+|$)/.test(window.location.hash);
+  } catch (_) {
+    return false;
+  }
+};
+const slug = (t) =>
+  (t || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 40) || "untitled";
+const uniqueId = (base, taken) => {
+  let id = base;
+  for (let n = 2; taken.has(id); n++) id = `${base}-${n}`;
+  return id;
+};
+// <input type="datetime-local"> works in local time; content stores ISO (UTC).
+const toLocalInput = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+const fromLocalInput = (v) => (v ? new Date(v).toISOString() : null);
+const fmtDay = (iso) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const storyStatus = (x, now = Date.now()) => {
+  const j = toJournal([x])[0];
+  if (j.publishedAt > now) return `scheduled for ${fmtDay(x.published)}`;
+  if (j.endsAt && j.endsAt <= now) return "ended";
+  if (j.endsAt) return timeLeft(j.endsAt - now);
+  return fmtDay(x.published);
+};
+
+function ToolField({ label, hint, children }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium" style={{ color: T.muted }}>
+        {label}
+      </span>
+      {children}
+      {hint && (
+        <span className="mt-1 block text-xs" style={{ color: T.muted }}>
+          {hint}
+        </span>
+      )}
+    </label>
+  );
+}
+
+/** Optional cover photo for a story: chosen on the device, shrunk, uploaded when publishing. */
+function PhotoField({ story, onChange }) {
+  const inputRef = useRef(null);
+  const [state, setState] = useState(null); // null | "working" | "error"
+  const pick = async (file) => {
+    if (!file) return;
+    setState("working");
+    try {
+      const data = await preparePhoto(file);
+      setState(null);
+      onChange(data, story.alt || "");
+    } catch (_) {
+      setState("error");
+    }
+  };
+  return (
+    <div>
+      <span className="mb-1 block text-xs font-medium" style={{ color: T.muted }}>
+        Photo (optional)
+      </span>
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" aria-label="Choose a photo" onChange={(e) => pick(e.target.files && e.target.files[0])} />
+      {story.image ? (
+        <div className="space-y-2">
+          <div className="relative overflow-hidden rounded-2xl" style={{ aspectRatio: "16 / 10", background: T.field }}>
+            <img src={photoSrc(story.image)} alt="" className="h-full w-full object-cover" />
+          </div>
+          <input
+            aria-label="Describe the photo"
+            value={story.alt || ""}
+            maxLength={200}
+            onChange={(e) => onChange(story.image, e.target.value)}
+            placeholder="Describe the photo (read out by screen readers)"
+            className={toolInput}
+            style={{ background: T.field }}
+          />
+          <div className="flex gap-2">
+            <button type="button" onClick={() => inputRef.current && inputRef.current.click()} className={toolBtn} style={{ background: T.field }}>
+              Change photo
+            </button>
+            <button type="button" onClick={() => onChange(null)} className={toolBtn} style={{ background: T.field }}>
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current && inputRef.current.click()}
+          disabled={state === "working"}
+          className={`${toolBtn} flex w-full items-center justify-center gap-1.5`}
+          style={{ border: `1px dashed ${T.line}` }}
+        >
+          <Plus size={16} /> {state === "working" ? "Preparing photo…" : "Add a photo"}
         </button>
+      )}
+      <span className="mt-1 block text-xs" style={{ color: state === "error" ? T.note : T.muted }}>
+        {state === "error" ? "Couldn't read that photo. Try a JPEG or PNG." : "With a photo, the card shows it instead of the colour."}
+      </span>
+    </div>
+  );
+}
+
+/** Full-width date / date-time field (native pickers), with an optional Clear. */
+function DateField({ label, hint, value, onChange, type = "datetime-local", clearable = false }) {
+  return (
+    <div>
+      <span className="mb-1 block text-xs font-medium" style={{ color: T.muted }}>
+        {label}
+      </span>
+      <div className="flex items-center gap-2">
+        <input type={type} aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className={`${toolInput} sp-tool-date min-w-0 flex-1`} style={{ background: T.field }} />
+        {clearable && value && (
+          <button type="button" onClick={() => onChange("")} className={`${toolBtn} shrink-0 px-3`} style={{ background: T.field }}>
+            Clear
+          </button>
+        )}
+      </div>
+      {hint && (
+        <span className="mt-1 block text-xs" style={{ color: T.muted }}>
+          {hint}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function ToolSelect({ label, value, onChange, children }) {
+  return (
+    <div className="relative">
+      <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} className={`${toolInput} appearance-none pr-9`} style={{ background: T.field }}>
+        {children}
+      </select>
+      <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" aria-hidden="true" />
+    </div>
+  );
+}
+
+/** Textarea that grows with its text. */
+function AutoText({ value, onChange, label, placeholder, rows = 2, className = "" }) {
+  const ref = useRef(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      aria-label={label}
+      rows={rows}
+      value={value}
+      placeholder={placeholder}
+      onChange={(e) => onChange(e.target.value)}
+      className={`${toolInput} resize-none leading-relaxed ${className}`}
+      style={{ background: T.field }}
+    />
+  );
+}
+
+function IconBtn({ label, onClick, disabled, children }) {
+  return (
+    <button type="button" aria-label={label} title={label} onClick={onClick} disabled={disabled} className="press flex h-8 w-8 items-center justify-center rounded-full" style={{ background: T.panel, opacity: disabled ? 0.3 : 1 }}>
+      {children}
+    </button>
+  );
+}
+
+function ListRow({ title, sub, onClick, right }) {
+  return (
+    <li>
+      <button type="button" onClick={onClick} className="press flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left" style={{ background: T.field }}>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-medium">{title}</span>
+          <span className="block truncate text-xs" style={{ color: T.muted }}>
+            {sub}
+          </span>
+        </span>
+        {right}
+        <ArrowRight size={15} style={{ color: T.muted }} aria-hidden="true" />
+      </button>
+    </li>
+  );
+}
+
+function ConfirmDelete({ what, onDelete }) {
+  const [ask, setAsk] = useState(false);
+  return ask ? (
+    <div className="flex items-center gap-2 rounded-2xl p-3 text-sm" style={{ background: T.noteBg }}>
+      <span className="flex-1">Delete this {what}?</span>
+      <button type="button" onClick={onDelete} className={toolBtn} style={{ background: T.note, color: "#fff" }}>
+        Delete
+      </button>
+      <button type="button" onClick={() => setAsk(false)} className={toolBtn} style={{ background: T.panel }}>
+        Keep
+      </button>
+    </div>
+  ) : (
+    <button type="button" onClick={() => setAsk(true)} className="press flex items-center gap-1.5 text-sm" style={{ color: T.note }}>
+      <Trash2 size={15} /> Delete {what}
+    </button>
+  );
+}
+
+function BlockEditor({ block, index, count, cafes, items, onChange, onMove, onRemove }) {
+  const cafeItems = block.type === "cafe" ? items.filter((i) => i.cafeId === block.cafe) : [];
+  return (
+    <li className="rounded-2xl p-3" style={{ border: `1px solid ${T.line}` }}>
+      <div className="mb-2 flex items-center gap-1">
+        <span className="flex-1 text-xs font-medium uppercase tracking-wide" style={{ color: T.muted }}>
+          {BLOCK_TYPES[block.type]}
+        </span>
+        <IconBtn label="Move up" onClick={() => onMove(-1)} disabled={index === 0}>
+          <ArrowUp size={15} />
+        </IconBtn>
+        <IconBtn label="Move down" onClick={() => onMove(1)} disabled={index === count - 1}>
+          <ArrowDown size={15} />
+        </IconBtn>
+        <IconBtn label={`Remove ${BLOCK_TYPES[block.type].toLowerCase()}`} onClick={onRemove}>
+          <X size={15} />
+        </IconBtn>
+      </div>
+      {block.type === "cafe" ? (
+        <div className="space-y-2">
+          <ToolSelect label="Café" value={block.cafe} onChange={(v) => onChange({ type: "cafe", cafe: v, ...(block.note ? { note: block.note } : {}) })}>
+            {cafes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </ToolSelect>
+          <ToolSelect
+            label="Drink to feature"
+            value={block.item || ""}
+            onChange={(v) => {
+              const { item, ...rest } = block;
+              onChange(v ? { ...rest, item: v } : rest);
+            }}
+          >
+            <option value="">Café only (no drink)</option>
+            {cafeItems.map((i) => (
+              <option key={i.id} value={i.id}>
+                {i.name}
+              </option>
+            ))}
+          </ToolSelect>
+          <AutoText
+            label="Note"
+            placeholder="A line about why it's here (optional)"
+            value={block.note || ""}
+            onChange={(v) => {
+              const { note, ...rest } = block;
+              onChange(v ? { ...rest, note: v } : rest);
+            }}
+          />
+        </div>
+      ) : (
+        <AutoText
+          label={BLOCK_TYPES[block.type]}
+          rows={block.type === "p" ? 3 : 1}
+          placeholder={block.type === "h" ? "A short heading" : block.type === "quote" ? "A line worth pulling out" : "Write here…"}
+          value={block.text}
+          onChange={(v) => onChange({ ...block, text: v })}
+          className={block.type === "p" ? "text-sm" : "font-medium"}
+        />
+      )}
+    </li>
+  );
+}
+
+function StoryForm({ story, cafes, items, onChange, onDelete, onBack, onPreview }) {
+  const set = (k, v) => onChange({ ...story, [k]: v });
+  const setBlock = (i, b) => set("body", story.body.map((x, j) => (j === i ? b : x)));
+  const move = (i, d) => {
+    const body = [...story.body];
+    [body[i], body[i + d]] = [body[i + d], body[i]];
+    set("body", body);
+  };
+  const add = (type) => set("body", [...story.body, type === "cafe" ? { type, cafe: cafes[0] ? cafes[0].id : "" } : { type, text: "" }]);
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <button type="button" onClick={onBack} className="press -ml-1 flex items-center gap-1 text-sm font-medium">
+          <ChevronLeft size={18} /> All stories
+        </button>
+        <button type="button" onClick={onPreview} className={`${toolBtn} flex items-center gap-1.5 py-2`} style={{ background: T.field }}>
+          <Eye size={15} /> Preview
+        </button>
+      </div>
+      <ToolField label="Type">
+        <ToolSelect label="Type" value={story.kind} onChange={(v) => set("kind", v)}>
+          {Object.entries(KIND_LABEL).map(([k, l]) => (
+            <option key={k} value={k}>
+              {l}
+            </option>
+          ))}
+        </ToolSelect>
+      </ToolField>
+      <ToolField label="Title">
+        <input aria-label="Title" value={story.title} maxLength={120} onChange={(e) => set("title", e.target.value)} placeholder="the post-reformer iced edit" className={`${toolInput} font-medium`} style={{ background: T.field }} />
+      </ToolField>
+      <ToolField label="Intro" hint="Shows on the card and at the top of the story.">
+        <AutoText label="Intro" value={story.dek} onChange={(v) => set("dek", v.slice(0, 300))} placeholder="One or two lines that make people tap." />
+      </ToolField>
+      <div>
+        <span className="mb-1 block text-xs font-medium" style={{ color: T.muted }}>
+          Card colour{story.image ? " (shows while the photo loads)" : ""}
+        </span>
+        <div className="flex gap-2" role="radiogroup" aria-label="Card colour">
+          {TONES.map(([t, l]) => {
+            const [a, b] = toneOf(t);
+            const on = story.tone === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                aria-label={l}
+                title={l}
+                onClick={() => set("tone", t)}
+                className="press h-9 w-9 rounded-full"
+                style={{ background: `linear-gradient(160deg, ${a}, ${b})`, boxShadow: on ? `0 0 0 2px ${T.panel}, 0 0 0 4px ${T.ink}` : `inset 0 0 0 1px ${T.line}` }}
+              />
+            );
+          })}
+        </div>
+      </div>
+      <PhotoField story={story} onChange={(image, alt) => onChange(image ? { ...story, image, alt } : (({ image: _i, alt: _a, ...rest }) => rest)(story))} />
+      <DateField
+        label="Publish on"
+        type="date"
+        hint="A future date schedules it."
+        value={story.published.slice(0, 10)}
+        onChange={(v) => v && set("published", v === new Date().toISOString().slice(0, 10) ? new Date().toISOString() : `${v}T00:00:00.000Z`)}
+      />
+      <DateField label="Ends (optional)" hint="The story is hidden after this." value={toLocalInput(story.ends)} onChange={(v) => set("ends", fromLocalInput(v))} clearable />
+      <div>
+        <span className="mb-2 block text-xs font-medium" style={{ color: T.muted }}>
+          Story
+        </span>
+        {story.body.length === 0 && (
+          <p className="mb-2 rounded-2xl p-3 text-sm" style={{ background: T.field, color: T.muted }}>
+            Add paragraphs, headings, quotes and café cards below.
+          </p>
+        )}
+        <ul className="space-y-2">
+          {story.body.map((b, i) => (
+            <BlockEditor
+              key={i}
+              block={b}
+              index={i}
+              count={story.body.length}
+              cafes={cafes}
+              items={items}
+              onChange={(nb) => setBlock(i, nb)}
+              onMove={(d) => move(i, d)}
+              onRemove={() => set("body", story.body.filter((_, j) => j !== i))}
+            />
+          ))}
+        </ul>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {Object.entries(BLOCK_TYPES).map(([t, l]) => (
+            <button key={t} type="button" onClick={() => add(t)} className="press flex items-center gap-1 rounded-full px-3 py-1.5 text-sm" style={{ border: `1px solid ${T.line}` }}>
+              <Plus size={14} /> {l}
+            </button>
+          ))}
+        </div>
+      </div>
+      <ConfirmDelete what="story" onDelete={onDelete} />
+    </div>
+  );
+}
+
+function DropForm({ drop, cafes, stories, onChange, onDelete, onBack }) {
+  const set = (k, v) => onChange({ ...drop, [k]: v });
+  return (
+    <div className="space-y-4">
+      <button type="button" onClick={onBack} className="press -ml-1 flex items-center gap-1 text-sm font-medium">
+        <ChevronLeft size={18} /> All drops
+      </button>
+      <ToolField label="Drink">
+        <input aria-label="Drink" value={drop.name} maxLength={60} onChange={(e) => set("name", e.target.value)} placeholder="Iced Cardamom Latte" className={`${toolInput} font-medium`} style={{ background: T.field }} />
+      </ToolField>
+      <ToolField label="Café">
+        <ToolSelect label="Café" value={drop.cafe} onChange={(v) => set("cafe", v)}>
+          {cafes.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </ToolSelect>
+      </ToolField>
+      <div className="grid grid-cols-2 gap-3">
+        <ToolField label="Kind">
+          <ToolSelect
+            label="Kind"
+            value={drop.type}
+            onChange={(v) => onChange({ ...drop, type: v, label: drop.label === (drop.type === "sponsored" ? "sponsored" : "limited drop") ? (v === "sponsored" ? "sponsored" : "limited drop") : drop.label })}
+          >
+            <option value="drop">Limited drop</option>
+            <option value="sponsored">Sponsored</option>
+          </ToolSelect>
+        </ToolField>
+        <ToolField label="Badge text">
+          <input aria-label="Badge text" value={drop.label} maxLength={40} onChange={(e) => set("label", e.target.value)} className={toolInput} style={{ background: T.field }} />
+        </ToolField>
+      </div>
+      <ToolField label="Partner line">
+        <input aria-label="Partner line" value={drop.partner} maxLength={80} onChange={(e) => set("partner", e.target.value)} placeholder="WatchHouse × sam'spresso" className={toolInput} style={{ background: T.field }} />
+      </ToolField>
+      <DateField label="Ends" hint="The drop leaves the menu after this." value={toLocalInput(drop.ends)} onChange={(v) => set("ends", fromLocalInput(v))} clearable />
+      <ToolField label="Flavours" hint="Up to five, separated by commas.">
+        <input
+          aria-label="Flavours"
+          defaultValue={drop.flavours.join(", ")}
+          key={drop.id}
+          onBlur={(e) =>
+            set(
+              "flavours",
+              e.target.value
+                .split(",")
+                .map((f) => titleCase(f.trim()))
+                .filter(Boolean)
+                .slice(0, 5)
+            )
+          }
+          placeholder="Spiced, Oat-Friendly, Refreshing"
+          className={toolInput}
+          style={{ background: T.field }}
+        />
+      </ToolField>
+      <ToolField label="Linked story" hint='Adds a "read the story" button.'>
+        <ToolSelect label="Linked story" value={drop.story || ""} onChange={(v) => set("story", v || null)}>
+          <option value="">None</option>
+          {stories.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.title}
+            </option>
+          ))}
+        </ToolSelect>
+      </ToolField>
+      <ConfirmDelete what="drop" onDelete={onDelete} />
+    </div>
+  );
+}
+
+function PicksList({ picks, cafes, items, onToggle }) {
+  const [q, setQ] = useState("");
+  const t = q.trim().toLowerCase();
+  return (
+    <div className="space-y-3">
+      <p className="text-sm" style={{ color: T.muted }}>
+        Tap ✦ to make a drink one of Samia's Picks. {picks.length} picked.
+      </p>
+      <input type="search" aria-label="Find a drink" placeholder="Find a drink or café" value={q} onChange={(e) => setQ(e.target.value)} className={toolInput} style={{ background: T.field }} />
+      {cafes.map((c) => {
+        const list = items.filter((i) => i.cafeId === c.id && !i.promo && (!t || `${i.name} ${c.name}`.toLowerCase().includes(t)));
+        if (!list.length) return null;
+        return (
+          <section key={c.id}>
+            <h3 className="mb-1 mt-2 text-xs font-medium uppercase tracking-wide" style={{ color: T.muted }}>
+              {c.name}
+            </h3>
+            <ul>
+              {list.map((i) => {
+                const on = picks.includes(i.id);
+                return (
+                  <li key={i.id} className="flex items-center gap-3 py-1.5">
+                    <span className="min-w-0 flex-1 truncate text-sm">{i.name}</span>
+                    <button
+                      type="button"
+                      aria-pressed={on}
+                      aria-label={`${on ? "Remove" : "Make"} ${i.name} at ${c.name} ${on ? "from" : "one of"} Samia's Picks`}
+                      onClick={() => onToggle(i.id)}
+                      className="press rounded-full px-3 py-1 text-xs font-medium"
+                      style={on ? { background: T.ink, color: "#fff" } : { border: `1px solid ${T.line}`, color: T.muted }}
+                    >
+                      ✦ {on ? "Pick" : "Add"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Samia's content editor: stories, drops and picks, previewed live in the app and published to GitHub. */
+function ContentPanel({ content, published, cafes, items, onChange, onReset, onPublished, onPreview, open, setOpen, hidePill, onSwitch }) {
+  const [tab, setTab] = useState("stories");
+  const [editing, setEditing] = useState(null); // story or drop id
+  const changed = !sameJson(JSON.stringify(content), JSON.stringify(published));
+  const scrollRef = useRef(null);
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [tab, editing]);
+  const takenIds = new Set([...content.stories.map((x) => x.id), ...content.drops.map((d) => d.id), ...items.map((i) => i.id)]);
+  const update = (key, id, next) => onChange({ ...content, [key]: content[key].map((x) => (x.id === id ? next : x)) });
+  const newStory = () => {
+    const id = uniqueId(`story-${Date.now().toString(36)}`, takenIds);
+    onChange({ ...content, stories: [{ id, kind: "edit", title: "new story", dek: "", tone: "highlight", published: new Date().toISOString(), ends: null, body: [{ type: "p", text: "" }] }, ...content.stories] });
+    setEditing(id);
+  };
+  const newDrop = () => {
+    const id = uniqueId(`drop-${Date.now().toString(36)}`, takenIds);
+    const ends = new Date(Date.now() + 3 * 864e5);
+    ends.setHours(18, 0, 0, 0);
+    onChange({ ...content, drops: [{ id, cafe: cafes[0] ? cafes[0].id : "", name: "New Drink", type: "drop", label: "limited drop", partner: "", ends: ends.toISOString(), story: null, flavours: [] }, ...content.drops] });
+    setEditing(id);
+  };
+  const story = tab === "stories" && content.stories.find((x) => x.id === editing);
+  const drop = tab === "drops" && content.drops.find((d) => d.id === editing);
+  const tabs = [
+    ["stories", `Stories (${content.stories.length})`],
+    ["drops", `Drops (${content.drops.length})`],
+    ["picks", `Picks (${content.picks.length})`],
+  ];
+
+  if (!open) {
+    if (hidePill) return null;
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="sp-tool press fixed right-4 z-[60] flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium md:bottom-6"
+        style={{ bottom: "calc(76px + env(safe-area-inset-bottom))", color: T.ink, background: T.panel, boxShadow: "0 8px 24px -10px rgba(0,0,0,.3)" }}
+      >
+        <Pencil size={15} /> content
+        {changed && (
+          <span className="text-xs font-normal" style={{ color: T.note }}>
+            · not published
+          </span>
+        )}
+      </button>
+    );
+  }
+  return (
+    <aside
+      aria-label="Content editor"
+      className="sp-tool a-cardup fixed inset-x-0 bottom-0 z-[60] flex max-h-[72vh] flex-col rounded-t-3xl md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:max-h-none md:w-[420px] md:rounded-3xl"
+      style={{ background: T.panel, color: T.ink, boxShadow: "0 -12px 40px -16px rgba(0,0,0,.18)", paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      <div className="flex items-center justify-between px-5 pb-3 pt-4">
+        <div>
+          <p className="text-lg font-semibold leading-tight">Content</p>
+          <p className="mt-0.5 text-xs" style={{ color: T.muted }}>
+            {changed ? "Unpublished changes" : "Matches what's live"}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {onSwitch && (
+            <button type="button" onClick={onSwitch} className="press flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium" style={{ background: T.field }}>
+              <Palette size={15} /> Theme
+            </button>
+          )}
+        <button type="button" aria-label="Minimise editor" onClick={() => setOpen(false)} className="press flex h-9 w-9 items-center justify-center rounded-full" style={{ background: T.field }}>
+          <ChevronDown size={17} />
+        </button>
+        </div>
+      </div>
+      {!editing && (
+        <div className="mx-5 mb-3 flex rounded-full p-1" role="tablist" style={{ background: T.field }}>
+          {tabs.map(([k, l]) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={tab === k}
+              onClick={() => setTab(k)}
+              className="press flex-1 rounded-full py-1.5 text-sm font-medium"
+              style={tab === k ? { background: T.panel, boxShadow: "0 1px 3px rgba(0,0,0,.12)" } : { color: T.muted }}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+      )}
+      <div ref={scrollRef} className="no-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-4">
+        {story ? (
+          <StoryForm
+            story={story}
+            cafes={cafes}
+            items={items}
+            onChange={(x) => update("stories", story.id, x)}
+            onDelete={() => {
+              onChange({ ...content, stories: content.stories.filter((x) => x.id !== story.id), drops: content.drops.map((d) => (d.story === story.id ? { ...d, story: null } : d)) });
+              setEditing(null);
+            }}
+            onBack={() => setEditing(null)}
+            onPreview={() => {
+              setOpen(false);
+              onPreview(story.id);
+            }}
+          />
+        ) : drop ? (
+          <DropForm
+            drop={drop}
+            cafes={cafes}
+            stories={content.stories}
+            onChange={(d) => update("drops", drop.id, d)}
+            onDelete={() => {
+              onChange({ ...content, drops: content.drops.filter((d) => d.id !== drop.id), picks: content.picks.filter((x) => x !== drop.id) });
+              setEditing(null);
+            }}
+            onBack={() => setEditing(null)}
+          />
+        ) : tab === "stories" ? (
+          <div className="space-y-2">
+            <button type="button" onClick={newStory} className={`${toolBtn} flex w-full items-center justify-center gap-1.5`} style={{ border: `1px dashed ${T.line}` }}>
+              <Plus size={16} /> New story
+            </button>
+            <ul className="space-y-2">
+              {content.stories.map((x) => (
+                <ListRow key={x.id} title={x.title || "Untitled"} sub={`${KIND_LABEL[x.kind]} · ${storyStatus(x)}`} onClick={() => setEditing(x.id)} />
+              ))}
+            </ul>
+          </div>
+        ) : tab === "drops" ? (
+          <div className="space-y-2">
+            <button type="button" onClick={newDrop} className={`${toolBtn} flex w-full items-center justify-center gap-1.5`} style={{ border: `1px dashed ${T.line}` }}>
+              <Plus size={16} /> New drop
+            </button>
+            <ul className="space-y-2">
+              {content.drops.map((d) => {
+                const c = cafes.find((x) => x.id === d.cafe);
+                const ended = d.ends && Date.parse(d.ends) <= Date.now();
+                return <ListRow key={d.id} title={d.name} sub={`${c ? c.name : "unknown café"} · ${ended ? "ended" : d.ends ? timeLeft(Date.parse(d.ends) - Date.now()) : "no end date"}`} onClick={() => setEditing(d.id)} />;
+              })}
+            </ul>
+            {content.drops.length === 0 && (
+              <p className="pt-2 text-center text-sm" style={{ color: T.muted }}>
+                No drops right now.
+              </p>
+            )}
+          </div>
+        ) : (
+          <PicksList
+            picks={content.picks}
+            cafes={cafes}
+            items={items}
+            onToggle={(id) => onChange({ ...content, picks: content.picks.includes(id) ? content.picks.filter((x) => x !== id) : [...content.picks, id] })}
+          />
+        )}
+      </div>
+      <div className="no-scrollbar max-h-[46vh] shrink-0 overflow-y-auto border-t px-5 py-3 md:max-h-[60vh]" style={{ borderColor: T.line }}>
+        <PublishBar
+          path="content.json"
+          what="content"
+          prepare={async (uploading) => {
+            const stories = [];
+            for (const x of content.stories) {
+              if (!x.image || !x.image.startsWith("data:")) {
+                stories.push(x);
+                continue;
+              }
+              let file = UPLOADED.get(x.image);
+              if (!file) {
+                uploading();
+                file = `assets/journal/${x.id}-${Date.now().toString(36)}.jpg`;
+                await ghAddFile(file, x.image.split(",")[1], `Add photo for "${x.title}"`);
+                UPLOADED.set(x.image, file);
+              }
+              PHOTO_CACHE.set(file, x.image);
+              stories.push({ ...x, image: file });
+            }
+            return JSON.stringify({ ...content, stories }, null, 2) + "\n";
+          }}
+          text={JSON.stringify(content, null, 2) + "\n"}
+          published={JSON.stringify(published)}
+          onPublished={onPublished}
+          extra={
+            <button type="button" onClick={onReset} disabled={!changed} className={toolBtn} style={{ background: T.field, opacity: changed ? 1 : 0.4 }}>
+              Undo all
+            </button>
+          }
+        />
       </div>
     </aside>
   );
@@ -4228,6 +5472,67 @@ export default function Samspresso() {
     } catch (_) {}
     useTheme(publishedTheme);
   }, [useTheme, publishedTheme]);
+  // content: built-in copy → published content.json → (edit mode) this device's draft
+  const editMode = useMemo(isEditMode, []);
+  const [publishedContent, setPublishedContent] = useState(DEFAULT_CONTENT);
+  const [content, setContent] = useState(() => {
+    if (!editMode) return DEFAULT_CONTENT;
+    try {
+      return sanitizeContent(JSON.parse(localStorage.getItem("sp-content-draft") || "null")) || DEFAULT_CONTENT;
+    } catch (_) {
+      return DEFAULT_CONTENT;
+    }
+  });
+  const hasDraft = useRef(content !== DEFAULT_CONTENT);
+  useEffect(() => {
+    let alive = true;
+    fetch("content.json", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((json) => {
+        const pub = alive && sanitizeContent(json);
+        if (!pub) return;
+        setPublishedContent(pub);
+        if (!hasDraft.current) setContent(pub);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const editContent = useCallback((c) => {
+    hasDraft.current = true;
+    setContent(c);
+    try {
+      localStorage.setItem("sp-content-draft", JSON.stringify(c));
+    } catch (_) {}
+  }, []);
+  const resetContent = useCallback(() => {
+    hasDraft.current = false;
+    try {
+      localStorage.removeItem("sp-content-draft");
+    } catch (_) {}
+    setContent(publishedContent);
+  }, [publishedContent]);
+  // (a test build publishes to a test branch, so the draft stays: the live files haven't changed)
+  const contentPublished = useCallback((c) => {
+    setPublishedContent(c);
+    if (GH_TEST) return;
+    setContent(c); // photos now point at the uploaded files
+    hasDraft.current = false;
+    try {
+      localStorage.removeItem("sp-content-draft");
+    } catch (_) {}
+  }, []);
+  const themePublished = useCallback((t) => {
+    setPublishedTheme(sanitizeTheme(t));
+    if (GH_TEST) return;
+    try {
+      localStorage.removeItem("sp-theme-draft");
+    } catch (_) {}
+  }, []);
+  const journalAll = useMemo(() => toJournal(content.stories), [content]);
+  // the theme playground and the content editor: only one is open at a time
+  const [tool, setTool] = useState(() => (editMode ? "content" : designMode ? "design" : null));
   const [tab, setTabRaw] = useState("discover");
   // Saved on this device: cafés/items you added, your ratings, history and Want to Try.
   const stored = useMemo(() => {
@@ -4238,18 +5543,21 @@ export default function Samspresso() {
     }
   }, []);
   const [cafes, setCafes] = useState(() => (stored ? [...SEED_CAFES, ...(stored.userCafes || [])] : SEED_CAFES));
-  const [items, setItems] = useState(() => {
+  // baseItems: the menu plus ratings made on this device; `items` adds picks and drops from content
+  const [baseItems, setBaseItems] = useState(() => {
     if (!stored) return SEED_ITEMS;
     const upd = stored.itemUpdates || {};
-    return [...SEED_ITEMS.map((i) => (upd[i.id] ? { ...i, ...upd[i.id] } : i)), ...(stored.userItems || [])];
+    return [...SEED_ITEMS.map((i) => (upd[i.id] ? { ...i, ...upd[i.id] } : i)), ...(stored.userItems || []).map(({ promo, pick, ...i }) => i)];
   });
+  const cafeIdSet = useMemo(() => new Set(cafes.map((c) => c.id)), [cafes]);
+  const items = useMemo(() => withContent(baseItems, content, cafeIdSet), [baseItems, content, cafeIdSet]);
   const [history, setHistory] = useState(() => (stored && stored.history) || SEED_HISTORY);
   const [saved, setSaved] = useState(() => new Set((stored && stored.saved) || ["or-v60"]));
   useEffect(() => {
     try {
       const seed = Object.fromEntries(SEED_ITEMS.map((i) => [i.id, i]));
       const itemUpdates = {};
-      items.forEach((i) => {
+      baseItems.forEach((i) => {
         const o = seed[i.id];
         if (o && (o.rating !== i.rating || o.count !== i.count)) itemUpdates[i.id] = { rating: i.rating, count: i.count };
       });
@@ -4257,14 +5565,14 @@ export default function Samspresso() {
         "sp-state-v1",
         JSON.stringify({
           userCafes: cafes.filter((c) => c.id.startsWith("u-")),
-          userItems: items.filter((i) => i.id.startsWith("ui-")),
+          userItems: baseItems.filter((i) => !seed[i.id]), // your additions, and ratings of drops
           itemUpdates,
           history,
           saved: [...saved],
         })
       );
     } catch (_) {}
-  }, [cafes, items, history, saved]);
+  }, [cafes, baseItems, history, saved]);
   const [area, setArea] = useState("All London");
   const [drink, setDrink] = useState("All Drinks");
   const [pickedSource, setSourceId] = useState(null);
@@ -4291,7 +5599,7 @@ export default function Samspresso() {
     if (typeof window !== "undefined") window.scrollTo(0, 0);
   }, []);
 
-  const liveDropsNow = useMemo(() => liveDrops(Date.now()), []);
+  const liveDropsNow = useMemo(() => liveDrops(Date.now(), journalAll), [journalAll]);
   const cafesFull = useMemo(
     () =>
       cafes.map((c) => {
@@ -4384,7 +5692,7 @@ export default function Samspresso() {
       return new Set();
     }
   });
-  const journal = useMemo(() => JOURNAL.filter((j) => !j.endsAt || j.endsAt > Date.now()).sort((a, b) => (b.kind === "drop") - (a.kind === "drop") || b.publishedAt - a.publishedAt), []);
+  const journal = useMemo(() => journalAll.filter((j) => storyLive(j)).sort((a, b) => (b.kind === "drop") - (a.kind === "drop") || b.publishedAt - a.publishedAt), [journalAll]);
   const openArticle = useCallback((id, el) => {
     setArticleOrigin(el || null);
     setArticleId(id);
@@ -4471,7 +5779,7 @@ export default function Samspresso() {
     const newRank = rankList.findIndex((c) => c.id === cid) + 1;
 
     setCafes(nextCafes);
-    setItems(nextItems);
+    setBaseItems(toBase(nextItems, content));
     setHistory((h) => [{ id: `h-${Date.now()}`, itemId, cafeId: cid, name, cafeName, rating, notes, ts: Date.now() }, ...h]);
     setRate(null);
     setFlash({ id: itemId, cafeId: cid, t: Date.now() });
@@ -4609,7 +5917,7 @@ export default function Samspresso() {
         }} />}
       </Sheet>
 
-      <Sheet data={articleId ? journal.find((j) => j.id === articleId) : null} onClose={closeArticle} label="Journal story" originEl={articleOrigin} chromeOverlay>
+      <Sheet data={articleId ? journalAll.find((j) => j.id === articleId) || null : null} onClose={closeArticle} label="Journal story" originEl={articleOrigin} chromeOverlay>
         {(entry) => (
           <JournalArticle
             entry={entry}
@@ -4633,7 +5941,25 @@ export default function Samspresso() {
       </Sheet>
 
       <Toast toast={toast} />
-      {designMode && <DesignPanel theme={THEME} published={publishedTheme} onChange={editTheme} onReset={resetTheme} />}
+      {designMode && (
+        <DesignPanel theme={THEME} published={publishedTheme} onChange={editTheme} onReset={resetTheme} onPublished={themePublished} open={tool === "design"} setOpen={(o) => setTool(o ? "design" : null)} hidePill={!!tool} onSwitch={editMode ? () => setTool("content") : null} />
+      )}
+      {editMode && (
+        <ContentPanel
+          content={content}
+          published={publishedContent}
+          cafes={cafesFull}
+          items={items}
+          onChange={editContent}
+          onReset={resetContent}
+          onPublished={contentPublished}
+          onPreview={(id) => openArticle(id)}
+          open={tool === "content"}
+          setOpen={(o) => setTool(o ? "content" : null)}
+          hidePill={!!tool}
+          onSwitch={designMode ? () => setTool("design") : null}
+        />
+      )}
     </div>
   );
 }

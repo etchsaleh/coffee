@@ -1,0 +1,180 @@
+{
+  "stories": [
+    {
+      "id": "j-drop-cardamom",
+      "kind": "drop",
+      "title": "the iced cardamom latte",
+      "dek": "WatchHouse × sam'spresso. Cardamom-bun flavours, poured over ice. This weekend only.",
+      "tone": "highlight",
+      "published": "2026-11-16",
+      "ends": "2026-11-22T18:00:00Z",
+      "body": [
+        {
+          "type": "p",
+          "text": "We asked WatchHouse to bottle the thing everyone queues for: the cardamom bun. The answer is a spiced oat latte, shaken cold, with a cinnamon-sugar rim."
+        },
+        {
+          "type": "p",
+          "text": "It's on at Bermondsey and Soho until Sunday close, or until they run out of the syrup, which last time took about four hours."
+        },
+        {
+          "type": "cafe",
+          "cafe": "watchhouse",
+          "item": "wh-iced-cardamom",
+          "note": "Order it with an extra shot if you like it less sweet."
+        }
+      ]
+    },
+    {
+      "id": "j-edit-iced",
+      "kind": "edit",
+      "title": "the post-reformer iced edit",
+      "dek": "Five cold, clean, oat-friendly cups for after class.",
+      "tone": "accent",
+      "published": "2026-11-15",
+      "ends": null,
+      "body": [
+        {
+          "type": "p",
+          "text": "Class done, cheeks pink, and you want something cold that doesn't taste like a milkshake. These are the ones we keep coming back to."
+        },
+        {
+          "type": "cafe",
+          "cafe": "hagen",
+          "item": "hg-iced",
+          "note": "Creamy, barely sweet, and right by South Ken station."
+        },
+        {
+          "type": "cafe",
+          "cafe": "commonbreads",
+          "item": "cb-iced",
+          "note": "The cult one. Samia's pick for a reason."
+        },
+        {
+          "type": "cafe",
+          "cafe": "storestreet",
+          "item": "ss-iced",
+          "note": "Mellow and big. Good for a slow walk through Bloomsbury."
+        },
+        {
+          "type": "cafe",
+          "cafe": "watchhouse",
+          "item": "wh-matcha",
+          "note": "Grassy, creamy, refreshing. The only matcha on the list."
+        },
+        {
+          "type": "cafe",
+          "cafe": "kaffeine",
+          "item": "ka-cold",
+          "note": "No milk, all chocolate. For the purists."
+        }
+      ]
+    },
+    {
+      "id": "j-spot-rosslyn",
+      "kind": "spotlight",
+      "title": "the tiny counter at the top",
+      "dek": "How a standing-room spot by Bank became London's best-rated café.",
+      "tone": "neutral",
+      "published": "2026-11-13",
+      "ends": null,
+      "body": [
+        {
+          "type": "p",
+          "text": "There are no tables at Rosslyn. There's a counter, a window and a queue of people in good coats who know exactly what they want."
+        },
+        {
+          "type": "p",
+          "text": "What they want is milk. The cortado is dense and chocolatey; the flat white is the smoothest in the Square Mile. Both sit at the top of our leaderboard."
+        },
+        {
+          "type": "cafe",
+          "cafe": "rosslyn",
+          "item": "ro-cort",
+          "note": "Start here. Two sips in, you'll get it."
+        }
+      ]
+    },
+    {
+      "id": "j-edit-grey",
+      "kind": "edit",
+      "title": "where to work when it's grey out",
+      "dek": "Bright rooms, good Wi-Fi, no side-eye for staying a while.",
+      "tone": "highlight-soft",
+      "published": "2026-11-11",
+      "ends": null,
+      "body": [
+        {
+          "type": "p",
+          "text": "Some days the laptop has to leave the flat. These are the places that make that feel like a treat."
+        },
+        {
+          "type": "cafe",
+          "cafe": "prufrock",
+          "note": "Huge windows, long benches and a batch brew that keeps coming."
+        },
+        {
+          "type": "cafe",
+          "cafe": "origin",
+          "note": "Roastery energy. Get the V60 and stay for the afternoon."
+        },
+        {
+          "type": "cafe",
+          "cafe": "storestreet",
+          "note": "That skylight. Go before 10 for a table."
+        }
+      ]
+    },
+    {
+      "id": "j-news-areas",
+      "kind": "news",
+      "title": "new on the map",
+      "dek": "Marylebone, Victoria and South Ken are in. Three new cafés to rate.",
+      "tone": "accent-soft",
+      "published": "2026-11-08",
+      "ends": null,
+      "body": [
+        {
+          "type": "p",
+          "text": "We've stretched the map west and south. Say hello to three new spots, and tell us what we should add next."
+        },
+        {
+          "type": "cafe",
+          "cafe": "monocle"
+        },
+        {
+          "type": "cafe",
+          "cafe": "hagen"
+        },
+        {
+          "type": "cafe",
+          "cafe": "commonbreads"
+        }
+      ]
+    }
+  ],
+  "drops": [
+    {
+      "id": "wh-iced-cardamom",
+      "cafe": "watchhouse",
+      "name": "Iced Cardamom Latte",
+      "type": "drop",
+      "label": "limited drop",
+      "partner": "WatchHouse × sam'spresso",
+      "ends": "2026-11-22T18:00:00Z",
+      "story": "j-drop-cardamom",
+      "flavours": [
+        "Spiced",
+        "Oat-Friendly",
+        "Refreshing"
+      ]
+    }
+  ],
+  "picks": [
+    "mon-fw",
+    "wh-card",
+    "or-v60",
+    "ro-cort",
+    "cb-iced"
+  ]
+}
