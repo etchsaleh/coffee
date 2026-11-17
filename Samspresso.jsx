@@ -3751,6 +3751,14 @@ const BLOCK_TYPES = { p: "Paragraph", h: "Heading", quote: "Quote", cafe: "Café
 const ID_RE = /^[a-z0-9][a-z0-9-]{0,59}$/;
 const str = (v, max) => (typeof v === "string" ? v.slice(0, max) : "");
 const validDate = (v) => typeof v === "string" && !isNaN(Date.parse(v));
+// Story photos: a file in the repo (assets/journal/…), a web address, or (in an unpublished draft) the photo itself.
+const validImage = (v) =>
+  typeof v === "string" &&
+  (/^assets\/journal\/[a-z0-9-]+\.(jpe?g|png|webp)$/.test(v) || /^https:\/\/[^\s"'()]+$/.test(v) || (/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(v) && v.length < 4e6));
+// Photos just published show from memory until the site has redeployed with the file.
+const PHOTO_CACHE = new Map();
+const photoSrc = (v) => PHOTO_CACHE.get(v) || v;
+const photoBg = (j, scrim) => `${scrim}, url("${photoSrc(j.image)}") center / cover no-repeat, linear-gradient(160deg, ${toneOf(j.tone)[0]}, ${toneOf(j.tone)[1]})`;
 
 /** Accepts only well-formed content; anything odd is dropped rather than breaking the app. */
 function sanitizeContent(raw) {
@@ -3776,6 +3784,7 @@ function sanitizeContent(raw) {
       published: validDate(x.published) ? x.published : new Date().toISOString().slice(0, 10),
       ends: validDate(x.ends) ? x.ends : null,
       body: (Array.isArray(x.body) ? x.body : []).slice(0, 80).map(block).filter(Boolean),
+      ...(validImage(x.image) ? { image: x.image, alt: str(x.alt, 200) } : {}),
     }));
   const drops = (Array.isArray(raw.drops) ? raw.drops : [])
     .filter((d) => d && ID_RE.test(d.id) && typeof d.cafe === "string" && str(d.name, 60).trim())
@@ -3918,7 +3927,12 @@ function JournalRow({ entries, readIds, onOpen }) {
                 data-morph
                 onClick={(e) => onOpen(j.id, e.currentTarget)}
                 className="lift relative flex h-72 w-56 flex-col justify-between overflow-hidden rounded-3xl p-4 text-left soft md:w-60"
-                style={{ background: `linear-gradient(160deg, ${toneOf(j.tone)[0]}, ${toneOf(j.tone)[1]})` }}
+                data-photo={j.image ? "" : undefined}
+                style={{
+                  background: j.image
+                    ? photoBg(j, "linear-gradient(180deg, rgba(0,0,0,.12) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,.6) 100%)")
+                    : `linear-gradient(160deg, ${toneOf(j.tone)[0]}, ${toneOf(j.tone)[1]})`,
+                }}
                 aria-label={`${KIND_LABEL[j.kind]}: ${j.title}${unread ? ", new" : ""}`}
               >
                 <span className="flex items-start justify-between gap-2">
@@ -3926,10 +3940,10 @@ function JournalRow({ entries, readIds, onOpen }) {
                   {unread && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: C.brand, boxShadow: `0 0 0 3px ${tint(C.card, 0.7)}` }} aria-hidden="true" />}
                 </span>
                 <span>
-                  <span className="serif block text-3xl leading-none" style={{ color: C.fg }}>
+                  <span className="serif block text-3xl leading-none" style={{ color: j.image ? "#FFFFFF" : C.fg }}>
                     {j.title}
                   </span>
-                  <span className="mt-2 block text-xs leading-relaxed" style={{ color: `${tint(C.fg, .7)}` }}>
+                  <span className="mt-2 block text-xs leading-relaxed" style={{ color: j.image ? "#FFFFFF" : C.fg, opacity: j.image ? 0.85 : 0.7 }}>
                     {j.kind === "drop" && j.endsAt ? timeLeft(j.endsAt - Date.now()) : `${j.read} min read`}
                   </span>
                 </span>
@@ -3949,19 +3963,25 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
     <article>
       <div
         data-sheet-handle
-        className="relative flex h-64 flex-col justify-end px-5 pb-4 md:h-72 md:px-8"
+        className={`relative flex flex-col justify-end px-5 pb-4 md:px-8 ${entry.image ? "h-80 md:h-96" : "h-64 md:h-72"}`}
+        role={entry.image && entry.alt ? "img" : undefined}
+        aria-label={entry.image && entry.alt ? entry.alt : undefined}
         style={{
           // runs under the grabber to the sheet's edge, then melts into the page
-          background: `linear-gradient(180deg, ${toneOf(entry.tone)[0]} 0%, ${toneOf(entry.tone)[1]} 58%, ${C.card} 100%)`,
+          background: entry.image
+            ? photoBg(entry, "linear-gradient(180deg, rgba(0,0,0,.18) 0%, rgba(0,0,0,0) 28%, rgba(0,0,0,.62) 100%)")
+            : `linear-gradient(180deg, ${toneOf(entry.tone)[0]} 0%, ${toneOf(entry.tone)[1]} 58%, ${C.card} 100%)`,
         }}
       >
         <div className="flex items-center gap-2">
           <KindTag kind={entry.kind} light />
-          <span className="text-xs" style={{ color: `${tint(C.fg, .7)}` }}>
+          <span className="text-xs" style={{ color: entry.image ? "#FFFFFF" : C.fg, opacity: entry.image ? 0.85 : 0.7 }}>
             {entry.kind === "drop" && entry.endsAt ? timeLeft(entry.endsAt - Date.now()) : timeAgo(entry.publishedAt).toLowerCase()}
           </span>
         </div>
-        <h2 className="serif mt-2 text-4xl leading-none md:text-5xl">{entry.title}</h2>
+        <h2 className="serif mt-2 text-4xl leading-none md:text-5xl" style={entry.image ? { color: "#FFFFFF" } : undefined}>
+          {entry.title}
+        </h2>
       </div>
       <div className="px-5 pb-8 pt-5 md:px-8">
         <p className="text-base leading-relaxed">{entry.dek}</p>
@@ -4454,6 +4474,37 @@ async function ghPublish(path, text, message, expected, force = false) {
   return res.commit && res.commit.html_url;
 }
 
+/** Adds a new file (e.g. a story photo, given as base64) to the repo. */
+async function ghAddFile(path, base64, message) {
+  const r = await ghFetch(`/repos/${GH.owner}/${GH.repo}/contents/${path}`, ghKey.get(), { method: "PUT", body: JSON.stringify({ message, content: base64, branch: GH.branch }) });
+  if (!r.ok) throw new PublishError("other", `Couldn't upload a photo (GitHub said "${r.status}"). Try again.`);
+}
+// photos already uploaded this session (draft photo → file path), so a retry doesn't upload twice
+const UPLOADED = new Map();
+
+/** Shrinks a photo on the device (longest side 1600px, JPEG) so it loads fast for readers. */
+async function preparePhoto(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, fail) => {
+      const i = new Image();
+      i.onload = () => ok(i);
+      i.onerror = () => fail(new Error("unreadable"));
+      i.src = url;
+    });
+    const scale = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+    let out = canvas.toDataURL("image/jpeg", 0.82);
+    if (out.length > 1.4e6) out = canvas.toDataURL("image/jpeg", 0.68);
+    return out;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 const toolInput = "w-full rounded-2xl px-3.5 py-2.5 text-base outline-none";
 const toolBtn = "press rounded-full px-4 py-2.5 text-sm font-medium";
 
@@ -4526,7 +4577,7 @@ function ConnectGitHub({ onDone, onCancel }) {
  * Publish button + status, shared by the theme playground and the content editor.
  * `text` is the file as it will be saved; `published` is the version currently live.
  */
-function PublishBar({ path, what, text, published, onPublished, extra }) {
+function PublishBar({ path, what, text, published, onPublished, extra, prepare }) {
   const [connected, setConnected] = useState(() => !!ghKey.get());
   const [connecting, setConnecting] = useState(false);
   const [state, setState] = useState({ kind: "idle" }); // idle | busy | done | error | changed
@@ -4534,9 +4585,10 @@ function PublishBar({ path, what, text, published, onPublished, extra }) {
   const publish = async (force = false) => {
     setState({ kind: "busy" });
     try {
-      const url = await ghPublish(path, text, `Update ${what} from the sam'spresso editor`, published, force);
+      const finalText = prepare ? await prepare(() => setState({ kind: "busy", photos: true })) : text;
+      const url = await ghPublish(path, finalText, `Update ${what} from the sam'spresso editor`, published, force);
       setState({ kind: "done", url });
-      onPublished(JSON.parse(text));
+      onPublished(JSON.parse(finalText));
     } catch (e) {
       if (e.code === "auth") {
         ghKey.clear();
@@ -4593,7 +4645,7 @@ function PublishBar({ path, what, text, published, onPublished, extra }) {
             style={{ background: T.accent, color: T.onAccent, opacity: !changed || state.kind === "busy" ? 0.45 : 1 }}
           >
             {state.kind === "busy" ? (
-              "Publishing…"
+              state.photos ? "Uploading photos…" : "Publishing…"
             ) : (
               <>
                 <Upload size={16} /> {changed ? `Publish ${what}` : "Nothing to publish"}
@@ -4681,6 +4733,68 @@ function ToolField({ label, hint, children }) {
         </span>
       )}
     </label>
+  );
+}
+
+/** Optional cover photo for a story: chosen on the device, shrunk, uploaded when publishing. */
+function PhotoField({ story, onChange }) {
+  const inputRef = useRef(null);
+  const [state, setState] = useState(null); // null | "working" | "error"
+  const pick = async (file) => {
+    if (!file) return;
+    setState("working");
+    try {
+      const data = await preparePhoto(file);
+      setState(null);
+      onChange(data, story.alt || "");
+    } catch (_) {
+      setState("error");
+    }
+  };
+  return (
+    <div>
+      <span className="mb-1 block text-xs font-medium" style={{ color: T.muted }}>
+        Photo (optional)
+      </span>
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" aria-label="Choose a photo" onChange={(e) => pick(e.target.files && e.target.files[0])} />
+      {story.image ? (
+        <div className="space-y-2">
+          <div className="relative overflow-hidden rounded-2xl" style={{ aspectRatio: "16 / 10", background: T.field }}>
+            <img src={photoSrc(story.image)} alt="" className="h-full w-full object-cover" />
+          </div>
+          <input
+            aria-label="Describe the photo"
+            value={story.alt || ""}
+            maxLength={200}
+            onChange={(e) => onChange(story.image, e.target.value)}
+            placeholder="Describe the photo (read out by screen readers)"
+            className={toolInput}
+            style={{ background: T.field }}
+          />
+          <div className="flex gap-2">
+            <button type="button" onClick={() => inputRef.current && inputRef.current.click()} className={toolBtn} style={{ background: T.field }}>
+              Change photo
+            </button>
+            <button type="button" onClick={() => onChange(null)} className={toolBtn} style={{ background: T.field }}>
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current && inputRef.current.click()}
+          disabled={state === "working"}
+          className={`${toolBtn} flex w-full items-center justify-center gap-1.5`}
+          style={{ border: `1px dashed ${T.line}` }}
+        >
+          <Plus size={16} /> {state === "working" ? "Preparing photo…" : "Add a photo"}
+        </button>
+      )}
+      <span className="mt-1 block text-xs" style={{ color: state === "error" ? T.note : T.muted }}>
+        {state === "error" ? "Couldn't read that photo. Try a JPEG or PNG." : "With a photo, the card shows it instead of the colour."}
+      </span>
+    </div>
   );
 }
 
@@ -4888,7 +5002,7 @@ function StoryForm({ story, cafes, items, onChange, onDelete, onBack, onPreview 
       </ToolField>
       <div>
         <span className="mb-1 block text-xs font-medium" style={{ color: T.muted }}>
-          Card colour
+          Card colour{story.image ? " (shows while the photo loads)" : ""}
         </span>
         <div className="flex gap-2" role="radiogroup" aria-label="Card colour">
           {TONES.map(([t, l]) => {
@@ -4910,6 +5024,7 @@ function StoryForm({ story, cafes, items, onChange, onDelete, onBack, onPreview 
           })}
         </div>
       </div>
+      <PhotoField story={story} onChange={(image, alt) => onChange(image ? { ...story, image, alt } : (({ image: _i, alt: _a, ...rest }) => rest)(story))} />
       <DateField
         label="Publish on"
         type="date"
@@ -5233,6 +5348,25 @@ function ContentPanel({ content, published, cafes, items, onChange, onReset, onP
         <PublishBar
           path="content.json"
           what="content"
+          prepare={async (uploading) => {
+            const stories = [];
+            for (const x of content.stories) {
+              if (!x.image || !x.image.startsWith("data:")) {
+                stories.push(x);
+                continue;
+              }
+              let file = UPLOADED.get(x.image);
+              if (!file) {
+                uploading();
+                file = `assets/journal/${x.id}-${Date.now().toString(36)}.jpg`;
+                await ghAddFile(file, x.image.split(",")[1], `Add photo for "${x.title}"`);
+                UPLOADED.set(x.image, file);
+              }
+              PHOTO_CACHE.set(file, x.image);
+              stories.push({ ...x, image: file });
+            }
+            return JSON.stringify({ ...content, stories }, null, 2) + "\n";
+          }}
           text={JSON.stringify(content, null, 2) + "\n"}
           published={JSON.stringify(published)}
           onPublished={onPublished}
@@ -5383,6 +5517,7 @@ export default function Samspresso() {
   const contentPublished = useCallback((c) => {
     setPublishedContent(c);
     if (GH_TEST) return;
+    setContent(c); // photos now point at the uploaded files
     hasDraft.current = false;
     try {
       localStorage.removeItem("sp-content-draft");

@@ -14,6 +14,7 @@ A **Content** panel appears with three tabs. Everything you change shows straigh
 - **Type:** samia's edit, spotlight, new or drop. The type sets the small label on the card.
 - **Title** and **Intro**: the intro shows on the card and at the top of the story.
 - **Card colour:** five shades taken from the theme.
+- **Photo (optional):** tap **Add a photo** to use a photo for the card and the top of the story instead of the colour. The photo is shrunk on your phone so it loads quickly, then uploaded to the repo when you publish. Add a short description for people using screen readers. If a photo can't load, the card shows its colour instead.
 - **Publish on:** a future date schedules the story. It appears on that day.
 - **Ends (optional):** the story disappears after this. Use it for drops.
 - **Story:** build it from blocks: **Paragraph**, **Heading**, **Quote** and **Café** (a café card, optionally featuring one drink, with a note). Use the arrows to reorder blocks and × to remove one.
@@ -54,4 +55,4 @@ The token is saved only in that browser, and it can only change files in this on
 
 - A mistake can't break the app. Anything in the file the app doesn't understand is skipped, and if the file can't be read at all, the app shows its built-in stories.
 - Stories and drops for a café that no longer exists are hidden automatically.
-- Photos aren't supported in stories yet. Card colours come from the theme.
+- Photos appear for everyone a minute or two after publishing, once the site has updated.
