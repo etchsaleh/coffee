@@ -36,37 +36,19 @@ import {
 /* ───────────────────────────── Design tokens ───────────────────────────── */
 
 /*
- * sam'spresso design system: warm milk & oat neutrals, one brand colour.
- *   bg         milk page background
- *   card       white cards
- *   stone      the only grey fill (tracks, rows, chips)
- *   line       hairlines
- *   ink        text
- *   taupe      secondary text and icons
- *   brand      deep olive (logo, buttons, active states, badges, highlights)
- *   brandSoft  brand at low opacity, for badge backgrounds
- *   matcha     taste-match scores, "live" signals, parks on the map
- *   latte      Samia's Picks only
- * Map colours are quiet neutrals derived from the same set.
+ * sam'spresso design system. Token names match the roles in theme.json:
+ *   background     page background
+ *   card           cards & sheets
+ *   surface        pills, tracks & rows (the one grey fill)
+ *   line           hairlines
+ *   text           main text
+ *   muted          secondary text & icons
+ *   brand          logo, buttons, active states, badges
+ *   accent         taste-match scores, "open now", live signals, parks on the map
+ *   highlight      Samia's Picks and editorial highlights
+ * Soft tints, readable foregrounds and map colours are derived in applyTheme.
  */
-const C = {
-  bg: "#F8F6F2",
-  card: "#FFFFFF",
-  stone: "#F1EDE7",
-  line: "#EEEAE4",
-  ink: "#2A2623",
-  taupe: "#8D867E",
-  brand: "#3E5700",
-  matcha: "#7A8B5A",
-  latte: "#C49A74",
-  land: "#F4F1EB",
-  river: "#E4E9E8",
-  park: "#E5EBDC",
-  mapLine: "#D9D3CB",
-};
-// role aliases used throughout the components
-C.clay = C.latte; // Samia's Pick
-C.sage = C.matcha; // taste match / live
+const C = {};
 /* ───────────────────────────── Theme (editable without code) ─────────────────────────────
  * Colours, fonts and corner roundness come from theme.json at the site root.
  * A designer can edit that file on GitHub, or tune it live in the playground
@@ -115,10 +97,7 @@ function tint(hex, a) {
 function sanitizeTheme(raw) {
   const t = JSON.parse(JSON.stringify(DEFAULT_THEME));
   if (!raw || typeof raw !== "object") return t;
-  // older theme files named these by their default colours
-  const c = { ...(raw.colors || {}) };
-  if (c.accent == null && c.matcha != null) c.accent = c.matcha;
-  if (c.highlight == null && c.latte != null) c.highlight = c.latte;
+  const c = raw.colors || {};
   Object.keys(t.colors).forEach((k) => {
     if (typeof c[k] === "string" && HEX.test(c[k].trim())) t.colors[k] = c[k].trim().toUpperCase();
   });
@@ -183,43 +162,31 @@ const onColor = (bg) => (contrast("#FFFFFF", bg) >= 3 ? "#FFFFFF" : readable("#1
 function applyTheme(theme) {
   THEME = sanitizeTheme(theme);
   const k = THEME.colors;
-  Object.assign(C, {
-    bg: k.background,
-    card: k.card,
-    stone: k.surface,
-    line: k.line,
-    ink: k.text,
-    taupe: k.muted,
-    brand: k.brand,
-    matcha: k.accent,
-    latte: k.highlight,
-  });
-  C.clay = C.latte;
-  C.sage = C.matcha;
+  Object.assign(C, k);
   C.brandSoft = tint(C.brand, 0.08);
-  C.matchaSoft = tint(C.matcha, 0.13);
-  C.latteSoft = tint(C.latte, 0.15);
+  C.accentSoft = tint(C.accent, 0.13);
+  C.highlightSoft = tint(C.highlight, 0.15);
   // readable foregrounds per surface (used through CSS variables, see buildCSS)
-  const ink = (bg) => ({
-    ink: readable(C.ink, bg, 7),
+  const fgOn = (bg) => ({
+    text: readable(C.text, bg, 7),
     // thresholds keep the default palette exactly as designed; only weaker pairings get corrected
-    muted: readable(C.taupe, bg, 3),
+    muted: readable(C.muted, bg, 3),
     brand: readable(C.brand, bg, 3),
-    matcha: readable(C.matcha, bg, 3),
-    latte: readable(C.latte, bg, 2.3),
+    accent: readable(C.accent, bg, 3),
+    highlight: readable(C.highlight, bg, 2.3),
   });
-  C.onPage = ink(C.bg);
-  C.onCard = ink(C.card);
-  C.onSurface = ink(C.stone);
+  C.onPage = fgOn(C.background);
+  C.onCard = fgOn(C.card);
+  C.onSurface = fgOn(C.surface);
   C.onBrand = onColor(C.brand);
-  C.onMatcha = onColor(C.matcha);
-  C.onLatte = onColor(C.latte);
+  C.onAccent = onColor(C.accent);
+  C.onHighlight = onColor(C.highlight);
   // the map is drawn from the same palette
-  C.land = mixHex(C.bg, C.stone, 0.55);
-  C.river = mixHex(C.bg, C.taupe, 0.14);
-  C.park = mixHex(C.bg, C.matcha, 0.18);
-  C.mapLine = mixHex(C.bg, C.taupe, 0.3);
-  C.mapLabel = readable(C.taupe, C.land, 3);
+  C.land = mixHex(C.background, C.surface, 0.55);
+  C.river = mixHex(C.background, C.muted, 0.14);
+  C.park = mixHex(C.background, C.accent, 0.18);
+  C.mapLine = mixHex(C.background, C.muted, 0.3);
+  C.mapLabel = readable(C.muted, C.land, 3);
   C.road = mixHex(C.land, isDark(C.land) ? "#FFFFFF" : "#FFFFFF", isDark(C.land) ? 0.1 : 0.75);
   THEME_VERSION += 1;
   loadFont("body", THEME.fonts.body, "wght@300;400;500;600");
@@ -227,20 +194,20 @@ function applyTheme(theme) {
 }
 applyTheme(DEFAULT_THEME);
 // Foreground colours resolve per surface through CSS variables (see buildCSS).
-Object.assign(C, { fg: "var(--sp-ink)", fgMuted: "var(--sp-muted)", fgBrand: "var(--sp-brand)", fgMatcha: "var(--sp-matcha)", fgLatte: "var(--sp-latte)" });
+Object.assign(C, { fg: "var(--sp-text)", fgMuted: "var(--sp-muted)", fgBrand: "var(--sp-brand)", fgAccent: "var(--sp-accent)", fgHighlight: "var(--sp-highlight)" });
 
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 
-const fgVars = (o) => `--sp-ink:${o.ink};--sp-muted:${o.muted};--sp-brand:${o.brand};--sp-matcha:${o.matcha};--sp-latte:${o.latte};`;
+const fgVars = (o) => `--sp-text:${o.text};--sp-muted:${o.muted};--sp-brand:${o.brand};--sp-accent:${o.accent};--sp-highlight:${o.highlight};`;
 const buildCSS = () => `
-.sp{font-family:"${THEME.fonts.body}","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;${fgVars(C.onPage)}color:var(--sp-ink);background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
+.sp{font-family:"${THEME.fonts.body}","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;${fgVars(C.onPage)}color:var(--sp-text);background:${C.background};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
 .sp .serif{font-family:"${THEME.fonts.display}",ui-serif,Georgia,serif;font-style:${THEME.fonts.displayItalic ? "italic" : "normal"};font-weight:400;letter-spacing:-.01em}
 .sp .bg-white{background-color:${C.card}}
-.sp .bg-white,.sp .glass-white,.sp [data-surface=card]{${fgVars(C.onCard)}color:var(--sp-ink)}
-.sp [data-surface=surface]{${fgVars(C.onSurface)}color:var(--sp-ink)}
-.sp [data-surface=page]{${fgVars(C.onPage)}color:var(--sp-ink)}
-.sp .sp-tool,.sp .sp-tool [data-surface]{--sp-ink:#1C1C1E;--sp-muted:#6E6E73;--sp-brand:#1C1C1E;--sp-matcha:#1C1C1E;--sp-latte:#8A5A00;color:#1C1C1E}
+.sp .bg-white,.sp .glass-white,.sp [data-surface=card]{${fgVars(C.onCard)}color:var(--sp-text)}
+.sp [data-surface=surface]{${fgVars(C.onSurface)}color:var(--sp-text)}
+.sp [data-surface=page]{${fgVars(C.onPage)}color:var(--sp-text)}
+.sp .sp-tool,.sp .sp-tool [data-surface]{--sp-text:#1C1C1E;--sp-muted:#6E6E73;--sp-brand:#1C1C1E;--sp-accent:#1C1C1E;--sp-highlight:#8A5A00;color:#1C1C1E}
 .sp .sp-tool{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,"Segoe UI",Roboto,sans-serif;letter-spacing:0}
 .sp .sp-tool .rounded-2xl{border-radius:14px}
 .sp .sp-tool.rounded-t-3xl{border-top-left-radius:22px;border-top-right-radius:22px}
@@ -250,7 +217,7 @@ const buildCSS = () => `
 .sp .rounded-3xl{border-radius:${THEME.corners}px}
 .sp .rounded-2xl{border-radius:${Math.round(THEME.corners * 0.67)}px}
 .sp .rounded-t-3xl{border-top-left-radius:${THEME.corners}px;border-top-right-radius:${THEME.corners}px}
-.sp .soft{box-shadow:0 1px 2px ${tint(C.ink, .03)},0 14px 36px -24px ${tint(C.ink, .22)}}
+.sp .soft{box-shadow:0 1px 2px ${tint(C.text, .03)},0 14px 36px -24px ${tint(C.text, .22)}}
 .sp{overflow-x:clip;max-width:100vw}
 .sp *{box-sizing:border-box}
 .sp fieldset{min-width:0;margin:0;padding:0;border:0}
@@ -264,10 +231,10 @@ const buildCSS = () => `
 .sp .tab-btn:active .tab-halo{opacity:1;transform:scale(1)}
 .sp .tab-btn:active .tab-icon{transform:scale(.9)}
 .sp .lift{transition:transform .45s ${EASE},box-shadow .45s ${EASE},border-color .45s ${EASE}}
-@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 2px 4px ${tint(C.ink, .03)},0 22px 44px -24px ${tint(C.ink, .28)}}}
-.sp .glass{background:${tint(C.bg, .78)};-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
+@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 2px 4px ${tint(C.text, .03)},0 22px 44px -24px ${tint(C.text, .28)}}}
+.sp .glass{background:${tint(C.background, .78)};-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
 .sp .glass-white{background:${tint(C.card, .9)};-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px)}
-.sp .hair{box-shadow:0 1px 2px ${tint(C.ink, .03)},0 12px 32px -22px ${tint(C.ink, .2)}}
+.sp .hair{box-shadow:0 1px 2px ${tint(C.text, .03)},0 12px 32px -22px ${tint(C.text, .2)}}
 .sp .no-scrollbar::-webkit-scrollbar{display:none}.sp .no-scrollbar{scrollbar-width:none}
 .sp :focus{outline:none}
 .sp :focus-visible{outline:2px solid ${C.brand};outline-offset:2px}
@@ -324,10 +291,10 @@ const buildCSS = () => `
 }
 
 .sp .sp-range{-webkit-appearance:none;appearance:none;height:6px;border-radius:999px;outline:none}
-.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:${C.card};border:1px solid ${C.line};box-shadow:0 4px 14px -4px ${tint(C.ink, .35)};transition:transform .3s ${SPRING};cursor:grab}
+.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:${C.card};border:1px solid ${C.line};box-shadow:0 4px 14px -4px ${tint(C.text, .35)};transition:transform .3s ${SPRING};cursor:grab}
 .sp .sp-range:active::-webkit-slider-thumb{transform:scale(1.15);cursor:grabbing}
-.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:${C.card};border:1px solid ${C.line};box-shadow:0 4px 14px -4px ${tint(C.ink, .35)}}
-.sp .sp-range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px ${C.ink}}
+.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:${C.card};border:1px solid ${C.line};box-shadow:0 4px 14px -4px ${tint(C.text, .35)}}
+.sp .sp-range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px ${C.text}}
 
 @media (prefers-reduced-motion:reduce){
   .sp *,.sp *::before,.sp *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -891,7 +858,7 @@ function MobileHeader({ tab, savedCount, onSaved }) {
     <header
       className="sticky top-0 z-40 flex h-14 items-center justify-between px-4 md:hidden"
       style={{
-        background: scrolled ? `${tint(C.bg, .8)}` : C.bg,
+        background: scrolled ? `${tint(C.background, .8)}` : C.background,
         WebkitBackdropFilter: scrolled ? "saturate(1.6) blur(18px)" : "none",
         backdropFilter: scrolled ? "saturate(1.6) blur(18px)" : "none",
         boxShadow: scrolled ? `0 1px 0 ${C.line}` : "0 1px 0 transparent",
@@ -908,7 +875,7 @@ function MobileHeader({ tab, savedCount, onSaved }) {
       >
         {COMPACT_TITLES[tab]}
       </p>
-      <button type="button" onClick={onSaved} className="press relative flex h-9 w-9 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.stone }} aria-label={`Want to Try list, ${savedCount} saved`}>
+      <button type="button" onClick={onSaved} className="press relative flex h-9 w-9 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }} aria-label={`Want to Try list, ${savedCount} saved`}>
         <Bookmark size={16} />
         {savedCount > 0 && (
           <span key={savedCount} className="a-pop tabular absolute -right-1 -top-1 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium" style={{ color: C.onBrand, background: C.brand, minWidth: 20 }}>
@@ -1006,7 +973,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
       aria-label={label}
       className={`relative ${full ? "flex w-full" : "inline-flex"} items-center gap-0.5 rounded-full p-1 ${glass && !scroll ? "glass-white hair" : ""}`}
       data-surface={scroll ? undefined : glass ? "card" : "surface"}
-      style={scroll ? undefined : glass ? { boxShadow: `0 6px 20px -12px ${tint(C.ink, .25)}` } : { background: C.stone }}
+      style={scroll ? undefined : glass ? { boxShadow: `0 6px 20px -12px ${tint(C.text, .25)}` } : { background: C.surface }}
     >
       <span
         aria-hidden="true"
@@ -1016,7 +983,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
           transform: `translate3d(${ind.x}px,0,0)`,
           opacity: ind.ready ? 1 : 0,
           background: ink ? C.brand : C.card,
-          boxShadow: ink ? `0 4px 12px -6px ${tint(C.ink, .5)}` : `0 1px 2px ${tint(C.ink, .08)}, 0 0 0 1px ${tint(C.ink, .04)}`,
+          boxShadow: ink ? `0 4px 12px -6px ${tint(C.text, .5)}` : `0 1px 2px ${tint(C.text, .08)}, 0 0 0 1px ${tint(C.text, .04)}`,
           transition: `transform .55s ${EASE}, width .55s ${EASE}, opacity .3s`,
           willChange: "transform",
         }}
@@ -1049,7 +1016,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
       ref={scrollRef}
       className={`no-scrollbar max-w-full overflow-x-auto rounded-full ${glass ? "glass-white hair" : ""}`}
       data-surface={glass ? "card" : "surface"}
-      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: `0 6px 20px -12px ${tint(C.ink, .25)}` } : { background: C.stone }) }}
+      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: `0 6px 20px -12px ${tint(C.text, .25)}` } : { background: C.surface }) }}
     >
       {track}
     </div>
@@ -1072,7 +1039,7 @@ function BookmarkButton({ saved, onToggle, size = 17, className = "" }) {
       style={{ background: saved ? C.brandSoft : "transparent" }}
     >
       <span key={pop} className={`inline-flex ${pop ? "a-pop" : ""}`}>
-        <Bookmark size={size} strokeWidth={1.9} color={saved ? C.brand : C.taupe} fill={saved ? C.brand : "none"} />
+        <Bookmark size={size} strokeWidth={1.9} color={saved ? C.brand : C.muted} fill={saved ? C.brand : "none"} />
       </span>
     </button>
   );
@@ -1083,7 +1050,7 @@ function ScoreChip({ value, digits = 1, strong = false }) {
     <span
       className="tabular inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
       data-surface={strong ? undefined : "surface"}
-      style={{ background: strong ? C.brand : C.stone, color: strong ? C.onBrand : C.fg }}
+      style={{ background: strong ? C.brand : C.surface, color: strong ? C.onBrand : C.fg }}
     >
       {value.toFixed(digits)}
       <Star size={11} strokeWidth={0} fill={strong ? C.onBrand : C.brand} aria-hidden="true" />
@@ -1095,21 +1062,21 @@ function PickBadge({ small = false }) {
   return (
     <span
       className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full font-medium ${small ? "px-1.5 py-0.5 text-xs" : "px-2 py-0.5 text-xs"}`}
-      style={{ background: C.latteSoft, color: C.fgLatte }}
+      style={{ background: C.highlightSoft, color: C.fgHighlight }}
     >
       samia's pick ✦
     </span>
   );
 }
 
-function Tag({ children, tone = "stone" }) {
+function Tag({ children, tone = "surface" }) {
   const tones = {
-    stone: { background: C.stone, color: C.fgMuted },
-    sage: { background: C.matchaSoft, color: C.fgMatcha },
+    surface: { background: C.surface, color: C.fgMuted },
+    accent: { background: C.accentSoft, color: C.fgAccent },
     outline: { background: C.card, color: C.fgMuted, boxShadow: `inset 0 0 0 1px ${C.line}` },
   };
   return (
-    <span data-surface={tone === "stone" ? "surface" : tone === "outline" ? "card" : undefined} className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium" style={tones[tone]}>
+    <span data-surface={tone === "surface" ? "surface" : tone === "outline" ? "card" : undefined} className="inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium" style={tones[tone]}>
       {children}
     </span>
   );
@@ -1201,7 +1168,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
   const [dy, setDy] = useState(0);
   const [dragging, setDragging] = useState(false);
   const drag = useRef(null);
-  const surface = tone === "grouped" ? C.bg : C.card;
+  const surface = tone === "grouped" ? C.background : C.card;
   const panelRef = useRef(null);
   const contentRef = useRef(null);
   const morph = !!(originEl && originEl.isConnected);
@@ -1297,7 +1264,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal="true" aria-label={label}>
       <div
         className={`absolute inset-0 ${open ? "ov-in" : "ov-out"}`}
-        style={{ background: `${tint(C.ink, .32)}`, opacity: open ? clamp(1 - dy / 500, 0.2, 1) : undefined, transition: dragging ? "none" : `opacity .4s ${EASE}` }}
+        style={{ background: `${tint(C.text, .32)}`, opacity: open ? clamp(1 - dy / 500, 0.2, 1) : undefined, transition: dragging ? "none" : `opacity .4s ${EASE}` }}
         onClick={onClose}
       />
       <div ref={panelRef} className={`relative w-full md:max-w-xl ${morph && !reduce ? "" : open ? "sheet-in" : "sheet-out"}`} style={{ willChange: "transform", transformOrigin: "0 0" }}>
@@ -1312,7 +1279,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
             background: surface,
             maxHeight: "90vh",
             overscrollBehavior: "contain",
-            boxShadow: `0 -10px 40px -20px ${tint(C.ink, .35)}`,
+            boxShadow: `0 -10px 40px -20px ${tint(C.text, .35)}`,
             paddingBottom: "env(safe-area-inset-bottom)",
             transform: `translate3d(0, ${dy}px, 0)`,
             transition: dragging ? "none" : `transform .55s ${SPRING}`,
@@ -1326,7 +1293,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
                 {chromeOverlay && (
                   // grabber rides the same sticky rail, so it never scrolls away
                   <div data-sheet-handle className="absolute inset-x-16 top-0 flex h-7 justify-center pt-2 md:hidden" style={{ touchAction: "none" }}>
-                    <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.ink, .28)}`, boxShadow: `0 0 0 1px ${tint(C.card, 0.35)}` }} />
+                    <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.text, .28)}`, boxShadow: `0 0 0 1px ${tint(C.card, 0.35)}` }} />
                   </div>
                 )}
                 <button
@@ -1336,10 +1303,10 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
                   className="press absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full"
                   data-surface={chromeOverlay ? "card" : "surface"}
                   style={{
-                    background: chromeOverlay ? tint(C.card, 0.72) : C.stone,
+                    background: chromeOverlay ? tint(C.card, 0.72) : C.surface,
                     WebkitBackdropFilter: chromeOverlay ? "blur(14px) saturate(1.5)" : "none",
                     backdropFilter: chromeOverlay ? "blur(14px) saturate(1.5)" : "none",
-                    boxShadow: `0 4px 14px -8px ${tint(C.ink, .35)}`,
+                    boxShadow: `0 4px 14px -8px ${tint(C.text, .35)}`,
                   }}
                 >
                   <X size={17} strokeWidth={2} />
@@ -1347,7 +1314,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
               </div>
               {!chromeOverlay && (
                 <div data-sheet-handle className="sticky top-0 z-20 flex justify-center pb-1 pt-2 md:hidden" style={{ background: surface, touchAction: "none" }}>
-                  <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.ink, .18)}` }} />
+                  <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.text, .18)}` }} />
                 </div>
               )}
             </>
@@ -1369,13 +1336,13 @@ function MatchBar({ score, delay }) {
   const high = score >= 90;
   return (
     <div>
-      <p className="tabular mb-2 text-xs font-medium" style={{ color: high ? C.fgMatcha : C.fgMuted }}>
+      <p className="tabular mb-2 text-xs font-medium" style={{ color: high ? C.fgAccent : C.fgMuted }}>
         {shown}% match
       </p>
-      <div className="h-1 overflow-hidden rounded-full" data-surface="surface" style={{ background: C.stone }}>
+      <div className="h-1 overflow-hidden rounded-full" data-surface="surface" style={{ background: C.surface }}>
         <div
           className="a-grow h-full w-full rounded-full"
-          style={{ transform: `scaleX(${score / 100})`, transformOrigin: "0 50%", background: high ? C.matcha : C.taupe, animationDelay: `${delay}ms` }}
+          style={{ transform: `scaleX(${score / 100})`, transformOrigin: "0 50%", background: high ? C.accent : C.muted, animationDelay: `${delay}ms` }}
         />
       </div>
     </div>
@@ -1586,14 +1553,14 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
             aria-hidden="true"
             className={`pointer-events-none absolute inset-y-6 ${trail.dir > 0 ? "a-trail-r left-1/4 right-0" : "a-trail-l left-0 right-1/4"} rounded-full`}
             style={{
-              background: trail.dir > 0 ? `linear-gradient(90deg, ${tint(C.matcha, 0)}, ${tint(C.matcha, .55)})` : `linear-gradient(270deg, ${tint(C.taupe, 0)}, ${tint(C.taupe, .45)})`,
+              background: trail.dir > 0 ? `linear-gradient(90deg, ${tint(C.accent, 0)}, ${tint(C.accent, .55)})` : `linear-gradient(270deg, ${tint(C.muted, 0)}, ${tint(C.muted, .45)})`,
               filter: "blur(28px)",
               zIndex: 0,
             }}
           />
         )}
         {left === 0 && (
-          <div key={`done-${deal}`} className="a-fadeup absolute inset-0 flex flex-col items-center justify-center rounded-3xl text-center" data-surface="surface" style={{ background: C.stone }}>
+          <div key={`done-${deal}`} className="a-fadeup absolute inset-0 flex flex-col items-center justify-center rounded-3xl text-center" data-surface="surface" style={{ background: C.surface }}>
             <p className="serif text-3xl">that's the lot</p>
             <p className="mt-1 text-sm" style={{ color: C.fgMuted }}>
               you've seen every match for this drink
@@ -1656,8 +1623,8 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
                         style={{
                           background:
                             (leaving || Math.sign(drag.x)) > 0
-                              ? `linear-gradient(90deg, ${tint(C.matcha, 0.32 * (leaving > 0 ? 1 : progress))}, ${tint(C.matcha, 0)} 70%)`
-                              : `linear-gradient(270deg, ${tint(C.taupe, 0.3 * (leaving < 0 ? 1 : progress))}, ${tint(C.taupe, 0)} 70%)`,
+                              ? `linear-gradient(90deg, ${tint(C.accent, 0.32 * (leaving > 0 ? 1 : progress))}, ${tint(C.accent, 0)} 70%)`
+                              : `linear-gradient(270deg, ${tint(C.muted, 0.3 * (leaving < 0 ? 1 : progress))}, ${tint(C.muted, 0)} 70%)`,
                           opacity: leaving || drag.x ? 1 : 0,
                           transition: drag.active ? "none" : "opacity .3s",
                         }}
@@ -1682,9 +1649,9 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
           {Math.min(index + 1, recs.length)} / {recs.length}
         </span>
         <span className="relative">
-          <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full" style={{ color: C.onMatcha, background: C.matcha, boxShadow: `0 6px 16px -10px ${tint(C.matcha, .7)}` }}>
+          <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full" style={{ color: C.onAccent, background: C.accent, boxShadow: `0 6px 16px -10px ${tint(C.accent, .7)}` }}>
             <span key={savedPop} className={`relative inline-flex ${savedPop ? "a-pop" : ""}`}>
-              <Bookmark size={18} fill={justSaved ? C.onMatcha : "none"} style={{ transition: `fill .25s ${EASE}` }} />
+              <Bookmark size={18} fill={justSaved ? C.onAccent : "none"} style={{ transition: `fill .25s ${EASE}` }} />
             </span>
           </button>
         </span>
@@ -1767,7 +1734,7 @@ function PickRow({ title, sub, active, onClick, lead, right }) {
       aria-current={active ? "true" : undefined}
       className="press flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left"
       data-surface={active ? undefined : "page"}
-      style={{ background: active ? C.brandSoft : C.bg }}
+      style={{ background: active ? C.brandSoft : C.background }}
     >
       {lead}
       <span className="min-w-0 flex-1">
@@ -1830,7 +1797,7 @@ function DrinkPicker({ items, cafesById, itemsById, history, taste, current, onC
             <>
               {i.name}
               {i.pick && (
-                <span className="ml-1.5" style={{ color: C.fgLatte }} aria-label="Samia's Pick">
+                <span className="ml-1.5" style={{ color: C.fgHighlight }} aria-label="Samia's Pick">
                   ✦
                 </span>
               )}
@@ -1870,7 +1837,7 @@ function DrinkPicker({ items, cafesById, itemsById, history, taste, current, onC
           aria-label="Search drinks, cafés and notes"
           enterKeyHint="search"
           className="w-full rounded-full py-3 pl-11 pr-11 text-base outline-none"
-          data-surface="surface" style={{ background: C.stone }}
+          data-surface="surface" style={{ background: C.surface }}
         />
         {q && (
           <button type="button" aria-label="Clear search" onClick={() => { setQ(""); inputRef.current && inputRef.current.focus(); }} className="press absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full">
@@ -1897,7 +1864,7 @@ function DrinkPicker({ items, cafesById, itemsById, history, taste, current, onC
                   active={current === "taste"}
                   onClick={() => onChoose("taste")}
                   lead={
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: C.matchaSoft, color: C.fgMatcha }}>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: C.accentSoft, color: C.fgAccent }}>
                       <Sparkles size={17} aria-hidden="true" />
                     </span>
                   }
@@ -1968,7 +1935,7 @@ function TasteMatch({ items, cafesById, itemsById, taste, history, sourceId, onP
   return (
     <section className="relative" aria-labelledby="tm-title">
       <LargeTitle>
-      <p className="mb-4 text-sm" style={{ color: C.fgMatcha }}>
+      <p className="mb-4 text-sm" style={{ color: C.fgAccent }}>
         your taste match
       </p>
       </LargeTitle>
@@ -1991,7 +1958,7 @@ function TasteMatch({ items, cafesById, itemsById, taste, history, sourceId, onP
               </>
             )}
           </span>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.stone }}>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }}>
             <ChevronDown size={17} strokeWidth={1.7} aria-hidden="true" />
           </span>
         </button>
@@ -2011,7 +1978,7 @@ function TasteMatch({ items, cafesById, itemsById, taste, history, sourceId, onP
       {recs.length ? (
         <SwipeStack key={deckKey} recs={recs} src={src} cafesById={cafesById} saved={saved} toggleSave={toggleSave} onOpenCafe={onOpenCafe} />
       ) : (
-        <div key={deckKey} className="a-fadeup mx-auto mt-8 flex max-w-md flex-col items-center rounded-3xl px-6 py-10 text-center" data-surface="surface" style={{ background: C.stone }}>
+        <div key={deckKey} className="a-fadeup mx-auto mt-8 flex max-w-md flex-col items-center rounded-3xl px-6 py-10 text-center" data-surface="surface" style={{ background: C.surface }}>
           <p className="serif text-3xl">a one-of-a-kind cup</p>
           <p className="mt-1 text-sm" style={{ color: C.fgMuted }}>
             found something similar? rate it and it'll show up here.
@@ -2051,7 +2018,7 @@ function PromoTag({ promo }) {
     <span
       className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium"
       data-surface={sponsored ? "surface" : undefined}
-      style={sponsored ? { background: C.stone, color: C.fgMuted } : { background: C.brand, color: C.onBrand }}
+      style={sponsored ? { background: C.surface, color: C.fgMuted } : { background: C.brand, color: C.onBrand }}
     >
       {!sponsored && <span className="a-dot h-1.5 w-1.5 rounded-full bg-white" />}
       {sponsored ? "sponsored" : promo.label}
@@ -2062,7 +2029,7 @@ function PromoTag({ promo }) {
 // The pinned surface for a promoted item: latte wash with an olive hairline.
 const promoRowStyle = {
   get background() {
-    return `linear-gradient(100deg, ${tint(C.latte, 0.2)}, ${tint(C.matcha, 0.1)})`;
+    return `linear-gradient(100deg, ${tint(C.highlight, 0.2)}, ${tint(C.accent, 0.1)})`;
   },
   get boxShadow() {
     return `inset 0 0 0 1px ${tint(C.brand, 0.22)}`;
@@ -2072,8 +2039,8 @@ const promoRowStyle = {
 function OpenDot({ status }) {
   if (!status) return null;
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap" style={{ color: status.open ? C.fgMatcha : C.fgMuted }}>
-      <span className={`h-1.5 w-1.5 rounded-full ${status.open ? "a-dot" : ""}`} style={{ background: status.open ? C.matcha : C.line }} />
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap" style={{ color: status.open ? C.fgAccent : C.fgMuted }}>
+      <span className={`h-1.5 w-1.5 rounded-full ${status.open ? "a-dot" : ""}`} style={{ background: status.open ? C.accent : C.line }} />
       {status.label}
     </span>
   );
@@ -2098,7 +2065,7 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
             <div className="min-w-0">
               <h3 className="flex items-center gap-2 truncate text-lg font-medium tracking-tight">
                 {cafe.name}
-                {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.fgLatte }}>✦</span>}
+                {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.fgHighlight }}>✦</span>}
               </h3>
               <p className="truncate text-sm" style={{ color: C.fgMuted }}>
                 {cafe.areas[0].toLowerCase()} · {cafe.tube}
@@ -2121,10 +2088,10 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
           {shown.map((it) => {
             const dim = drink !== "All Drinks" && !it.styles.includes(drink);
             return (
-              <li key={it.id} data-surface={it.promo ? undefined : "page"} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ ...(it.promo ? promoRowStyle : { background: C.bg }), opacity: dim && !it.promo ? 0.45 : 1 }}>
+              <li key={it.id} data-surface={it.promo ? undefined : "page"} className="tr flex items-center gap-2 rounded-2xl pl-3" style={{ ...(it.promo ? promoRowStyle : { background: C.background }), opacity: dim && !it.promo ? 0.45 : 1 }}>
                 <button type="button" onClick={(e) => onOpen(cafe.id, e.currentTarget.closest("[data-morph]"))} className="flex min-w-0 flex-1 items-center gap-2 py-2 text-left text-sm">
                   <span className="truncate">{it.name}</span>
-                  {it.pick && <span aria-label="Samia's Pick" style={{ color: C.fgLatte }}>✦</span>}
+                  {it.pick && <span aria-label="Samia's Pick" style={{ color: C.fgHighlight }}>✦</span>}
                   {it.promo && <PromoTag promo={it.promo} />}
                 </button>
                 <span className="tabular text-sm" style={{ color: C.fgMuted }}>{isNewItem(it) ? "new" : f1(it.rating)}</span>
@@ -2239,7 +2206,7 @@ const MapBase = memo(function MapBase({ v }) {
         <rect x="498" y="222" width="30" height="26" rx="6" />
         <rect x="572" y="320" width="28" height="24" rx="6" />
       </g>
-      <g fill={C.matcha} opacity=".6" fontSize="13" fontStyle="italic" fontWeight="500" textAnchor="middle">
+      <g fill={C.accent} opacity=".6" fontSize="13" fontStyle="italic" fontWeight="500" textAnchor="middle">
         <text x="165" y="488">Hyde Park</text>
         <text x="290" y="96">Regent's Park</text>
         <text x="420" y="572" fontSize="10">Green Park</text>
@@ -2477,7 +2444,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
             <MapBase v={THEME_VERSION} />
             {here && (
               <div className="pointer-events-none absolute" style={{ left: here.x, top: here.y, zIndex: 9, transform: `scale(${1 / k})`, transformOrigin: "0 0", transition: anim ? `transform .7s ${EASE}` : "none" }}>
-                <span className="absolute -left-2 -top-2 h-4 w-4 rounded-full" style={{ background: C.brand, boxShadow: `0 0 0 3px ${C.card}, 0 4px 12px ${tint(C.ink, .3)}` }} />
+                <span className="absolute -left-2 -top-2 h-4 w-4 rounded-full" style={{ background: C.brand, boxShadow: `0 0 0 3px ${C.card}, 0 4px 12px ${tint(C.text, .3)}` }} />
                 <span className="a-pulse absolute -left-2 -top-2 h-4 w-4 rounded-full" style={{ boxShadow: `0 0 0 3px ${C.brand}` }} />
               </div>
             )}
@@ -2521,7 +2488,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                         <span aria-label="Live drop" className="absolute -right-1 -top-1 z-10 h-3 w-3 rounded-full" style={{ background: C.brand, boxShadow: `0 0 0 2px ${C.card}` }} />
                       )}
                       {c.pick && vis && !isSel && (
-                        <span aria-hidden="true" className="a-pulse absolute inset-x-0 top-0 h-8 rounded-full" style={{ boxShadow: `0 0 0 2px ${C.clay}` }} />
+                        <span aria-hidden="true" className="a-pulse absolute inset-x-0 top-0 h-8 rounded-full" style={{ boxShadow: `0 0 0 2px ${C.highlight}` }} />
                       )}
                       <span
                         data-surface={isSel ? undefined : "card"}
@@ -2529,7 +2496,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                         style={{
                           background: isSel ? C.brand : C.card,
                           color: isSel ? C.onBrand : C.fg,
-                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.clay : isSel || isHov ? C.brand : C.line}, 0 6px 16px -6px ${tint(C.ink, .35)}`,
+                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.highlight : isSel || isHov ? C.brand : C.line}, 0 6px 16px -6px ${tint(C.text, .35)}`,
                           transition: `background-color .35s ${EASE}, color .35s ${EASE}, box-shadow .35s ${EASE}`,
                         }}
                       >
@@ -2539,7 +2506,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                       <span
                         aria-hidden="true"
                         className="-mt-1 h-2.5 w-2.5 rotate-45"
-                        style={{ background: isSel ? C.brand : C.card, boxShadow: c.pick ? `1.5px 1.5px 0 0.5px ${C.clay}` : `1px 1px 0 0 ${C.line}` }}
+                        style={{ background: isSel ? C.brand : C.card, boxShadow: c.pick ? `1.5px 1.5px 0 0.5px ${C.highlight}` : `1px 1px 0 0 ${C.line}` }}
                       />
                       <span data-surface="card"
                         className="pointer-events-none absolute top-full mt-1 whitespace-nowrap rounded-md px-1.5 text-xs font-medium"
@@ -2564,7 +2531,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 
       {overlay && <div className="absolute inset-x-0 top-0 z-20 p-3">{overlay}</div>}
 
-      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: `0 8px 24px -14px ${tint(C.ink, .35)}` }}>
+      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: `0 8px 24px -14px ${tint(C.text, .35)}` }}>
         <button type="button" aria-label="Zoom in" className="press flex h-10 w-10 items-center justify-center" onClick={() => zoomAt(center().x, center().y, 1.45)}>
           <Plus size={17} />
         </button>
@@ -2605,7 +2572,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 function MapPreview({ cafe, onOpen, onClose }) {
   const top = cafe.items[0];
   return (
-    <div data-morph className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: `0 20px 50px -24px ${tint(C.ink, .45)}` }}>
+    <div data-morph className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: `0 20px 50px -24px ${tint(C.text, .45)}` }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-base font-medium tracking-tight">
@@ -2623,12 +2590,12 @@ function MapPreview({ cafe, onOpen, onClose }) {
             <span>{cafe.price}</span>
           </p>
         </div>
-        <button type="button" aria-label="Close preview" onClick={onClose} className="press -mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.stone }}>
+        <button type="button" aria-label="Close preview" onClick={onClose} className="press -mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }}>
           <X size={15} />
         </button>
       </div>
       {top && (
-        <div className="mt-3 flex items-center justify-between rounded-2xl px-3 py-2.5" data-surface="surface" style={{ background: C.stone }}>
+        <div className="mt-3 flex items-center justify-between rounded-2xl px-3 py-2.5" data-surface="surface" style={{ background: C.surface }}>
           <div className="min-w-0">
             <p className="text-xs" style={{ color: C.fgMuted }}>
               Top-rated here
@@ -2664,7 +2631,7 @@ function CafeListRow({ cafe, selected, onSelect, onHover, onOpen, index, rowRef 
           <span className="min-w-0">
             <span className="flex items-center gap-1.5">
               <span className="truncate font-medium">{cafe.name}</span>
-              {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.fgLatte }}>✦</span>}
+              {cafe.pick && <span aria-label="Samia's Pick" style={{ color: C.fgHighlight }}>✦</span>}
             </span>
             <span className="block truncate text-xs" style={{ color: C.fgMuted }}>
               {cafe.areas[0].toLowerCase()} · {top ? top.name.toLowerCase() : "no ratings yet"}
@@ -2686,8 +2653,8 @@ const ROW_H = 80;
 // Podium styling for the top three, using the design-system colours only.
 const podium = () => [
   { bg: C.brand, fg: C.onBrand, tint: tint(C.brand, 0.07), label: "1st" },
-  { bg: C.matcha, fg: C.onMatcha, tint: tint(C.matcha, 0.08), label: "2nd" },
-  { bg: C.latte, fg: C.onLatte, tint: tint(C.latte, 0.1), label: "3rd" },
+  { bg: C.accent, fg: C.onAccent, tint: tint(C.accent, 0.08), label: "2nd" },
+  { bg: C.highlight, fg: C.onHighlight, tint: tint(C.highlight, 0.1), label: "3rd" },
 ];
 
 /** Rank marker: glossy medal for the podium, plain numeral after that. */
@@ -2733,7 +2700,7 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
       <SectionTitle
         eyebrow="live from the community"
         title={<span className="serif whitespace-nowrap text-3xl md:text-4xl">the leaderboard</span>}
-        right={<span className="a-dot mb-2 h-2 w-2 rounded-full" style={{ background: C.sage }} aria-label="Live" />}
+        right={<span className="a-dot mb-2 h-2 w-2 rounded-full" style={{ background: C.accent }} aria-label="Live" />}
       />
       <div className="mb-4">
         <Segmented
@@ -2760,16 +2727,16 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
               className="absolute inset-x-0 top-0 flex items-center gap-4 px-5 md:px-6"
               style={{ height: ROW_H, transform: `translate3d(0, ${i * ROW_H}px, 0)`, transition: `transform .8s ${EASE}` }}
             >
-              {flashing && <span key={flash.t} aria-hidden="true" className="a-flash pointer-events-none absolute inset-0" style={{ background: C.latteSoft }} />}
+              {flashing && <span key={flash.t} aria-hidden="true" className="a-flash pointer-events-none absolute inset-0" style={{ background: C.highlightSoft }} />}
               {i < 3 && <span aria-hidden="true" className="pointer-events-none absolute inset-y-1.5 inset-x-2 rounded-2xl" style={{ background: podium()[i].tint }} />}
               {i === 0 && <span aria-hidden="true" className="a-shine pointer-events-none absolute inset-y-1.5 inset-x-2 overflow-hidden rounded-2xl" />}
               <Medal place={i} />
               <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="relative min-w-0 flex-1 text-left">
                 <span className="flex items-center gap-2">
                   <span className="truncate font-medium">{r.name}</span>
-                  {r.pick && <span aria-label="Samia's Pick" style={{ color: C.fgLatte }}>✦</span>}
+                  {r.pick && <span aria-label="Samia's Pick" style={{ color: C.fgHighlight }}>✦</span>}
                 </span>
-                <span className="mt-0.5 block truncate text-sm" style={{ color: !isCafe && bestOf[r.id] ? C.fgMatcha : C.fgMuted }}>
+                <span className="mt-0.5 block truncate text-sm" style={{ color: !isCafe && bestOf[r.id] ? C.fgAccent : C.fgMuted }}>
                   {isCafe ? `${r.areas[0].toLowerCase()} · ${r.total} ratings` : bestOf[r.id] ? `${cafe.name} · ${bestOf[r.id].toLowerCase()}` : cafe.name}
                 </span>
               </button>
@@ -2797,7 +2764,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
     <div className="space-y-6">
       <section>
         <LargeTitle>
-          <p className="text-sm" style={{ color: C.fgMatcha }}>
+          <p className="text-sm" style={{ color: C.fgAccent }}>
             your cup log
           </p>
           <h1 className="serif mt-1 whitespace-nowrap text-4xl md:text-5xl">sip, rate, repeat.</h1>
@@ -2805,7 +2772,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
             <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm" style={{ color: C.fgMuted }}>
               your taste:
               {tasteWords(taste).map((w) => (
-                <Tag key={w} tone="sage">
+                <Tag key={w} tone="accent">
                   {w}
                 </Tag>
               ))}
@@ -2843,7 +2810,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
             history.map((h, i) => (
               <div key={h.id} className="a-fadeup" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
                 <button type="button" data-morph onClick={(e) => cafesById[h.cafeId] && onOpenCafe(h.cafeId, e.currentTarget)} className="lift flex w-full items-center gap-4 rounded-3xl bg-white p-4 text-left soft">
-                  <span className="tabular flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-light" data-surface="surface" style={{ background: C.stone }}>
+                  <span className="tabular flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-base font-light" data-surface="surface" style={{ background: C.surface }}>
                     {f1(h.rating)}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -2878,7 +2845,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
                 <div key={it.id} className="a-fadeup" style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}>
                   <div data-morph className="lift flex items-center gap-3 rounded-3xl bg-white p-4 soft">
                     <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" data-surface="surface" style={{ background: C.stone }}>
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl" data-surface="surface" style={{ background: C.surface }}>
                         <Coffee size={20} strokeWidth={1.7} aria-hidden="true" />
                       </span>
                       <span className="min-w-0">
@@ -2928,7 +2895,7 @@ function CoffeeProfile({ coffee, myNotes = [], onAddNote }) {
       {line && <p className="mt-1 font-medium">{line}</p>}
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {[...mine].map((n) => (
-          <span key={n} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: C.matchaSoft, color: C.fgMatcha }}>
+          <span key={n} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: C.accentSoft, color: C.fgAccent }}>
             <Check size={12} strokeWidth={2.6} aria-hidden="true" /> {n}
             <span className="sr-only">(you tasted this)</span>
           </span>
@@ -3031,7 +2998,7 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
               </div>
             </li>
           ) : (
-          <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-1" data-surface="page" style={{ background: C.bg, animationDelay: `${120 + i * 60}ms` }}>
+          <li key={it.id} className="a-fadeup flex items-center gap-3 rounded-2xl py-2.5 pl-4 pr-1" data-surface="page" style={{ background: C.background, animationDelay: `${120 + i * 60}ms` }}>
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-center gap-2 font-medium">
                 {it.name} {it.pick && <PickBadge small />}
@@ -3046,7 +3013,7 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
                       onClick={() => onMoreLike(it.id)}
                       aria-label={`More like the ${it.name}`}
                       className="press shrink-0 font-medium"
-                      style={{ color: C.fgMatcha, fontSize: 12 }}
+                      style={{ color: C.fgAccent, fontSize: 12 }}
                     >
                       more like this
                     </button>
@@ -3070,7 +3037,7 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
           <Plus size={16} /> Rate an item here
         </button>
         {cafe.x != null && (
-          <button type="button" onClick={() => onShowMap(cafe.id)} className="press flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium" data-surface="surface" style={{ background: C.stone }}>
+          <button type="button" onClick={() => onShowMap(cafe.id)} className="press flex items-center justify-center gap-2 rounded-full px-5 py-3 text-sm font-medium" data-surface="surface" style={{ background: C.surface }}>
             <MapIcon size={16} /> Map
           </button>
         )}
@@ -3083,14 +3050,14 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
           <ul className="space-y-2">
             {similar.map((m) => (
               <li key={m.cafe.id}>
-                <button type="button" onClick={() => onOpenCafe && onOpenCafe(m.cafe.id)} className="press flex w-full items-center gap-3 rounded-2xl p-3 text-left" data-surface="page" style={{ background: C.bg }}>
+                <button type="button" onClick={() => onOpenCafe && onOpenCafe(m.cafe.id)} className="press flex w-full items-center gap-3 rounded-2xl p-3 text-left" data-surface="page" style={{ background: C.background }}>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{m.cafe.name}</span>
                     <span className="block truncate text-xs" style={{ color: C.fgMuted }}>
                       {m.traits.length ? m.traits.slice(0, 2).join(" · ") : m.cafe.areas[0].toLowerCase()}
                     </span>
                   </span>
-                  <span className="tabular rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: C.matchaSoft, color: C.fgMatcha }}>
+                  <span className="tabular rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: C.accentSoft, color: C.fgAccent }}>
                     {m.score}%
                   </span>
                   <ArrowRight size={15} style={{ color: C.fgMuted }} />
@@ -3155,7 +3122,7 @@ function Chip({ on, onClick, children, className = "", small = false }) {
       }}
       className={`press flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full ${small ? "px-3 py-1.5 text-xs" : "px-3.5 py-2 text-sm"} ${className}`}
       data-surface={on ? undefined : "surface"}
-      style={{ background: on ? C.brand : C.stone, color: on ? C.onBrand : C.fg }}
+      style={{ background: on ? C.brand : C.surface, color: on ? C.onBrand : C.fg }}
     >
       <span
         aria-hidden="true"
@@ -3195,7 +3162,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
     setNoteDraft(null);
   };
   const inputCls = "w-full rounded-2xl px-4 py-3 text-base outline-none tr";
-  const inputStyle = { background: C.stone };
+  const inputStyle = { background: C.surface };
 
   useEffect(() => {
     if (adding && nameRef.current) {
@@ -3212,9 +3179,9 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
   return (
     <form onSubmit={submit} noValidate>
       {/* iOS navigation bar: always visible, doubles as the drag handle */}
-      <div data-sheet-handle className="sticky top-0 z-20" data-surface="page" style={{ background: C.bg, boxShadow: `0 1px 0 ${C.line}`, touchAction: "none" }}>
+      <div data-sheet-handle className="sticky top-0 z-20" data-surface="page" style={{ background: C.background, boxShadow: `0 1px 0 ${C.line}`, touchAction: "none" }}>
         <div className="flex justify-center pt-2 md:hidden">
-          <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.ink, .18)}` }} />
+          <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.text, .18)}` }} />
         </div>
         <div className="relative flex items-center justify-between px-4 pb-3 pt-2 md:pt-4">
           <button type="button" onClick={onCancel} className="press -ml-1 rounded-full px-2 py-1 text-base" style={{ color: C.fgBrand }}>
@@ -3260,7 +3227,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
               }}
               className="press flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
               data-surface={adding ? undefined : "surface"}
-              style={{ background: adding ? C.brand : C.stone, color: adding ? C.onBrand : C.fgBrand, transition: `background-color .35s ${EASE}, color .35s ${EASE}` }}
+              style={{ background: adding ? C.brand : C.surface, color: adding ? C.onBrand : C.fgBrand, transition: `background-color .35s ${EASE}, color .35s ${EASE}` }}
             >
               <Plus size={18} strokeWidth={2.2} style={{ transform: adding ? "rotate(135deg)" : "none", transition: `transform .5s ${SPRING}` }} />
             </button>
@@ -3377,7 +3344,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
                     className="press relative h-10 w-10"
                   >
                     <span key={starPop.n === n ? starPop.k : 0} className={`absolute inset-0 ${starPop.n === n && starPop.k ? "a-pop" : ""}`}>
-                      <Star size={34} strokeWidth={1.2} color={C.line} fill={C.stone} className="absolute inset-0 m-auto" />
+                      <Star size={34} strokeWidth={1.2} color={C.line} fill={C.surface} className="absolute inset-0 m-auto" />
                       <span className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - fill * 100}% 0 0)`, transition: `clip-path .45s ${EASE}` }}>
                         <Star size={34} strokeWidth={1.2} color={C.brand} fill={C.brand} className="absolute inset-0 m-auto" />
                       </span>
@@ -3396,7 +3363,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
               aria-label="Rating from 1.0 to 5.0"
               onChange={(e) => setRating(parseFloat(e.target.value))}
               className="sp-range mt-6 w-full"
-              style={{ background: `linear-gradient(to right, ${C.brand} ${pct}%, ${C.stone} ${pct}%)` }}
+              style={{ background: `linear-gradient(to right, ${C.brand} ${pct}%, ${C.surface} ${pct}%)` }}
             />
             <div className="tabular mt-2 flex justify-between text-xs" style={{ color: C.fgMuted }}>
               <span>1.0</span>
@@ -3438,7 +3405,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
                 }}
                 onBlur={addNote}
                 className="w-40 rounded-full px-3.5 py-2 text-base outline-none"
-                data-surface="surface" style={{ background: C.stone }}
+                data-surface="surface" style={{ background: C.surface }}
               />
             )}
           </div>
@@ -3468,7 +3435,7 @@ function TopNav({ tab, setTab, onRate, savedCount }) {
           <Segmented label="Sections" options={TABS} value={tab} onChange={setTab} />
         </nav>
         <div className="flex items-center gap-2">
-          <button type="button" onClick={() => setTab("profile")} className="press relative flex h-10 w-10 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.stone }} aria-label={`Want to Try list, ${savedCount} saved`}>
+          <button type="button" onClick={() => setTab("profile")} className="press relative flex h-10 w-10 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.surface }} aria-label={`Want to Try list, ${savedCount} saved`}>
             <Bookmark size={17} />
             {savedCount > 0 && (
               <span key={savedCount} className="a-pop tabular absolute -right-0.5 -top-0.5 flex h-5 items-center justify-center rounded-full px-1 text-xs font-medium" style={{ color: C.onBrand, background: C.brand, minWidth: 20 }}>
@@ -3521,7 +3488,7 @@ function BottomNav({ tab, setTab, onRate }) {
               className="tab-btn relative flex items-center justify-center"
               style={{ color: tab === s.value ? C.fgBrand : C.fgMuted, transition: `color .35s ${EASE}` }}
             >
-              <span aria-hidden="true" className="tab-halo absolute h-11 w-11 rounded-full" data-surface="surface" style={{ background: C.stone }} />
+              <span aria-hidden="true" className="tab-halo absolute h-11 w-11 rounded-full" data-surface="surface" style={{ background: C.surface }} />
               <span className="tab-icon relative inline-flex">
                 <s.icon
                   size={24}
@@ -3533,7 +3500,7 @@ function BottomNav({ tab, setTab, onRate }) {
             </button>
           ) : (
             <div key="rate" className="flex items-center justify-center">
-              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press relative -mt-7 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full" style={{ color: C.onBrand, background: C.brand, boxShadow: `0 10px 24px -10px ${tint(C.ink, .6)}, 0 0 0 4px ${C.bg}` }}>
+              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press relative -mt-7 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full" style={{ color: C.onBrand, background: C.brand, boxShadow: `0 10px 24px -10px ${tint(C.text, .6)}, 0 0 0 4px ${C.background}` }}>
                 <Gloss />
                 <Plus size={24} strokeWidth={2.2} className="relative" />
               </button>
@@ -3549,7 +3516,7 @@ function Toast({ toast }) {
   if (!toast) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-auto md:top-20" role="status" aria-live="polite">
-      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3" style={{ color: C.onBrand, background: C.brand, boxShadow: `0 18px 40px -16px ${tint(C.ink, .55)}` }}>
+      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3" style={{ color: C.onBrand, background: C.brand, boxShadow: `0 18px 40px -16px ${tint(C.text, .55)}` }}>
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: tint(C.onBrand, 0.12) }}>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
             <path className="a-draw" d="M5 12.5l4.2 4.2L19 7" fill="none" stroke={C.onBrand} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -3575,8 +3542,8 @@ function Toast({ toast }) {
 const H_MS = 3600000;
 /** Journal tile colours, blended from the theme so they follow any palette. */
 function toneOf(name) {
-  const [base, a, b] = { latte: [C.latte, 0.2, 0.42], matcha: [C.matcha, 0.18, 0.38], stone: [C.taupe, 0.1, 0.24], oat: [C.latte, 0.12, 0.28], sage: [C.matcha, 0.1, 0.24] }[name] || [C.taupe, 0.1, 0.24];
-  return [mixHex(C.bg, base, a), mixHex(C.bg, base, b)];
+  const [base, a, b] = { highlight: [C.highlight, 0.2, 0.42], accent: [C.accent, 0.18, 0.38], neutral: [C.muted, 0.1, 0.24], "highlight-soft": [C.highlight, 0.12, 0.28], "accent-soft": [C.accent, 0.1, 0.24] }[name] || [C.muted, 0.1, 0.24];
+  return [mixHex(C.background, base, a), mixHex(C.background, base, b)];
 }
 // Sample editorial content. Drops carry an end time and disappear once it passes.
 const JOURNAL = [
@@ -3585,7 +3552,7 @@ const JOURNAL = [
     kind: "drop",
     title: "the iced cardamom latte",
     dek: "WatchHouse × sam'spresso. Cardamom-bun flavours, poured over ice. This weekend only.",
-    tone: "latte",
+    tone: "highlight",
     publishedAt: Date.now() - 20 * H_MS,
     endsAt: DROP_ENDS,
     read: 2,
@@ -3600,7 +3567,7 @@ const JOURNAL = [
     kind: "edit",
     title: "the post-reformer iced edit",
     dek: "Five cold, clean, oat-friendly cups for after class.",
-    tone: "matcha",
+    tone: "accent",
     publishedAt: Date.now() - 2 * 24 * H_MS,
     read: 3,
     body: [
@@ -3617,7 +3584,7 @@ const JOURNAL = [
     kind: "spotlight",
     title: "the tiny counter at the top",
     dek: "How a standing-room spot by Bank became London's best-rated café.",
-    tone: "stone",
+    tone: "neutral",
     publishedAt: Date.now() - 4 * 24 * H_MS,
     read: 4,
     body: [
@@ -3631,7 +3598,7 @@ const JOURNAL = [
     kind: "edit",
     title: "where to work when it's grey out",
     dek: "Bright rooms, good Wi-Fi, no side-eye for staying a while.",
-    tone: "oat",
+    tone: "highlight-soft",
     publishedAt: Date.now() - 6 * 24 * H_MS,
     read: 3,
     body: [
@@ -3646,7 +3613,7 @@ const JOURNAL = [
     kind: "news",
     title: "new on the map",
     dek: "Marylebone, Victoria and South Ken are in. Three new cafés to rate.",
-    tone: "sage",
+    tone: "accent-soft",
     publishedAt: Date.now() - 9 * 24 * H_MS,
     read: 1,
     body: [
@@ -3683,7 +3650,7 @@ function KindTag({ kind, light = false }) {
     <span
       className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
       data-surface={drop ? undefined : light ? "card" : "surface"}
-      style={drop ? { background: C.brand, color: C.onBrand } : { background: light ? tint(C.card, 0.7) : C.stone, color: C.fg }}
+      style={drop ? { background: C.brand, color: C.onBrand } : { background: light ? tint(C.card, 0.7) : C.surface, color: C.fg }}
     >
       {drop && <span className="a-dot h-1.5 w-1.5 rounded-full bg-white" />}
       {KIND_LABEL[kind]}
@@ -3809,12 +3776,12 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
             if (!cafe) return null;
             const it = b.item ? itemsById[b.item] : cafe.items[0];
             return (
-              <div key={i} className="a-fadeup rounded-3xl p-4" data-surface="page" style={{ background: C.bg, animationDelay: `${100 + i * 50}ms` }}>
+              <div key={i} className="a-fadeup rounded-3xl p-4" data-surface="page" style={{ background: C.background, animationDelay: `${100 + i * 50}ms` }}>
                 <div className="flex items-center gap-3">
                   <button type="button" onClick={() => onOpenCafe(cafe.id)} className="min-w-0 flex-1 text-left">
                     <span className="flex items-center gap-2">
                       <span className="truncate font-medium">{cafe.name}</span>
-                      {cafe.pick && <span style={{ color: C.fgLatte }} aria-label="Samia's Pick">✦</span>}
+                      {cafe.pick && <span style={{ color: C.fgHighlight }} aria-label="Samia's Pick">✦</span>}
                     </span>
                     <span className="block truncate text-xs" style={{ color: C.fgMuted }}>
                       {cafe.areas[0].toLowerCase()}
@@ -4189,7 +4156,7 @@ function useAppIcon() {
       meta("application-name", "sam'spresso");
       meta("apple-mobile-web-app-capable", "yes");
       meta("mobile-web-app-capable", "yes");
-      meta("theme-color", C.bg);
+      meta("theme-color", C.background);
     } catch (_) {}
   }, []);
 }
@@ -4568,7 +4535,7 @@ export default function Samspresso() {
     <div className="grid gap-4" style={{ gridTemplateColumns: "340px 1fr", height: "calc(100vh - 64px - 64px)", minHeight: 520 }}>
       <aside className="flex min-h-0 flex-col" aria-label="Café list">
         <div className="mb-3">
-          <p className="text-sm" style={{ color: C.fgMatcha }}>
+          <p className="text-sm" style={{ color: C.fgAccent }}>
             {filtered.length} cafés
           </p>
           <h1 className="serif text-3xl">the map</h1>
