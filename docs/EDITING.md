@@ -35,7 +35,7 @@ Tap **✦** next to any drink to make it one of Samia's Picks. Use the search bo
 
 ## 2. Publish
 
-Tap **Publish content** at the bottom of the panel. Everyone sees the changes about a minute later. **Undo all** throws away your unpublished changes.
+Tap **Publish content** at the bottom of the panel. A short summary of what's changing appears (for example "New story: the matcha map"); tap **Yes, publish** to go ahead or **Cancel** to keep editing. Everyone sees the changes about a minute later. **Undo all** throws away your unpublished changes.
 
 If someone published from another device since you opened the page, the editor warns you before replacing that version. GitHub keeps every published version, so nothing is ever lost: see [content.json's history](https://github.com/etchsaleh/coffee/commits/main/content.json).
 
