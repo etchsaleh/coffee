@@ -11,7 +11,7 @@ Open the app with `?design` on the end of the address:
 A **theme playground** panel appears. Changes show straight away, but **only on your device**, so experiment freely.
 
 - **Colours:** tap a swatch to pick a colour, or type a hex code (like `#3E5700`) and press Enter.
-- **Fonts:** pick a heading font and a body font. "Other Google Font…" accepts any font name from [fonts.google.com](https://fonts.google.com), typed exactly as it appears there.
+- **Fonts:** pick a heading font and a body font from about 70 Google Fonts, grouped into serif, sans serif, and display & script. For anything else, choose **Other Google Font…**, type the name from [fonts.google.com](https://fonts.google.com) and tap **Use**. The app checks the name and fixes capitals for you ("lora" becomes "Lora").
 - **Italic headings:** on or off.
 - **Corner roundness:** how round cards and buttons are.
 - **Reset:** goes back to the theme everyone currently sees.

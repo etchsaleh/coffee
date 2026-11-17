@@ -3832,8 +3832,40 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
 
 /* ───────────────────────────── Theme playground ───────────────────────────── */
 
-const DISPLAY_FONTS = ["Instrument Serif", "Playfair Display", "Cormorant Garamond", "DM Serif Display", "Fraunces", "EB Garamond", "Bodoni Moda", "Italiana", "Libre Caslon Display"];
-const BODY_FONTS = ["Manrope", "Inter", "DM Sans", "Outfit", "Plus Jakarta Sans", "Work Sans", "Karla", "Nunito Sans", "Figtree"];
+// Curated Google Fonts for the playground, grouped by style. Any other family can be typed in.
+const FONT_GROUPS = {
+  serif: ["Instrument Serif", "Playfair Display", "Cormorant Garamond", "DM Serif Display", "Fraunces", "EB Garamond", "Bodoni Moda", "Libre Caslon Display", "Lora", "Libre Baskerville", "Newsreader", "Crimson Pro", "Young Serif", "Gloock", "Prata", "Cormorant", "Gilda Display", "Marcellus", "Cinzel", "Italiana", "Abril Fatface", "Source Serif 4", "Merriweather"],
+  sans: ["Manrope", "Inter", "DM Sans", "Outfit", "Plus Jakarta Sans", "Work Sans", "Karla", "Nunito Sans", "Figtree", "Poppins", "Montserrat", "Lato", "Open Sans", "Raleway", "Rubik", "Mulish", "Urbanist", "Sora", "Lexend", "Albert Sans", "Be Vietnam Pro", "Onest", "Geist", "Instrument Sans", "Hanken Grotesk", "Space Grotesk", "Bricolage Grotesque", "IBM Plex Sans", "Source Sans 3", "Josefin Sans", "Quicksand", "Nunito", "Jost"],
+  display: ["Syne", "Unbounded", "Righteous", "Shrikhand", "Lobster", "Pacifico", "Caveat", "Dancing Script", "Great Vibes", "Playwrite GB S", "Monoton", "Bungee"],
+};
+const FONT_CHOICES = {
+  display: [["Serif", FONT_GROUPS.serif], ["Sans serif", FONT_GROUPS.sans], ["Display & script", FONT_GROUPS.display]],
+  body: [["Sans serif", FONT_GROUPS.sans], ["Serif", FONT_GROUPS.serif]],
+};
+
+/**
+ * Checks a family name against Google Fonts, trying Title Case too. Resolves to
+ * the exact name, or null if Google doesn't have it. Unknown names come back as
+ * an error without CORS headers (so fetch throws); a request for a known family
+ * tells that apart from being offline, in which case the name is used as typed.
+ */
+const fontCss = (n) => `https://fonts.googleapis.com/css2?family=${encodeURIComponent(n).replace(/%20/g, "+")}`;
+async function findGoogleFont(name) {
+  for (const n of [...new Set([name, titleCase(name.toLowerCase())])]) {
+    try {
+      if ((await fetch(fontCss(n))).ok) return n;
+    } catch (_) {
+      /* not found, or offline: checked below */
+    }
+  }
+  try {
+    await fetch(fontCss("Inter"));
+    return null; // online, so the name really isn't on Google Fonts
+  } catch (_) {
+    return name; // offline: can't check, use it as typed
+  }
+}
+
 const isDesignMode = () => {
   try {
     return /(^|[?&])design(=|&|$)/.test(window.location.search.slice(1)) || window.location.hash === "#design";
@@ -3842,8 +3874,33 @@ const isDesignMode = () => {
   }
 };
 
-function FontPicker({ label, value, options, onChange }) {
-  const custom = !options.includes(value);
+function FontPicker({ label, value, groups, onChange }) {
+  const listed = groups.some(([, fonts]) => fonts.includes(value));
+  const [typing, setTyping] = useState(!listed);
+  const [draft, setDraft] = useState(listed ? "" : value);
+  const [status, setStatus] = useState(null); // null | "checking" | "missing"
+  const inputRef = useRef(null);
+  const opened = useRef(false);
+  useEffect(() => {
+    // focus the box when someone picks "Other Google Font…" (not on first render)
+    if (typing && opened.current && inputRef.current) inputRef.current.focus();
+    opened.current = true;
+  }, [typing]);
+  const apply = async () => {
+    const n = draft.trim();
+    if (n.length < 2 || !FONT_NAME.test(n)) {
+      setStatus(n ? "missing" : null);
+      return;
+    }
+    if (n === value) return;
+    setStatus("checking");
+    const found = await findGoogleFont(n);
+    if (!found) return setStatus("missing");
+    setStatus(null);
+    setDraft(found);
+    if (groups.some(([, fonts]) => fonts.includes(found))) setTyping(false); // it's in the list after all
+    onChange(found);
+  };
   return (
     <div>
       <p className="mb-1 text-xs" style={{ color: C.fgMuted }}>
@@ -3852,30 +3909,80 @@ function FontPicker({ label, value, options, onChange }) {
       <div className="relative">
         <select
           aria-label={label}
-          value={custom ? "__custom" : value}
-          onChange={(e) => onChange(e.target.value === "__custom" ? "" : e.target.value)}
+          value={typing ? "__custom" : value}
+          onChange={(e) => {
+            if (e.target.value === "__custom") {
+              setDraft(listed ? "" : value);
+              setStatus(null);
+              setTyping(true);
+            } else {
+              setTyping(false);
+              setStatus(null);
+              onChange(e.target.value);
+            }
+          }}
           className="w-full appearance-none rounded-2xl px-4 py-2.5 pr-10 text-base"
-          data-surface="surface" style={{ background: C.stone, fontFamily: `"${value}"` }}
+          data-surface="surface"
+          style={{ background: C.stone, fontFamily: `"${value}"` }}
         >
-          {options.map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
+          {groups.map(([name, fonts]) => (
+            <optgroup key={name} label={name}>
+              {fonts.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </optgroup>
           ))}
-          <option value="__custom">Other Google Font…</option>
+          <option value="__custom">{listed ? "Other Google Font…" : `${value} (typed)`}</option>
         </select>
         <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true" />
       </div>
-      {custom && (
-        <input
-          aria-label={`${label}: Google Font name`}
-          placeholder="Exact Google Fonts name, e.g. Lora"
-          defaultValue={value}
-          onBlur={(e) => e.target.value.trim() && onChange(e.target.value.trim())}
-          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-          className="mt-2 w-full rounded-2xl px-4 py-2.5 text-base"
-          data-surface="surface" style={{ background: C.stone }}
-        />
+      {typing && (
+        <div className="a-fade mt-2">
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              aria-label={`${label}: Google Font name`}
+              placeholder="Any Google Font, e.g. Lora"
+              value={draft}
+              maxLength={40}
+              autoCapitalize="words"
+              autoCorrect="off"
+              spellCheck={false}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                setStatus(null);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), apply())}
+              className="min-w-0 flex-1 rounded-2xl px-4 py-2.5 text-base"
+              data-surface="surface"
+              style={{ background: C.stone }}
+            />
+            <button
+              type="button"
+              onClick={apply}
+              disabled={status === "checking" || draft.trim().length < 2}
+              className="press shrink-0 rounded-full px-4 text-sm font-medium"
+              style={{ background: C.brand, color: C.onBrand, opacity: status === "checking" || draft.trim().length < 2 ? 0.5 : 1 }}
+            >
+              {status === "checking" ? "Checking…" : "Use"}
+            </button>
+          </div>
+          <p className="mt-1.5 text-xs" role="status" style={{ color: status === "missing" ? C.fgLatte : C.fgMuted }}>
+            {status === "missing" ? (
+              <>Couldn't find that on Google Fonts. Check the spelling on fonts.google.com.</>
+            ) : (
+              <>
+                Browse at{" "}
+                <a href="https://fonts.google.com" target="_blank" rel="noopener noreferrer" className="underline">
+                  fonts.google.com
+                </a>{" "}
+                and type the name exactly as shown.
+              </>
+            )}
+          </p>
+        </div>
       )}
     </div>
   );
@@ -3992,12 +4099,12 @@ function DesignPanel({ theme, published, onChange, onReset }) {
         </section>
         <section className="space-y-3">
           <p className="text-sm font-medium">Fonts</p>
-          <FontPicker label="Headings (display)" value={theme.fonts.display} options={DISPLAY_FONTS} onChange={(v) => v && set(["fonts", "display"], v)} />
+          <FontPicker label="Headings (display)" value={theme.fonts.display} groups={FONT_CHOICES.display} onChange={(v) => v && set(["fonts", "display"], v)} />
           <label className="flex items-center justify-between text-sm">
             <span>Italic headings</span>
             <input type="checkbox" checked={theme.fonts.displayItalic} onChange={(e) => set(["fonts", "displayItalic"], e.target.checked)} className="h-5 w-5" style={{ accentColor: C.brand }} />
           </label>
-          <FontPicker label="Body text" value={theme.fonts.body} options={BODY_FONTS} onChange={(v) => v && set(["fonts", "body"], v)} />
+          <FontPicker label="Body text" value={theme.fonts.body} groups={FONT_CHOICES.body} onChange={(v) => v && set(["fonts", "body"], v)} />
         </section>
         <section>
           <p className="mb-2 flex justify-between text-sm font-medium">
