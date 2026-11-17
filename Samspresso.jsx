@@ -4063,7 +4063,7 @@ async function findGoogleFont(name) {
 
 const isDesignMode = () => {
   try {
-    return /(^|[?&])design(=|&|$)/.test(window.location.search.slice(1)) || window.location.hash === "#design";
+    return /(^|[?&])design(=|&|$)/.test(window.location.search.slice(1)) || /^#(.*\+)?design(\+|$)/.test(window.location.hash);
   } catch (_) {
     return false;
   }
@@ -4358,7 +4358,9 @@ function DesignPanel({ theme, published, onChange, onReset, onPublished }) {
  * device holds (localStorage). The key is limited to this repo's files; every
  * publish is a normal commit, so GitHub's history can undo any change.
  */
-const GH = { owner: "etchsaleh", repo: "coffee", branch: "main" };
+// Test builds publish to a separate branch (set at build time) so the live site never changes.
+const GH = { owner: "etchsaleh", repo: "coffee", branch: typeof __SP_PUBLISH_BRANCH__ === "string" ? __SP_PUBLISH_BRANCH__ : "main" };
+const GH_TEST = GH.branch !== "main";
 const GH_KEY = "sp-gh-key";
 const ghKey = {
   get() {
@@ -4550,7 +4552,7 @@ function PublishBar({ path, what, text, published, onPublished, extra }) {
     <div className="space-y-2">
       {state.kind === "done" && (
         <p role="status" className="text-[13px]" style={{ color: T.muted }}>
-          Published. Live for everyone in about a minute.{" "}
+          {GH_TEST ? `Saved to the "${GH.branch}" test branch. The live site hasn't changed.` : "Published. Live for everyone in about a minute."}{" "}
           {state.url && (
             <a href={state.url} target="_blank" rel="noopener noreferrer" className="underline">
               See it on GitHub
@@ -4592,20 +4594,28 @@ function PublishBar({ path, what, text, published, onPublished, extra }) {
         )}
         {extra}
       </div>
-      {connected && (
+      {(connected || GH_TEST) && (
         <p className="text-xs" style={{ color: T.muted }}>
-          Publishing to {GH.owner}/{GH.repo}.{" "}
-          <button
-            type="button"
-            className="underline"
-            onClick={() => {
-              ghKey.clear();
-              setConnected(false);
-              setState({ kind: "idle" });
-            }}
-          >
-            Disconnect
-          </button>
+          {GH_TEST ? (
+            <>
+              <b style={{ color: T.note }}>Test version:</b> publishes to the "{GH.branch}" branch, not the live site.{" "}
+            </>
+          ) : (
+            <>Publishing to {GH.owner}/{GH.repo}. </>
+          )}
+          {connected && (
+            <button
+              type="button"
+              className="underline"
+              onClick={() => {
+                ghKey.clear();
+                setConnected(false);
+                setState({ kind: "idle" });
+              }}
+            >
+              Disconnect
+            </button>
+          )}
         </p>
       )}
     </div>
@@ -4616,7 +4626,7 @@ function PublishBar({ path, what, text, published, onPublished, extra }) {
 
 const isEditMode = () => {
   try {
-    return /(^|[?&])edit(=|&|$)/.test(window.location.search.slice(1)) || window.location.hash === "#edit";
+    return /(^|[?&])edit(=|&|$)/.test(window.location.search.slice(1)) || /^#(.*\+)?edit(\+|$)/.test(window.location.hash);
   } catch (_) {
     return false;
   }
@@ -5326,15 +5336,18 @@ export default function Samspresso() {
     } catch (_) {}
     setContent(publishedContent);
   }, [publishedContent]);
+  // (a test build publishes to a test branch, so the draft stays: the live files haven't changed)
   const contentPublished = useCallback((c) => {
-    hasDraft.current = false;
     setPublishedContent(c);
+    if (GH_TEST) return;
+    hasDraft.current = false;
     try {
       localStorage.removeItem("sp-content-draft");
     } catch (_) {}
   }, []);
   const themePublished = useCallback((t) => {
     setPublishedTheme(sanitizeTheme(t));
+    if (GH_TEST) return;
     try {
       localStorage.removeItem("sp-theme-draft");
     } catch (_) {}
