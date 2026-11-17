@@ -237,6 +237,13 @@ const buildCSS = () => `
 .sp .bg-white,.sp .glass-white,.sp [data-surface=card]{${fgVars(C.onCard)}color:var(--sp-ink)}
 .sp [data-surface=surface]{${fgVars(C.onSurface)}color:var(--sp-ink)}
 .sp [data-surface=page]{${fgVars(C.onPage)}color:var(--sp-ink)}
+.sp .sp-tool,.sp .sp-tool [data-surface]{--sp-ink:#1C1C1E;--sp-muted:#6E6E73;--sp-brand:#1C1C1E;--sp-matcha:#1C1C1E;--sp-latte:#8A5A00;color:#1C1C1E}
+.sp .sp-tool{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter",system-ui,"Segoe UI",Roboto,sans-serif;letter-spacing:0}
+.sp .sp-tool .rounded-2xl{border-radius:14px}
+.sp .sp-tool.rounded-t-3xl{border-top-left-radius:22px;border-top-right-radius:22px}
+@media (min-width:768px){.sp .sp-tool.md\\:rounded-3xl{border-radius:22px}}
+.sp .sp-tool-range::-webkit-slider-thumb{background:#FFFFFF;border-color:#E5E5EA;box-shadow:0 2px 8px -2px rgba(0,0,0,.25)}
+.sp .sp-tool-range::-moz-range-thumb{background:#FFFFFF;border-color:#E5E5EA;box-shadow:0 2px 8px -2px rgba(0,0,0,.25)}
 .sp .rounded-3xl{border-radius:${THEME.corners}px}
 .sp .rounded-2xl{border-radius:${Math.round(THEME.corners * 0.67)}px}
 .sp .rounded-t-3xl{border-top-left-radius:${THEME.corners}px;border-top-right-radius:${THEME.corners}px}
@@ -3874,6 +3881,9 @@ const isDesignMode = () => {
   }
 };
 
+/* The playground is a tool: fixed neutral styling so it stays readable whatever theme is being edited. */
+const T = { panel: "#FFFFFF", field: "#F2F2F7", ink: "#1C1C1E", muted: "#6E6E73", line: "#E5E5EA", accent: "#1C1C1E", onAccent: "#FFFFFF", noteBg: "#FFF6E0", note: "#8A5A00" };
+
 function FontPicker({ label, value, groups, onChange }) {
   const listed = groups.some(([, fonts]) => fonts.includes(value));
   const [typing, setTyping] = useState(!listed);
@@ -3903,7 +3913,7 @@ function FontPicker({ label, value, groups, onChange }) {
   };
   return (
     <div>
-      <p className="mb-1 text-xs" style={{ color: C.fgMuted }}>
+      <p className="mb-1 text-xs" style={{ color: T.muted }}>
         {label}
       </p>
       <div className="relative">
@@ -3922,8 +3932,8 @@ function FontPicker({ label, value, groups, onChange }) {
             }
           }}
           className="w-full appearance-none rounded-2xl px-4 py-2.5 pr-10 text-base"
-          data-surface="surface"
-          style={{ background: C.stone, fontFamily: `"${value}"` }}
+         
+          style={{ background: T.field }}
         >
           {groups.map(([name, fonts]) => (
             <optgroup key={name} label={name}>
@@ -3956,20 +3966,20 @@ function FontPicker({ label, value, groups, onChange }) {
               }}
               onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), apply())}
               className="min-w-0 flex-1 rounded-2xl px-4 py-2.5 text-base"
-              data-surface="surface"
-              style={{ background: C.stone }}
+             
+              style={{ background: T.field }}
             />
             <button
               type="button"
               onClick={apply}
               disabled={status === "checking" || draft.trim().length < 2}
               className="press shrink-0 rounded-full px-4 text-sm font-medium"
-              style={{ background: C.brand, color: C.onBrand, opacity: status === "checking" || draft.trim().length < 2 ? 0.5 : 1 }}
+              style={{ background: T.accent, color: T.onAccent, opacity: status === "checking" || draft.trim().length < 2 ? 0.5 : 1 }}
             >
               {status === "checking" ? "Checking…" : "Use"}
             </button>
           </div>
-          <p className="mt-1.5 text-xs" role="status" style={{ color: status === "missing" ? C.fgLatte : C.fgMuted }}>
+          <p className="mt-1.5 text-xs" role="status" style={{ color: status === "missing" ? T.note : T.muted }}>
             {status === "missing" ? (
               <>Couldn't find that on Google Fonts. Check the spelling on fonts.google.com.</>
             ) : (
@@ -4033,8 +4043,8 @@ function DesignPanel({ theme, published, onChange, onReset }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="press fixed left-4 z-[60] flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium soft md:bottom-6"
-        style={{ bottom: "calc(76px + env(safe-area-inset-bottom))", color: C.fg }}
+        className="sp-tool press fixed left-4 z-[60] flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-medium md:bottom-6"
+        style={{ bottom: "calc(76px + env(safe-area-inset-bottom))", color: T.ink, background: T.panel, boxShadow: "0 8px 24px -10px rgba(0,0,0,.3)" }}
       >
         <Palette size={16} /> theme
       </button>
@@ -4043,17 +4053,17 @@ function DesignPanel({ theme, published, onChange, onReset }) {
   return (
     <aside
       aria-label="Theme playground"
-      className="a-cardup fixed inset-x-0 bottom-0 z-[60] flex flex-col rounded-t-3xl bg-white md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:w-96 md:rounded-3xl"
-      style={{ maxHeight: "56vh", boxShadow: `0 -12px 40px -16px ${tint(C.ink, 0.35)}`, paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="sp-tool a-cardup fixed inset-x-0 bottom-0 z-[60] flex flex-col rounded-t-3xl max-h-[56vh] md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:max-h-none md:w-96 md:rounded-3xl"
+      style={{ background: T.panel, color: T.ink, boxShadow: `0 -12px 40px -16px ${"rgba(0,0,0,.18)"}`, paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex items-center justify-between px-5 pb-2 pt-4">
         <div>
-          <p className="serif text-2xl leading-none">theme playground</p>
-          <p className="mt-1 text-xs" style={{ color: C.fgMuted }}>
+          <p className="text-lg font-semibold leading-tight">Theme playground</p>
+          <p className="mt-1 text-xs" style={{ color: T.muted }}>
             {changed ? "Previewing on this device only" : "Matches the published theme"}
           </p>
         </div>
-        <button type="button" aria-label="Minimise playground" onClick={() => setOpen(false)} className="press flex h-9 w-9 items-center justify-center rounded-full" data-surface="surface" style={{ background: C.stone }}>
+        <button type="button" aria-label="Minimise playground" onClick={() => setOpen(false)} className="press flex h-9 w-9 items-center justify-center rounded-full" style={{ background: T.field }}>
           <ChevronUp size={17} style={{ transform: "rotate(180deg)" }} />
         </button>
       </div>
@@ -4061,10 +4071,10 @@ function DesignPanel({ theme, published, onChange, onReset }) {
         <section>
           <p className="mb-2 text-sm font-medium">Colours</p>
           {themeWarnings(theme.colors).length > 0 && (
-            <ul className="mb-3 space-y-1.5 rounded-2xl p-3 text-xs leading-relaxed" data-surface="page" style={{ background: C.latteSoft }} aria-label="Contrast notes">
+            <ul className="mb-3 space-y-1.5 rounded-2xl p-3 text-xs leading-relaxed" style={{ background: T.noteBg }} aria-label="Contrast notes">
               {themeWarnings(theme.colors).map((w) => (
                 <li key={w} className="flex gap-2">
-                  <span aria-hidden="true" style={{ color: C.fgLatte }}>
+                  <span aria-hidden="true" style={{ color: T.note }}>
                     ●
                   </span>
                   <span>{w}</span>
@@ -4091,7 +4101,7 @@ function DesignPanel({ theme, published, onChange, onReset }) {
                   onBlur={(e) => HEX.test(e.target.value.trim()) && set(["colors", key], e.target.value.trim().toUpperCase())}
                   onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
                   className="tabular w-24 rounded-xl px-2 py-1.5 text-center text-sm uppercase"
-                  data-surface="surface" style={{ background: C.stone }}
+                  style={{ background: T.field }}
                 />
               </div>
             ))}
@@ -4102,13 +4112,13 @@ function DesignPanel({ theme, published, onChange, onReset }) {
           <FontPicker label="Headings (display)" value={theme.fonts.display} groups={FONT_CHOICES.display} onChange={(v) => v && set(["fonts", "display"], v)} />
           <label className="flex items-center justify-between text-sm">
             <span>Italic headings</span>
-            <input type="checkbox" checked={theme.fonts.displayItalic} onChange={(e) => set(["fonts", "displayItalic"], e.target.checked)} className="h-5 w-5" style={{ accentColor: C.brand }} />
+            <input type="checkbox" checked={theme.fonts.displayItalic} onChange={(e) => set(["fonts", "displayItalic"], e.target.checked)} className="h-5 w-5" style={{ accentColor: T.accent }} />
           </label>
           <FontPicker label="Body text" value={theme.fonts.body} groups={FONT_CHOICES.body} onChange={(v) => v && set(["fonts", "body"], v)} />
         </section>
         <section>
           <p className="mb-2 flex justify-between text-sm font-medium">
-            Corner roundness <span className="tabular" style={{ color: C.fgMuted }}>{theme.corners}px</span>
+            Corner roundness <span className="tabular" style={{ color: T.muted }}>{theme.corners}px</span>
           </p>
           <input
             type="range"
@@ -4118,22 +4128,22 @@ function DesignPanel({ theme, published, onChange, onReset }) {
             value={theme.corners}
             aria-label="Corner roundness"
             onChange={(e) => set(["corners"], parseInt(e.target.value, 10))}
-            className="sp-range w-full"
-            style={{ background: `linear-gradient(to right, ${C.brand} ${((theme.corners - 4) / 32) * 100}%, ${C.stone} ${((theme.corners - 4) / 32) * 100}%)` }}
+            className="sp-range sp-tool-range w-full"
+            style={{ background: `linear-gradient(to right, ${T.accent} ${((theme.corners - 4) / 32) * 100}%, ${T.field} ${((theme.corners - 4) / 32) * 100}%)` }}
           />
         </section>
         {showJson && (
-          <textarea readOnly value={json} rows={8} onFocus={(e) => e.target.select()} className="w-full rounded-2xl p-3 font-mono text-xs" data-surface="surface" style={{ background: C.stone }} aria-label="Theme JSON" />
+          <textarea readOnly value={json} rows={8} onFocus={(e) => e.target.select()} className="w-full rounded-2xl p-3 font-mono text-xs" style={{ background: T.field }} aria-label="Theme JSON" />
         )}
       </div>
-      <div className="flex gap-2 border-t px-5 py-3" style={{ borderColor: C.line }}>
-        <button type="button" onClick={copy} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium" style={{ color: C.onBrand, background: C.brand }}>
+      <div className="flex gap-2 border-t px-5 py-3" style={{ borderColor: T.line }}>
+        <button type="button" onClick={copy} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium" style={{ color: T.onAccent, background: T.accent }}>
           {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Copied" : "Copy theme"}
         </button>
-        <button type="button" onClick={() => setShowJson((v) => !v)} className="press rounded-full px-4 py-2.5 text-sm font-medium" data-surface="surface" style={{ background: C.stone }}>
+        <button type="button" onClick={() => setShowJson((v) => !v)} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: T.field }}>
           {showJson ? "Hide" : "Show"} code
         </button>
-        <button type="button" onClick={onReset} disabled={!changed} className="press rounded-full px-4 py-2.5 text-sm font-medium" data-surface="surface" style={{ background: C.stone, opacity: changed ? 1 : 0.4 }}>
+        <button type="button" onClick={onReset} disabled={!changed} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: T.field, opacity: changed ? 1 : 0.4 }}>
           Reset
         </button>
       </div>
