@@ -1,0 +1,19 @@
+{
+  "colors": {
+    "background": "#F8F6F2",
+    "card": "#FFFFFF",
+    "surface": "#F1EDE7",
+    "line": "#EEEAE4",
+    "text": "#2A2623",
+    "muted": "#8D867E",
+    "brand": "#3E5700",
+    "matcha": "#7A8B5A",
+    "latte": "#C49A74"
+  },
+  "fonts": {
+    "display": "Instrument Serif",
+    "displayItalic": true,
+    "body": "Manrope"
+  },
+  "corners": 24
+}

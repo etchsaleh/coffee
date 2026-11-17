@@ -26,6 +26,9 @@ import {
   ArrowRight,
   Coffee,
   Store,
+  Palette,
+  Copy,
+  ChevronUp,
 } from "lucide-react";
 
 /* ───────────────────────────── Design tokens ───────────────────────────── */
@@ -52,11 +55,8 @@ const C = {
   ink: "#2A2623",
   taupe: "#8D867E",
   brand: "#3E5700",
-  brandSoft: "rgba(62,87,0,.08)",
   matcha: "#7A8B5A",
-  matchaSoft: "rgba(122,139,90,.13)",
   latte: "#C49A74",
-  latteSoft: "rgba(196,154,116,.15)",
   land: "#F4F1EB",
   river: "#E4E9E8",
   park: "#E5EBDC",
@@ -65,14 +65,122 @@ const C = {
 // role aliases used throughout the components
 C.clay = C.latte; // Samia's Pick
 C.sage = C.matcha; // taste match / live
+/* ───────────────────────────── Theme (editable without code) ─────────────────────────────
+ * Colours, fonts and corner roundness come from theme.json at the site root.
+ * A designer can edit that file on GitHub, or tune it live in the playground
+ * (open the app with ?design or #design) and copy the result into theme.json.
+ * Anything missing or invalid falls back to these defaults.
+ */
+const DEFAULT_THEME = {
+  colors: {
+    background: "#F8F6F2", // page
+    card: "#FFFFFF", // cards & sheets
+    surface: "#F1EDE7", // pills, tracks, rows
+    line: "#EEEAE4", // hairlines
+    text: "#2A2623",
+    muted: "#8D867E", // secondary text & icons
+    brand: "#3E5700", // logo, buttons, active states
+    matcha: "#7A8B5A", // taste matches, "live"
+    latte: "#C49A74", // Samia's Picks
+  },
+  fonts: { display: "Instrument Serif", displayItalic: true, body: "Manrope" },
+  corners: 24,
+};
+const COLOR_ROLES = [
+  ["background", "Page background"],
+  ["card", "Cards & sheets"],
+  ["surface", "Pills, tracks & rows"],
+  ["line", "Hairlines"],
+  ["text", "Text"],
+  ["muted", "Secondary text & icons"],
+  ["brand", "Brand: logo, buttons, active"],
+  ["matcha", "Matcha: taste matches"],
+  ["latte", "Latte: Samia's Picks"],
+];
+const HEX = /^#[0-9a-f]{6}$/i;
+const FONT_NAME = /^[A-Za-z0-9 ]{2,40}$/;
+let THEME = DEFAULT_THEME;
+let THEME_VERSION = 0;
+
+/** hex colour + alpha → rgba() string */
+function tint(hex, a) {
+  const h = HEX.test(hex || "") ? hex : "#000000";
+  const n = parseInt(h.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+/** Merge a (possibly hand-edited) theme over the defaults, keeping only valid values. */
+function sanitizeTheme(raw) {
+  const t = JSON.parse(JSON.stringify(DEFAULT_THEME));
+  if (!raw || typeof raw !== "object") return t;
+  const c = raw.colors || {};
+  Object.keys(t.colors).forEach((k) => {
+    if (typeof c[k] === "string" && HEX.test(c[k].trim())) t.colors[k] = c[k].trim().toUpperCase();
+  });
+  const f = raw.fonts || {};
+  if (typeof f.display === "string" && FONT_NAME.test(f.display.trim())) t.fonts.display = f.display.trim();
+  if (typeof f.body === "string" && FONT_NAME.test(f.body.trim())) t.fonts.body = f.body.trim();
+  if (typeof f.displayItalic === "boolean") t.fonts.displayItalic = f.displayItalic;
+  if (typeof raw.corners === "number" && raw.corners >= 0 && raw.corners <= 40) t.corners = Math.round(raw.corners);
+  return t;
+}
+
+/** Load a Google Font by family name (a plain request always succeeds; the
+ *  weighted one adds extra weights when the family has them). */
+function loadFont(slot, name, extra) {
+  if (typeof document === "undefined" || !name || /^system$/i.test(name)) return;
+  const fam = encodeURIComponent(name).replace(/%20/g, "+");
+  [
+    [`sp-font-${slot}`, `https://fonts.googleapis.com/css2?family=${fam}&display=swap`],
+    [`sp-font-${slot}-x`, `https://fonts.googleapis.com/css2?family=${fam}:${extra}&display=swap`],
+  ].forEach(([id, href]) => {
+    let el = document.getElementById(id);
+    if (!el) {
+      el = document.createElement("link");
+      el.id = id;
+      el.rel = "stylesheet";
+      document.head.appendChild(el);
+    }
+    if (el.getAttribute("href") !== href) el.setAttribute("href", href);
+  });
+}
+
+function applyTheme(theme) {
+  THEME = sanitizeTheme(theme);
+  const k = THEME.colors;
+  Object.assign(C, {
+    bg: k.background,
+    card: k.card,
+    stone: k.surface,
+    line: k.line,
+    ink: k.text,
+    taupe: k.muted,
+    brand: k.brand,
+    matcha: k.matcha,
+    latte: k.latte,
+  });
+  C.clay = C.latte;
+  C.sage = C.matcha;
+  C.brandSoft = tint(C.brand, 0.08);
+  C.matchaSoft = tint(C.matcha, 0.13);
+  C.latteSoft = tint(C.latte, 0.15);
+  THEME_VERSION += 1;
+  loadFont("body", THEME.fonts.body, "wght@300;400;500;600");
+  loadFont("display", THEME.fonts.display, "ital@0;1");
+}
+applyTheme(DEFAULT_THEME);
+
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
 const SPRING = "cubic-bezier(0.34, 1.56, 0.64, 1)";
 
-const CSS = `
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap");
-.sp{font-family:"Manrope","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:${C.ink};background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
-.sp .serif{font-family:"Instrument Serif",ui-serif,Georgia,serif;font-style:italic;font-weight:400;letter-spacing:-.01em}
-.sp .soft{box-shadow:0 1px 2px rgba(42,38,35,.03),0 14px 36px -24px rgba(42,38,35,.22)}
+const buildCSS = () => `
+.sp{font-family:"${THEME.fonts.body}","Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color:${C.ink};background:${C.bg};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;-webkit-tap-highlight-color:transparent;letter-spacing:-.005em;}
+.sp .serif{font-family:"${THEME.fonts.display}",ui-serif,Georgia,serif;font-style:${THEME.fonts.displayItalic ? "italic" : "normal"};font-weight:400;letter-spacing:-.01em}
+.sp .bg-white{background-color:${C.card}}
+.sp .rounded-3xl{border-radius:${THEME.corners}px}
+.sp .rounded-2xl{border-radius:${Math.round(THEME.corners * 0.67)}px}
+.sp .rounded-t-3xl{border-top-left-radius:${THEME.corners}px;border-top-right-radius:${THEME.corners}px}
+.sp .soft{box-shadow:0 1px 2px ${tint(C.ink, .03)},0 14px 36px -24px ${tint(C.ink, .22)}}
 .sp{overflow-x:clip;max-width:100vw}
 .sp *{box-sizing:border-box}
 .sp fieldset{min-width:0;margin:0;padding:0;border:0}
@@ -86,14 +194,14 @@ const CSS = `
 .sp .tab-btn:active .tab-halo{opacity:1;transform:scale(1)}
 .sp .tab-btn:active .tab-icon{transform:scale(.9)}
 .sp .lift{transition:transform .45s ${EASE},box-shadow .45s ${EASE},border-color .45s ${EASE}}
-@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 2px 4px rgba(42,38,35,.03),0 22px 44px -24px rgba(42,38,35,.28)}}
-.sp .glass{background:rgba(250,249,246,.78);-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
+@media (hover:hover){.sp .lift:hover{transform:translate3d(0,-3px,0);box-shadow:0 2px 4px ${tint(C.ink, .03)},0 22px 44px -24px ${tint(C.ink, .28)}}}
+.sp .glass{background:${tint(C.bg, .78)};-webkit-backdrop-filter:saturate(1.6) blur(18px);backdrop-filter:saturate(1.6) blur(18px)}
 .sp .glass-white{background:rgba(255,255,255,.78);-webkit-backdrop-filter:saturate(1.6) blur(14px);backdrop-filter:saturate(1.6) blur(14px)}
-.sp .hair{box-shadow:0 1px 2px rgba(42,38,35,.03),0 12px 32px -22px rgba(42,38,35,.2)}
+.sp .hair{box-shadow:0 1px 2px ${tint(C.ink, .03)},0 12px 32px -22px ${tint(C.ink, .2)}}
 .sp .no-scrollbar::-webkit-scrollbar{display:none}.sp .no-scrollbar{scrollbar-width:none}
 .sp :focus{outline:none}
 .sp :focus-visible{outline:2px solid ${C.brand};outline-offset:2px}
-.sp input:not([type=range]):focus-visible,.sp select:focus-visible{outline:none;box-shadow:inset 0 0 0 1.5px rgba(62,87,0,.45)}
+.sp input:not([type=range]):focus-visible,.sp select:focus-visible{outline:none;box-shadow:inset 0 0 0 1.5px ${tint(C.brand, .45)}}
 .sp .focus-within-ring:focus-within{box-shadow:0 0 0 2px ${C.brand}}
 
 @keyframes spFadeUp{from{opacity:0;transform:translate3d(0,16px,0)}to{opacity:1;transform:none}}
@@ -146,9 +254,9 @@ const CSS = `
 }
 
 .sp .sp-range{-webkit-appearance:none;appearance:none;height:6px;border-radius:999px;outline:none}
-.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(42,38,35,.35);transition:transform .3s ${SPRING};cursor:grab}
+.sp .sp-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px ${tint(C.ink, .35)};transition:transform .3s ${SPRING};cursor:grab}
 .sp .sp-range:active::-webkit-slider-thumb{transform:scale(1.15);cursor:grabbing}
-.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px rgba(42,38,35,.35)}
+.sp .sp-range::-moz-range-thumb{width:28px;height:28px;border-radius:999px;background:#fff;border:1px solid ${C.line};box-shadow:0 4px 14px -4px ${tint(C.ink, .35)}}
 .sp .sp-range:focus-visible::-webkit-slider-thumb{box-shadow:0 0 0 3px ${C.ink}}
 
 @media (prefers-reduced-motion:reduce){
@@ -703,7 +811,7 @@ function MobileHeader({ tab, savedCount, onSaved }) {
     <header
       className="sticky top-0 z-40 flex h-14 items-center justify-between px-4 md:hidden"
       style={{
-        background: scrolled ? "rgba(248,246,242,.8)" : C.bg,
+        background: scrolled ? `${tint(C.bg, .8)}` : C.bg,
         WebkitBackdropFilter: scrolled ? "saturate(1.6) blur(18px)" : "none",
         backdropFilter: scrolled ? "saturate(1.6) blur(18px)" : "none",
         boxShadow: scrolled ? `0 1px 0 ${C.line}` : "0 1px 0 transparent",
@@ -817,7 +925,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
       role="group"
       aria-label={label}
       className={`relative ${full ? "flex w-full" : "inline-flex"} items-center gap-0.5 rounded-full p-1 ${glass && !scroll ? "glass-white hair" : ""}`}
-      style={scroll ? undefined : glass ? { boxShadow: "0 6px 20px -12px rgba(42,38,35,.25)" } : { background: C.stone }}
+      style={scroll ? undefined : glass ? { boxShadow: `0 6px 20px -12px ${tint(C.ink, .25)}` } : { background: C.stone }}
     >
       <span
         aria-hidden="true"
@@ -827,7 +935,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
           transform: `translate3d(${ind.x}px,0,0)`,
           opacity: ind.ready ? 1 : 0,
           background: ink ? C.brand : "#fff",
-          boxShadow: ink ? "0 4px 12px -6px rgba(42,38,35,.5)" : "0 1px 2px rgba(42,38,35,.08), 0 0 0 1px rgba(42,38,35,.04)",
+          boxShadow: ink ? `0 4px 12px -6px ${tint(C.ink, .5)}` : `0 1px 2px ${tint(C.ink, .08)}, 0 0 0 1px ${tint(C.ink, .04)}`,
           transition: `transform .55s ${EASE}, width .55s ${EASE}, opacity .3s`,
           willChange: "transform",
         }}
@@ -859,7 +967,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
     <div
       ref={scrollRef}
       className={`no-scrollbar max-w-full overflow-x-auto rounded-full ${glass ? "glass-white hair" : ""}`}
-      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: "0 6px 20px -12px rgba(42,38,35,.25)" } : { background: C.stone }) }}
+      style={{ width: "fit-content", overscrollBehaviorX: "contain", ...(glass ? { boxShadow: `0 6px 20px -12px ${tint(C.ink, .25)}` } : { background: C.stone }) }}
     >
       {track}
     </div>
@@ -965,15 +1073,10 @@ const LOGO_GLYPHS = [
  * gradient from `sFrom` to `sTo`), `presso` covers p-r-e-s-s-o, `shine` is the
  * glossy highlight on every letter.
  */
-const LOGO_COLORS = {
-  sam: C.brand,
-  sFrom: C.brand,
-  sTo: C.brand,
-  presso: C.brand,
-  shine: "#FFFFFF",
-};
+// Logo colours follow the theme's brand colour.
+const logoColors = () => ({ sam: C.brand, sFrom: C.brand, sTo: C.brand, presso: C.brand, shine: "#FFFFFF" });
 
-function Logo({ height = 28, colors = LOGO_COLORS }) {
+function Logo({ height = 28, colors = logoColors() }) {
   const gid = "sp-logo-s-" + React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const s = LOGO_GLYPHS[4];
   const fill = (i) => (i < 4 ? colors.sam : i === 4 ? `url(#${gid})` : colors.presso);
@@ -1108,7 +1211,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
     <div className="fixed inset-0 z-50 flex items-end justify-center md:items-center md:p-6" role="dialog" aria-modal="true" aria-label={label}>
       <div
         className={`absolute inset-0 ${open ? "ov-in" : "ov-out"}`}
-        style={{ background: "rgba(42,38,35,.32)", opacity: open ? clamp(1 - dy / 500, 0.2, 1) : undefined, transition: dragging ? "none" : `opacity .4s ${EASE}` }}
+        style={{ background: `${tint(C.ink, .32)}`, opacity: open ? clamp(1 - dy / 500, 0.2, 1) : undefined, transition: dragging ? "none" : `opacity .4s ${EASE}` }}
         onClick={onClose}
       />
       <div ref={panelRef} className={`relative w-full md:max-w-xl ${morph && !reduce ? "" : open ? "sheet-in" : "sheet-out"}`} style={{ willChange: "transform", transformOrigin: "0 0" }}>
@@ -1122,7 +1225,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
             background: surface,
             maxHeight: "90vh",
             overscrollBehavior: "contain",
-            boxShadow: "0 -10px 40px -20px rgba(42,38,35,.35)",
+            boxShadow: `0 -10px 40px -20px ${tint(C.ink, .35)}`,
             paddingBottom: "env(safe-area-inset-bottom)",
             transform: `translate3d(0, ${dy}px, 0)`,
             transition: dragging ? "none" : `transform .55s ${SPRING}`,
@@ -1136,7 +1239,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
                 {chromeOverlay && (
                   // grabber rides the same sticky rail, so it never scrolls away
                   <div data-sheet-handle className="absolute inset-x-16 top-0 flex h-7 justify-center pt-2 md:hidden" style={{ touchAction: "none" }}>
-                    <span className="h-1 w-9 rounded-full" style={{ background: "rgba(42,38,35,.28)", boxShadow: "0 0 0 1px rgba(255,255,255,.35)" }} />
+                    <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.ink, .28)}`, boxShadow: "0 0 0 1px rgba(255,255,255,.35)" }} />
                   </div>
                 )}
                 <button
@@ -1148,7 +1251,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
                     background: chromeOverlay ? "rgba(255,255,255,.72)" : C.stone,
                     WebkitBackdropFilter: chromeOverlay ? "blur(14px) saturate(1.5)" : "none",
                     backdropFilter: chromeOverlay ? "blur(14px) saturate(1.5)" : "none",
-                    boxShadow: "0 4px 14px -8px rgba(42,38,35,.35)",
+                    boxShadow: `0 4px 14px -8px ${tint(C.ink, .35)}`,
                   }}
                 >
                   <X size={17} strokeWidth={2} />
@@ -1156,7 +1259,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
               </div>
               {!chromeOverlay && (
                 <div data-sheet-handle className="sticky top-0 z-20 flex justify-center pb-1 pt-2 md:hidden" style={{ background: surface, touchAction: "none" }}>
-                  <span className="h-1 w-9 rounded-full" style={{ background: "rgba(42,38,35,.18)" }} />
+                  <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.ink, .18)}` }} />
                 </div>
               )}
             </>
@@ -1395,7 +1498,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
             aria-hidden="true"
             className={`pointer-events-none absolute inset-y-6 ${trail.dir > 0 ? "a-trail-r left-1/4 right-0" : "a-trail-l left-0 right-1/4"} rounded-full`}
             style={{
-              background: trail.dir > 0 ? `linear-gradient(90deg, rgba(122,139,90,0), rgba(122,139,90,.55))` : `linear-gradient(270deg, rgba(141,134,126,0), rgba(141,134,126,.45))`,
+              background: trail.dir > 0 ? `linear-gradient(90deg, ${tint(C.matcha, 0)}, ${tint(C.matcha, .55)})` : `linear-gradient(270deg, ${tint(C.taupe, 0)}, ${tint(C.taupe, .45)})`,
               filter: "blur(28px)",
               zIndex: 0,
             }}
@@ -1411,7 +1514,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
               type="button"
               onClick={rewind}
               className="press relative mt-5 flex items-center gap-2 overflow-hidden rounded-full py-2.5 pl-4 pr-5 text-sm font-medium text-white"
-              style={{ background: C.brand, boxShadow: "0 10px 24px -12px rgba(62,87,0,.7)" }}
+              style={{ background: C.brand, boxShadow: `0 10px 24px -12px ${tint(C.brand, .7)}` }}
             >
               <RotateCcw size={16} /> Rewind
             </button>
@@ -1465,8 +1568,8 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
                         style={{
                           background:
                             (leaving || Math.sign(drag.x)) > 0
-                              ? `linear-gradient(90deg, rgba(122,139,90,${0.32 * (leaving > 0 ? 1 : progress)}), rgba(122,139,90,0) 70%)`
-                              : `linear-gradient(270deg, rgba(141,134,126,${0.3 * (leaving < 0 ? 1 : progress)}), rgba(141,134,126,0) 70%)`,
+                              ? `linear-gradient(90deg, ${tint(C.matcha, 0.32 * (leaving > 0 ? 1 : progress))}, ${tint(C.matcha, 0)} 70%)`
+                              : `linear-gradient(270deg, ${tint(C.taupe, 0.3 * (leaving < 0 ? 1 : progress))}, ${tint(C.taupe, 0)} 70%)`,
                           opacity: leaving || drag.x ? 1 : 0,
                           transition: drag.active ? "none" : "opacity .3s",
                         }}
@@ -1491,7 +1594,7 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
           {Math.min(index + 1, recs.length)} / {recs.length}
         </span>
         <span className="relative">
-          <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.matcha, boxShadow: "0 6px 16px -10px rgba(122,139,90,.7)" }}>
+          <button type="button" aria-label="Save to Want to Try" onClick={() => dismiss(1)} className="press relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.matcha, boxShadow: `0 6px 16px -10px ${tint(C.matcha, .7)}` }}>
             <span key={savedPop} className={`relative inline-flex ${savedPop ? "a-pop" : ""}`}>
               <Bookmark size={18} fill={justSaved ? "#fff" : "none"} style={{ transition: `fill .25s ${EASE}` }} />
             </span>
@@ -1638,7 +1741,7 @@ function TasteMatch({ items, cafes, cafesById, sourceId, setSourceId, saved, tog
             type="button"
             onClick={() => onRate && onRate()}
             className="press relative mt-5 flex items-center gap-2 overflow-hidden rounded-full py-2.5 pl-4 pr-5 text-sm font-medium text-white"
-            style={{ background: C.brand, boxShadow: "0 10px 24px -12px rgba(62,87,0,.7)" }}
+            style={{ background: C.brand, boxShadow: `0 10px 24px -12px ${tint(C.brand, .7)}` }}
           >
             <Plus size={16} /> Rate a drink
           </button>
@@ -1775,8 +1878,12 @@ function PromoTag({ promo }) {
 
 // The pinned surface for a promoted item: latte wash with an olive hairline.
 const promoRowStyle = {
-  background: "linear-gradient(100deg, rgba(196,154,116,.20), rgba(122,139,90,.10))",
-  boxShadow: "inset 0 0 0 1px rgba(62,87,0,.22)",
+  get background() {
+    return `linear-gradient(100deg, ${tint(C.latte, 0.2)}, ${tint(C.matcha, 0.1)})`;
+  },
+  get boxShadow() {
+    return `inset 0 0 0 1px ${tint(C.brand, 0.22)}`;
+  },
 };
 
 function OpenDot({ status }) {
@@ -1937,7 +2044,7 @@ const HOODS = [
   ["SHEPHERD'S BUSH", -110, 600],
 ];
 
-const MapBase = memo(function MapBase() {
+const MapBase = memo(function MapBase({ v }) {
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="absolute left-0 top-0" style={{ overflow: "visible" }} aria-hidden="true">
       <rect x={-800} y={-800} width={W + 1600} height={H + 1600} fill={C.land} />
@@ -2184,10 +2291,10 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
               willChange: "transform",
             }}
           >
-            <MapBase />
+            <MapBase v={THEME_VERSION} />
             {here && (
               <div className="pointer-events-none absolute" style={{ left: here.x, top: here.y, zIndex: 9, transform: `scale(${1 / k})`, transformOrigin: "0 0", transition: anim ? `transform .7s ${EASE}` : "none" }}>
-                <span className="absolute -left-2 -top-2 h-4 w-4 rounded-full" style={{ background: C.brand, boxShadow: "0 0 0 3px #fff, 0 4px 12px rgba(42,38,35,.3)" }} />
+                <span className="absolute -left-2 -top-2 h-4 w-4 rounded-full" style={{ background: C.brand, boxShadow: `0 0 0 3px #fff, 0 4px 12px ${tint(C.ink, .3)}` }} />
                 <span className="a-pulse absolute -left-2 -top-2 h-4 w-4 rounded-full" style={{ boxShadow: `0 0 0 3px ${C.brand}` }} />
               </div>
             )}
@@ -2238,7 +2345,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
                         style={{
                           background: isSel ? C.brand : "#fff",
                           color: isSel ? "#fff" : C.ink,
-                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.clay : isSel || isHov ? C.brand : C.line}, 0 6px 16px -6px rgba(42,38,35,.35)`,
+                          boxShadow: `0 0 0 ${c.pick ? 2 : 1}px ${c.pick ? C.clay : isSel || isHov ? C.brand : C.line}, 0 6px 16px -6px ${tint(C.ink, .35)}`,
                           transition: `background-color .35s ${EASE}, color .35s ${EASE}, box-shadow .35s ${EASE}`,
                         }}
                       >
@@ -2273,7 +2380,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 
       {overlay && <div className="absolute inset-x-0 top-0 z-20 p-3">{overlay}</div>}
 
-      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: "0 8px 24px -14px rgba(42,38,35,.35)" }}>
+      <div className="absolute right-3 top-1/2 z-20 flex -translate-y-1/2 flex-col overflow-hidden rounded-2xl glass-white hair" style={{ boxShadow: `0 8px 24px -14px ${tint(C.ink, .35)}` }}>
         <button type="button" aria-label="Zoom in" className="press flex h-10 w-10 items-center justify-center" onClick={() => zoomAt(center().x, center().y, 1.45)}>
           <Plus size={17} />
         </button>
@@ -2314,7 +2421,7 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
 function MapPreview({ cafe, onOpen, onClose }) {
   const top = cafe.items[0];
   return (
-    <div data-morph className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: "0 20px 50px -24px rgba(42,38,35,.45)" }}>
+    <div data-morph className="rounded-3xl bg-white p-4 hair" style={{ boxShadow: `0 20px 50px -24px ${tint(C.ink, .45)}` }}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 text-base font-medium tracking-tight">
@@ -2392,10 +2499,10 @@ function CafeListRow({ cafe, selected, onSelect, onHover, onOpen, index, rowRef 
 const ROW_H = 80;
 
 // Podium styling for the top three, using the design-system colours only.
-const PODIUM = [
-  { bg: C.brand, fg: "#fff", tint: "rgba(62,87,0,.07)", label: "1st" },
-  { bg: C.matcha, fg: "#fff", tint: "rgba(122,139,90,.08)", label: "2nd" },
-  { bg: C.latte, fg: "#fff", tint: "rgba(196,154,116,.10)", label: "3rd" },
+const podium = () => [
+  { bg: C.brand, fg: "#fff", tint: tint(C.brand, 0.07), label: "1st" },
+  { bg: C.matcha, fg: "#fff", tint: tint(C.matcha, 0.08), label: "2nd" },
+  { bg: C.latte, fg: "#fff", tint: tint(C.latte, 0.1), label: "3rd" },
 ];
 
 /** Rank marker: glossy medal for the podium, plain numeral after that. */
@@ -2407,7 +2514,7 @@ function Medal({ place }) {
       </span>
     );
   }
-  const m = PODIUM[place];
+  const m = podium()[place];
   return (
     <span
       aria-label={`${m.label} place`}
@@ -2469,7 +2576,7 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
               style={{ height: ROW_H, transform: `translate3d(0, ${i * ROW_H}px, 0)`, transition: `transform .8s ${EASE}` }}
             >
               {flashing && <span key={flash.t} aria-hidden="true" className="a-flash pointer-events-none absolute inset-0" style={{ background: C.latteSoft }} />}
-              {i < 3 && <span aria-hidden="true" className="pointer-events-none absolute inset-y-1.5 inset-x-2 rounded-2xl" style={{ background: PODIUM[i].tint }} />}
+              {i < 3 && <span aria-hidden="true" className="pointer-events-none absolute inset-y-1.5 inset-x-2 rounded-2xl" style={{ background: podium()[i].tint }} />}
               {i === 0 && <span aria-hidden="true" className="a-shine pointer-events-none absolute inset-y-1.5 inset-x-2 overflow-hidden rounded-2xl" />}
               <Medal place={i} />
               <button type="button" onClick={(e) => onOpenCafe(cafe.id, e.currentTarget.closest("[data-morph]"))} className="relative min-w-0 flex-1 text-left">
@@ -2907,7 +3014,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
       {/* iOS navigation bar: always visible, doubles as the drag handle */}
       <div data-sheet-handle className="sticky top-0 z-20" style={{ background: C.bg, boxShadow: `0 1px 0 ${C.line}`, touchAction: "none" }}>
         <div className="flex justify-center pt-2 md:hidden">
-          <span className="h-1 w-9 rounded-full" style={{ background: "rgba(42,38,35,.18)" }} />
+          <span className="h-1 w-9 rounded-full" style={{ background: `${tint(C.ink, .18)}` }} />
         </div>
         <div className="relative flex items-center justify-between px-4 pb-3 pt-2 md:pt-4">
           <button type="button" onClick={onCancel} className="press -ml-1 rounded-full px-2 py-1 text-base" style={{ color: C.brand }}>
@@ -3190,14 +3297,14 @@ function BottomNav({ tab, setTab, onRate }) {
                 <s.icon
                   size={24}
                   strokeWidth={tab === s.value ? 1.8 : 1.4}
-                  fill={tab === s.value ? "rgba(62,87,0,.12)" : "none"}
+                  fill={tab === s.value ? `${tint(C.brand, .12)}` : "none"}
                   style={{ transition: `stroke-width .3s ${EASE}` }}
                 />
               </span>
             </button>
           ) : (
             <div key="rate" className="flex items-center justify-center">
-              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press relative -mt-7 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: `0 10px 24px -10px rgba(42,38,35,.6), 0 0 0 4px ${C.bg}` }}>
+              <button type="button" onClick={() => onRate()} aria-label="Rate an item" className="press relative -mt-7 flex h-14 w-14 items-center justify-center overflow-hidden rounded-full text-white" style={{ background: C.brand, boxShadow: `0 10px 24px -10px ${tint(C.ink, .6)}, 0 0 0 4px ${C.bg}` }}>
                 <Gloss />
                 <Plus size={24} strokeWidth={2.2} className="relative" />
               </button>
@@ -3213,7 +3320,7 @@ function Toast({ toast }) {
   if (!toast) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4 md:bottom-auto md:top-20" role="status" aria-live="polite">
-      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-white" style={{ background: C.brand, boxShadow: "0 18px 40px -16px rgba(42,38,35,.55)" }}>
+      <div key={toast.t} className="a-toast flex max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-white" style={{ background: C.brand, boxShadow: `0 18px 40px -16px ${tint(C.ink, .55)}` }}>
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,.12)" }}>
           <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
             <path className="a-draw" d="M5 12.5l4.2 4.2L19 7" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -3473,7 +3580,7 @@ function JournalRow({ entries, readIds, onOpen }) {
                   <span className="serif block text-3xl leading-none" style={{ color: C.ink }}>
                     {j.title}
                   </span>
-                  <span className="mt-2 block text-xs leading-relaxed" style={{ color: "rgba(42,38,35,.7)" }}>
+                  <span className="mt-2 block text-xs leading-relaxed" style={{ color: `${tint(C.ink, .7)}` }}>
                     {j.kind === "drop" ? timeLeft(j.endsAt - Date.now()) : `${j.read} min read`}
                   </span>
                 </span>
@@ -3501,7 +3608,7 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
       >
         <div className="flex items-center gap-2">
           <KindTag kind={entry.kind} light />
-          <span className="text-xs" style={{ color: "rgba(42,38,35,.7)" }}>
+          <span className="text-xs" style={{ color: `${tint(C.ink, .7)}` }}>
             {entry.kind === "drop" ? timeLeft(entry.endsAt - Date.now()) : timeAgo(entry.publishedAt).toLowerCase()}
           </span>
         </div>
@@ -3556,6 +3663,184 @@ function JournalArticle({ entry, cafesById, items, saved, toggleSave, onOpenCafe
   );
 }
 
+/* ───────────────────────────── Theme playground ───────────────────────────── */
+
+const DISPLAY_FONTS = ["Instrument Serif", "Playfair Display", "Cormorant Garamond", "DM Serif Display", "Fraunces", "EB Garamond", "Bodoni Moda", "Italiana", "Libre Caslon Display"];
+const BODY_FONTS = ["Manrope", "Inter", "DM Sans", "Outfit", "Plus Jakarta Sans", "Work Sans", "Karla", "Nunito Sans", "Figtree"];
+const isDesignMode = () => {
+  try {
+    return /(^|[?&])design(=|&|$)/.test(window.location.search.slice(1)) || window.location.hash === "#design";
+  } catch (_) {
+    return false;
+  }
+};
+
+function FontPicker({ label, value, options, onChange }) {
+  const custom = !options.includes(value);
+  return (
+    <div>
+      <p className="mb-1 text-xs" style={{ color: C.taupe }}>
+        {label}
+      </p>
+      <div className="relative">
+        <select
+          aria-label={label}
+          value={custom ? "__custom" : value}
+          onChange={(e) => onChange(e.target.value === "__custom" ? "" : e.target.value)}
+          className="w-full appearance-none rounded-2xl px-4 py-2.5 pr-10 text-base"
+          style={{ background: C.stone, fontFamily: `"${value}"` }}
+        >
+          {options.map((f) => (
+            <option key={f} value={f}>
+              {f}
+            </option>
+          ))}
+          <option value="__custom">Other Google Font…</option>
+        </select>
+        <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true" />
+      </div>
+      {custom && (
+        <input
+          aria-label={`${label}: Google Font name`}
+          placeholder="Exact Google Fonts name, e.g. Lora"
+          defaultValue={value}
+          onBlur={(e) => e.target.value.trim() && onChange(e.target.value.trim())}
+          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          className="mt-2 w-full rounded-2xl px-4 py-2.5 text-base"
+          style={{ background: C.stone }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Live theme editor for designers: change colours, fonts and corners, then copy theme.json. */
+function DesignPanel({ theme, published, onChange, onReset }) {
+  const [open, setOpen] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [showJson, setShowJson] = useState(false);
+  const json = JSON.stringify(theme, null, 2);
+  const changed = JSON.stringify(theme) !== JSON.stringify(published);
+  const set = (path, val) => {
+    const t = JSON.parse(JSON.stringify(theme));
+    if (path[0] === "colors") t.colors[path[1]] = val;
+    else if (path[0] === "fonts") t.fonts[path[1]] = val;
+    else t[path[0]] = val;
+    onChange(t);
+  };
+  const copy = () => {
+    const done = () => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    };
+    try {
+      navigator.clipboard.writeText(json).then(done, () => setShowJson(true));
+    } catch (_) {
+      setShowJson(true);
+    }
+  };
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="press fixed left-4 z-[60] flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-medium soft md:bottom-6"
+        style={{ bottom: "calc(76px + env(safe-area-inset-bottom))", color: C.ink }}
+      >
+        <Palette size={16} /> theme
+      </button>
+    );
+  }
+  return (
+    <aside
+      aria-label="Theme playground"
+      className="a-cardup fixed inset-x-0 bottom-0 z-[60] flex flex-col rounded-t-3xl bg-white md:inset-x-auto md:bottom-4 md:right-4 md:top-20 md:w-96 md:rounded-3xl"
+      style={{ maxHeight: "56vh", boxShadow: `0 -12px 40px -16px ${tint(C.ink, 0.35)}`, paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      <div className="flex items-center justify-between px-5 pb-2 pt-4">
+        <div>
+          <p className="serif text-2xl leading-none">theme playground</p>
+          <p className="mt-1 text-xs" style={{ color: C.taupe }}>
+            {changed ? "Previewing on this device only" : "Matches the published theme"}
+          </p>
+        </div>
+        <button type="button" aria-label="Minimise playground" onClick={() => setOpen(false)} className="press flex h-9 w-9 items-center justify-center rounded-full" style={{ background: C.stone }}>
+          <ChevronUp size={17} style={{ transform: "rotate(180deg)" }} />
+        </button>
+      </div>
+      <div className="no-scrollbar flex-1 space-y-6 overflow-y-auto px-5 pb-4 md:max-h-none">
+        <section>
+          <p className="mb-2 text-sm font-medium">Colours</p>
+          <div className="space-y-2">
+            {COLOR_ROLES.map(([key, label]) => (
+              <div key={key} className="flex items-center gap-3">
+                <input
+                  type="color"
+                  aria-label={label}
+                  value={theme.colors[key]}
+                  onChange={(e) => set(["colors", key], e.target.value.toUpperCase())}
+                  className="h-9 w-9 shrink-0 cursor-pointer rounded-full border-0 p-0"
+                  style={{ background: "none" }}
+                />
+                <span className="min-w-0 flex-1 truncate text-sm">{label}</span>
+                <input
+                  aria-label={`${label} hex`}
+                  key={theme.colors[key]}
+                  defaultValue={theme.colors[key]}
+                  onBlur={(e) => HEX.test(e.target.value.trim()) && set(["colors", key], e.target.value.trim().toUpperCase())}
+                  onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                  className="tabular w-24 rounded-xl px-2 py-1.5 text-center text-sm uppercase"
+                  style={{ background: C.stone }}
+                />
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="space-y-3">
+          <p className="text-sm font-medium">Fonts</p>
+          <FontPicker label="Headings (display)" value={theme.fonts.display} options={DISPLAY_FONTS} onChange={(v) => v && set(["fonts", "display"], v)} />
+          <label className="flex items-center justify-between text-sm">
+            <span>Italic headings</span>
+            <input type="checkbox" checked={theme.fonts.displayItalic} onChange={(e) => set(["fonts", "displayItalic"], e.target.checked)} className="h-5 w-5" style={{ accentColor: C.brand }} />
+          </label>
+          <FontPicker label="Body text" value={theme.fonts.body} options={BODY_FONTS} onChange={(v) => v && set(["fonts", "body"], v)} />
+        </section>
+        <section>
+          <p className="mb-2 flex justify-between text-sm font-medium">
+            Corner roundness <span className="tabular" style={{ color: C.taupe }}>{theme.corners}px</span>
+          </p>
+          <input
+            type="range"
+            min="4"
+            max="36"
+            step="1"
+            value={theme.corners}
+            aria-label="Corner roundness"
+            onChange={(e) => set(["corners"], parseInt(e.target.value, 10))}
+            className="sp-range w-full"
+            style={{ background: `linear-gradient(to right, ${C.brand} ${((theme.corners - 4) / 32) * 100}%, ${C.stone} ${((theme.corners - 4) / 32) * 100}%)` }}
+          />
+        </section>
+        {showJson && (
+          <textarea readOnly value={json} rows={8} onFocus={(e) => e.target.select()} className="w-full rounded-2xl p-3 font-mono text-xs" style={{ background: C.stone }} aria-label="Theme JSON" />
+        )}
+      </div>
+      <div className="flex gap-2 border-t px-5 py-3" style={{ borderColor: C.line }}>
+        <button type="button" onClick={copy} className="press flex flex-1 items-center justify-center gap-2 rounded-full py-2.5 text-sm font-medium text-white" style={{ background: C.brand }}>
+          {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? "Copied" : "Copy theme"}
+        </button>
+        <button type="button" onClick={() => setShowJson((v) => !v)} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: C.stone }}>
+          {showJson ? "Hide" : "Show"} code
+        </button>
+        <button type="button" onClick={onReset} disabled={!changed} className="press rounded-full px-4 py-2.5 text-sm font-medium" style={{ background: C.stone, opacity: changed ? 1 : 0.4 }}>
+          Reset
+        </button>
+      </div>
+    </aside>
+  );
+}
+
 /* ───────────────────────────── App icon ───────────────────────────── */
 
 // iOS-style app icon: the logo's "s" in white on deep olive (assets/app-icon.svg).
@@ -3600,6 +3885,53 @@ function useAppIcon() {
 
 export default function Samspresso() {
   useAppIcon();
+  // theme: defaults → published theme.json → (design mode) this device's draft
+  const [, setThemeV] = useState(THEME_VERSION);
+  const [publishedTheme, setPublishedTheme] = useState(DEFAULT_THEME);
+  const designMode = useMemo(isDesignMode, []);
+  const readDraft = () => {
+    try {
+      return JSON.parse(localStorage.getItem("sp-theme-draft") || "null");
+    } catch (_) {
+      return null;
+    }
+  };
+  const useTheme = useCallback((t) => {
+    applyTheme(t);
+    setThemeV(THEME_VERSION);
+  }, []);
+  useEffect(() => {
+    let alive = true;
+    const draft = designMode ? readDraft() : null;
+    if (draft) useTheme(draft);
+    fetch("theme.json", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null)
+      .then((json) => {
+        if (!alive) return;
+        const pub = sanitizeTheme(json);
+        setPublishedTheme(pub);
+        if (!draft) useTheme(pub);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [designMode, useTheme]);
+  const editTheme = useCallback(
+    (t) => {
+      useTheme(t);
+      try {
+        localStorage.setItem("sp-theme-draft", JSON.stringify(THEME));
+      } catch (_) {}
+    },
+    [useTheme]
+  );
+  const resetTheme = useCallback(() => {
+    try {
+      localStorage.removeItem("sp-theme-draft");
+    } catch (_) {}
+    useTheme(publishedTheme);
+  }, [useTheme, publishedTheme]);
   const [tab, setTabRaw] = useState("discover");
   // Saved on this device: cafés/items you added, your ratings, history and Want to Try.
   const stored = useMemo(() => {
@@ -3954,7 +4286,7 @@ export default function Samspresso() {
 
   return (
     <div className="sp min-h-screen">
-      <style>{CSS}</style>
+      <style>{buildCSS()}</style>
       <TopNav tab={tab} setTab={setTab} onRate={openRate} savedCount={saved.size} />
       <MobileHeader tab={tab} savedCount={saved.size} onSaved={() => setTab("profile")} />
 
@@ -3998,6 +4330,7 @@ export default function Samspresso() {
       </Sheet>
 
       <Toast toast={toast} />
+      {designMode && <DesignPanel theme={THEME} published={publishedTheme} onChange={editTheme} onReset={resetTheme} />}
     </div>
   );
 }
