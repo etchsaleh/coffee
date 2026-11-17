@@ -4362,6 +4362,7 @@ function DesignPanel({ theme, published, onChange, onReset, onPublished, open, s
         <PublishBar
           path="theme.json"
           what="theme"
+          changes={themeChanges(theme, published)}
           text={json + "\n"}
           published={JSON.stringify(published)}
           onPublished={onPublished}
@@ -4577,10 +4578,41 @@ function ConnectGitHub({ onDone, onCancel }) {
  * Publish button + status, shared by the theme playground and the content editor.
  * `text` is the file as it will be saved; `published` is the version currently live.
  */
-function PublishBar({ path, what, text, published, onPublished, extra, prepare }) {
+/** Plain-language list of what's about to be published. */
+function contentChanges(next, prev) {
+  const out = [];
+  const diff = (key, noun, name) => {
+    const before = Object.fromEntries(prev[key].map((x) => [x.id, x]));
+    const after = Object.fromEntries(next[key].map((x) => [x.id, x]));
+    next[key].forEach((x) => {
+      if (!before[x.id]) out.push(`New ${noun}: ${name(x)}`);
+      else if (JSON.stringify(before[x.id]) !== JSON.stringify(x)) out.push(`Edited ${noun}: ${name(x)}`);
+    });
+    prev[key].forEach((x) => !after[x.id] && out.push(`Deleted ${noun}: ${name(x)}`));
+  };
+  diff("stories", "story", (x) => x.title || "untitled");
+  diff("drops", "drop", (x) => x.name);
+  const added = next.picks.filter((x) => !prev.picks.includes(x)).length;
+  const removed = prev.picks.filter((x) => !next.picks.includes(x)).length;
+  if (added || removed) out.push(`Samia's Picks: ${[added && `${added} added`, removed && `${removed} removed`].filter(Boolean).join(", ")}`);
+  return out;
+}
+function themeChanges(next, prev) {
+  const out = [];
+  const labels = Object.fromEntries(COLOR_ROLES.map(([k, l]) => [k, l.split(":")[0].toLowerCase()]));
+  const colours = Object.keys(next.colors).filter((k) => next.colors[k] !== prev.colors[k]);
+  if (colours.length) out.push(`Colours: ${colours.map((k) => labels[k] || k).join(", ")}`);
+  if (next.fonts.display !== prev.fonts.display) out.push(`Heading font: ${next.fonts.display}`);
+  if (next.fonts.body !== prev.fonts.body) out.push(`Body font: ${next.fonts.body}`);
+  if (next.fonts.displayItalic !== prev.fonts.displayItalic) out.push(`Italic headings: ${next.fonts.displayItalic ? "on" : "off"}`);
+  if (next.corners !== prev.corners) out.push(`Corner roundness: ${next.corners}px`);
+  return out;
+}
+
+function PublishBar({ path, what, text, published, onPublished, extra, prepare, changes = [] }) {
   const [connected, setConnected] = useState(() => !!ghKey.get());
   const [connecting, setConnecting] = useState(false);
-  const [state, setState] = useState({ kind: "idle" }); // idle | busy | done | error | changed
+  const [state, setState] = useState({ kind: "idle" }); // idle | confirm | busy | done | error | changed
   const changed = !sameJson(text, published);
   const publish = async (force = false) => {
     setState({ kind: "busy" });
@@ -4621,13 +4653,39 @@ function PublishBar({ path, what, text, published, onPublished, extra, prepare }
           )}
         </p>
       )}
+      {state.kind === "confirm" && (
+        <div role="dialog" aria-label={`Publish ${what}?`} className="a-fadeup space-y-3 rounded-2xl p-4" style={{ background: T.field }}>
+          <p className="font-medium">{GH_TEST ? `Publish ${what} to the test branch?` : `Publish ${what} to the live site?`}</p>
+          {changes.length > 0 && (
+            <ul className="space-y-1 text-[13px]" style={{ color: T.muted }}>
+              {changes.slice(0, 6).map((c) => (
+                <li key={c} className="truncate">
+                  • {c}
+                </li>
+              ))}
+              {changes.length > 6 && <li>• and {changes.length - 6} more</li>}
+            </ul>
+          )}
+          <p className="text-[13px]" style={{ color: T.muted }}>
+            {GH_TEST ? "The live site won't change." : "Everyone will see it in about a minute. You can undo it later from GitHub's history."}
+          </p>
+          <div className="flex gap-2">
+            <button type="button" autoFocus onClick={() => publish(false)} className={`${toolBtn} flex-1`} style={{ background: T.accent, color: T.onAccent }}>
+              Yes, publish
+            </button>
+            <button type="button" onClick={() => setState({ kind: "idle" })} className={toolBtn} style={{ background: T.panel }}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
       {(state.kind === "error" || state.kind === "changed") && (
         <p role="alert" className="text-[13px]" style={{ color: T.note }}>
           {state.message}
           {state.kind === "changed" && " Publishing now will replace that version (GitHub keeps it in its history)."}
         </p>
       )}
-      <div className="flex gap-2">
+      <div className={state.kind === "confirm" ? "hidden" : "flex gap-2"}>
         {!connected ? (
           <button type="button" onClick={() => setConnecting(true)} className={`${toolBtn} flex flex-1 items-center justify-center gap-2`} style={{ background: T.accent, color: T.onAccent }}>
             <Upload size={16} /> Connect to publish
@@ -4639,7 +4697,7 @@ function PublishBar({ path, what, text, published, onPublished, extra, prepare }
         ) : (
           <button
             type="button"
-            onClick={() => publish(false)}
+            onClick={() => setState({ kind: "confirm" })}
             disabled={!changed || state.kind === "busy"}
             className={`${toolBtn} flex flex-1 items-center justify-center gap-2`}
             style={{ background: T.accent, color: T.onAccent, opacity: !changed || state.kind === "busy" ? 0.45 : 1 }}
@@ -5348,6 +5406,7 @@ function ContentPanel({ content, published, cafes, items, onChange, onReset, onP
         <PublishBar
           path="content.json"
           what="content"
+          changes={contentChanges(content, published)}
           prepare={async (uploading) => {
             const stories = [];
             for (const x of content.stories) {
@@ -5835,7 +5894,7 @@ export default function Samspresso() {
           </p>
         </div>
         <Filters area={area} setArea={setArea} drink={drink} setDrink={setDrink} areas={areas} />
-        <div key={`${area}|${drink}|${sort}|${openOnly}|${origin.label}`} className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+        <div key={`${area}|${drink}|${sort}|${openOnly}|${origin.label}`} className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0">
           {filtered.map((c, i) => (
             <CafeCard
               key={c.id}

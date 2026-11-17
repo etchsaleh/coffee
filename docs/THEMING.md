@@ -21,7 +21,7 @@ Your draft is remembered on that device, even after closing the page.
 
 ## 2. Publish it
 
-Tap **Publish theme** at the bottom of the playground. Everyone sees the new theme at https://etchsaleh.github.io/coffee/ about a minute later (refresh if it hasn't changed yet).
+Tap **Publish theme** at the bottom of the playground, check the summary of what's changing, and tap **Yes, publish**. Everyone sees the new theme at https://etchsaleh.github.io/coffee/ about a minute later (refresh if it hasn't changed yet).
 
 The first time, the button says **Connect to publish**. Follow the steps it shows (they're also in [EDITING.md](EDITING.md#connect-github-once)). The same connection works for the content editor.
 
