@@ -1026,7 +1026,7 @@ function Segmented({ options, value, onChange, label, variant = "white", size = 
   );
 }
 
-function BookmarkButton({ saved, onToggle, size = 17, className = "" }) {
+function BookmarkButton({ saved, onToggle, size = 17, className = "", plain = false }) {
   const [pop, setPop] = useState(0);
   return (
     <button
@@ -1039,7 +1039,8 @@ function BookmarkButton({ saved, onToggle, size = 17, className = "" }) {
         onToggle();
       }}
       className={`press hit relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${className}`}
-      style={{ background: saved ? C.brandSoft : "transparent" }}
+      // `plain`: no circle behind a saved bookmark (on tinted drop / sponsored rows it reads as a blob)
+      style={{ background: saved && !plain ? C.brandSoft : "transparent" }}
     >
       <span key={pop} className={`inline-flex ${pop ? "a-pop" : ""}`}>
         <Bookmark size={size} strokeWidth={1.9} color={saved ? C.brand : C.muted} fill={saved ? C.brand : "none"} />
@@ -2114,7 +2115,7 @@ function CafeCard({ cafe, drink, saved, toggleSave, onOpen, onHover, index, stat
                   {it.promo && <PromoTag promo={it.promo} />}
                 </button>
                 <span className="tabular text-sm" style={{ color: C.fgMuted }}>{isNewItem(it) ? "new" : f1(it.rating)}</span>
-                <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
+                <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} plain={!!it.promo} />
               </li>
             );
           })}
@@ -3003,7 +3004,7 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
                 <span className="tabular text-sm" style={{ color: C.fgMuted }}>
                   {isNewItem(it) ? "new" : f2(it.rating)}
                 </span>
-                <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} />
+                <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} plain />
               </div>
               <div className="mt-3 flex gap-2">
                 <button type="button" onClick={() => onRate(cafe.id, it.name)} className="press rounded-full px-3.5 py-1.5 text-xs font-medium" style={{ color: C.onBrand, background: C.brand }}>
