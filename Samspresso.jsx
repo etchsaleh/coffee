@@ -269,7 +269,17 @@ const buildCSS = () => `
 // Base neighbourhoods; areas added by users join these at runtime.
 const AREAS = ["All London", "Soho", "Marylebone", "Fitzrovia", "Bloomsbury", "Shoreditch", "City", "Borough", "Victoria", "South Ken", "White City"];
 const DRINKS = ["All Drinks", "Flat White", "Matcha", "Pour Over", "Oat Milk", "Pastries"];
-const NOTE_CHIPS = ["Silky", "Fruity", "Chocolatey", "Great Oat Milk", "Nutty", "Bright", "Caramel", "Floral", "Balanced", "Bold"];
+const NOTE_CHIPS = ["chocolatey", "nutty", "caramel", "fruity", "berry", "citrus", "floral", "spiced", "silky", "creamy", "great oat milk", "bright", "bold", "balanced"];
+// Words in a tasting note that say something about the coffee's taste profile.
+const NOTE_TASTE = [
+  [/choc|cocoa|nut|almond|hazel|caramel|toffee|marzipan|brown sugar/, "choc"],
+  [/fruit|berry|citrus|lemon|orange|plum|cherry|apple|stone fruit|jammy|bright|juicy/, "fruit"],
+  [/silk|cream|oat|milk|velvet|smooth/, "milk"],
+  [/floral|spice|cardamom|saffron|cinnamon|rose|bergamot|aromatic|jasmine/, "aroma"],
+  [/bold|dark|smok|strong|roast|intense/, "roast"],
+];
+const noteKey = (n) => String(n).trim().toLowerCase();
+const cleanNote = (n) => noteKey(n).replace(/[^a-z0-9' &-]/g, "").replace(/\s+/g, " ").slice(0, 24).trim();
 const AREA_POS = {
   Soho: [446, 398],
   Shoreditch: [900, 196],
@@ -607,8 +617,8 @@ const SEED_ITEMS = [
 
 const DAY = 86400000;
 const SEED_HISTORY = [
-  { id: "h-seed-1", itemId: "ro-cort", cafeId: "rosslyn", name: "Cortado", cafeName: "Rosslyn Coffee", rating: 4.8, notes: ["Chocolatey", "Silky"], ts: Date.now() - 2 * DAY },
-  { id: "h-seed-2", itemId: "mon-bun", cafeId: "monmouth", name: "Cinnamon Bun", cafeName: "Monmouth Coffee", rating: 4.5, notes: ["Caramel"], ts: Date.now() - 6 * DAY },
+  { id: "h-seed-1", itemId: "ro-cort", cafeId: "rosslyn", name: "Cortado", cafeName: "Rosslyn Coffee", rating: 4.8, notes: ["chocolatey", "silky"], ts: Date.now() - 2 * DAY },
+  { id: "h-seed-2", itemId: "mon-bun", cafeId: "monmouth", name: "Cinnamon Bun", cafeName: "Monmouth Coffee", rating: 4.5, notes: ["caramel"], ts: Date.now() - 6 * DAY },
 ];
 
 /* ───────────────────────────── Helpers ───────────────────────────── */
@@ -1632,7 +1642,10 @@ function userTaste(history, cafesById, itemsById = {}) {
     const t = c && c.coffee && c.coffee.taste;
     const weight = h.rating - 3.5;
     if (!t || weight <= 0) return;
-    TASTE_KEYS.forEach((k) => (v[k] += t[k] * weight));
+    // what you tasted pulls that dimension up: "berry" makes you a bit more fruit-forward
+    const cup = { ...t };
+    (h.notes || []).forEach((n) => NOTE_TASTE.forEach(([re, k]) => re.test(noteKey(n)) && (cup[k] = Math.max(cup[k], 0.8))));
+    TASTE_KEYS.forEach((k) => (v[k] += cup[k] * weight));
     w += weight;
   });
   if (!w) return null;
@@ -2728,49 +2741,45 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
 
 /* ───────────────────────────── Café detail ───────────────────────────── */
 
-function CoffeeProfile({ coffee }) {
+function CoffeeProfile({ coffee, myNotes = [], onAddNote }) {
   if (!coffee) return null;
   const roastLabel = { light: "light roast", medium: "medium roast", "medium-dark": "medium–dark roast", dark: "dark roast" };
+  const roaster = coffee.roaster ? coffee.roaster.replace(/ \(roasts its own\)/, "") : null;
+  const line = [roaster, coffee.roast && roastLabel[coffee.roast]].filter(Boolean).join(" · ");
+  const mine = new Set(myNotes.map(noteKey));
+  const theirs = coffee.notes.filter((n) => !mine.has(noteKey(n)));
   return (
-    <div className="mt-6 rounded-3xl p-4" style={{ background: C.bg }}>
-      <p className="text-sm" style={{ color: C.taupe }}>
+    <div className="mt-6">
+      <h3 className="text-sm" style={{ color: C.taupe }}>
         the coffee
-      </p>
-      <p className="mt-1 font-medium">{coffee.roaster || "Roaster not published"}</p>
-      {coffee.espresso && (
-        <p className="text-sm" style={{ color: C.taupe }}>
-          {coffee.espresso}
-        </p>
-      )}
-      <div className="mt-3 flex flex-wrap gap-1.5">
-        <Tag tone={coffee.roast ? "sage" : "stone"}>{coffee.roast ? roastLabel[coffee.roast] : "roast not published"}</Tag>
-        {coffee.notes.map((n) => (
+      </h3>
+      {line && <p className="mt-1 font-medium">{line}</p>}
+      <div className="mt-2.5 flex flex-wrap gap-1.5">
+        {[...mine].map((n) => (
+          <span key={n} className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium" style={{ background: C.matchaSoft, color: C.matcha }}>
+            <Check size={12} strokeWidth={2.6} aria-hidden="true" /> {n}
+            <span className="sr-only">(you tasted this)</span>
+          </span>
+        ))}
+        {theirs.map((n) => (
           <Tag key={n}>{n}</Tag>
         ))}
+        {onAddNote && (
+          <button
+            type="button"
+            onClick={onAddNote}
+            className="press inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium"
+            style={{ fontSize: 12, color: C.taupe, boxShadow: `inset 0 0 0 1px ${C.line}` }}
+          >
+            <Plus size={12} aria-hidden="true" /> {mine.size ? "add a note" : "what did you taste?"}
+          </button>
+        )}
       </div>
-      {(coffee.notesFrom || coffee.asOf) && (
-        <p className="mt-2 text-xs" style={{ color: C.taupe }}>
-          {[coffee.notesFrom && `notes from ${coffee.notesFrom}`, coffee.asOf].filter(Boolean).join(" · ")}
-        </p>
-      )}
-      {coffee.sources && coffee.sources.length > 0 && (
-        <p className="mt-2 text-xs" style={{ color: C.taupe }}>
-          sources:{" "}
-          {coffee.sources.map((src, i) => (
-            <span key={src.url}>
-              {i > 0 && ", "}
-              <a href={src.url} target="_blank" rel="noopener noreferrer" className="underline">
-                {src.label}
-              </a>
-            </span>
-          ))}
-        </p>
-      )}
     </div>
   );
 }
 
-function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, onOpenStory, similar = [], onOpenCafe }) {
+function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, onOpenStory, similar = [], onOpenCafe, myNotes = [] }) {
   return (
     <div>
     <div className="px-5 pb-6 pt-3 md:px-8 md:pt-8">
@@ -2804,13 +2813,13 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
         </p>
       )}
       {cafe.blurb && <p className="mt-4 text-sm leading-relaxed">{cafe.blurb}</p>}
-      <div className="mt-4 flex flex-wrap gap-1.5">
-        {cafe.vibes.map((v) => (
-          <Tag key={v}>{v.toLowerCase()}</Tag>
-        ))}
-      </div>
+      {cafe.vibes.length > 0 && (
+        <p className="mt-2 text-xs" style={{ color: C.taupe }}>
+          {cafe.vibes.map((v) => v.toLowerCase()).join(" · ")}
+        </p>
+      )}
 
-      <CoffeeProfile coffee={cafe.coffee} />
+      <CoffeeProfile coffee={cafe.coffee} myNotes={myNotes} onAddNote={() => onRate(cafe.id)} />
 
       <h3 className="mb-2 mt-7 text-sm" style={{ color: C.taupe }}>
         Menu &amp; Ratings
@@ -2883,13 +2892,8 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
       {similar.length > 0 && (
         <div className="mt-8">
           <h3 className="mb-2 text-sm" style={{ color: C.taupe }}>
-            {similar[0].score >= 70 ? "cafés like this" : "closest in taste"}
+            cafés like this
           </h3>
-          {similar[0].score < 70 && (
-            <p className="-mt-1 mb-2 text-xs" style={{ color: C.taupe }}>
-              Nothing else on the list tastes quite like {cafe.name} yet. These are the nearest.
-            </p>
-          )}
           <ul className="space-y-2">
             {similar.map((m) => (
               <li key={m.cafe.id}>
@@ -2980,7 +2984,7 @@ function Chip({ on, onClick, children, className = "", small = false }) {
   );
 }
 
-function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onCancel, areas = AREAS }) {
+function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onCancel, areas = AREAS, pastNotes = [] }) {
   const [selCafe, setSelCafe] = useState(initialCafeId || cafes[0].id);
   const [adding, setAdding] = useState(false);
   const [newCafe, setNewCafe] = useState({ name: "", area: "", station: "" });
@@ -2994,6 +2998,15 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
   const valid = itemName.trim().length > 1 && (!adding || (newCafe.name.trim().length > 1 && newCafe.area.trim().length > 1));
   const pct = ((rating - 1) / 4) * 100;
   const toggleNote = (n) => setNotes((ns) => (ns.includes(n) ? ns.filter((x) => x !== n) : [...ns, n]));
+  const [noteDraft, setNoteDraft] = useState(null);
+  const selCafeObj = !adding && cafes.find((c) => c.id === selCafe);
+  const cafeNotes = (selCafeObj && selCafeObj.coffee ? selCafeObj.coffee.notes : []).map(noteKey);
+  const noteOptions = [...new Set([...cafeNotes, ...NOTE_CHIPS, ...pastNotes, ...notes])];
+  const addNote = () => {
+    const n = cleanNote(noteDraft || "");
+    if (n.length > 1 && !notes.includes(n)) setNotes((ns) => [...ns, n]);
+    setNoteDraft(null);
+  };
   const inputCls = "w-full rounded-2xl px-4 py-3 text-base outline-none tr";
   const inputStyle = { background: C.stone };
 
@@ -3206,12 +3219,45 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
         </section>
 
         <FormSection title="tasting notes" aside={notes.length ? <span className="a-fade text-sm" style={{ color: C.taupe }}>{notes.length} selected</span> : null}>
+          {cafeNotes.length > 0 && (
+            <p className="-mt-1 mb-2 text-xs" style={{ color: C.taupe }}>
+              {selCafeObj.name}'s notes come first
+            </p>
+          )}
           <div className="flex flex-wrap gap-2">
-            {NOTE_CHIPS.map((n) => (
+            {noteOptions.map((n) => (
               <Chip key={n} on={notes.includes(n)} onClick={() => toggleNote(n)}>
-                {n.toLowerCase()}
+                {n}
               </Chip>
             ))}
+            {noteDraft === null ? (
+              <button
+                type="button"
+                onClick={() => setNoteDraft("")}
+                className="press flex shrink-0 items-center gap-1 rounded-full px-3.5 py-2 text-sm"
+                style={{ color: C.taupe, boxShadow: `inset 0 0 0 1px ${C.line}` }}
+              >
+                <Plus size={14} aria-hidden="true" /> your own
+              </button>
+            ) : (
+              <input
+                autoFocus
+                aria-label="Your own tasting note"
+                value={noteDraft}
+                maxLength={24}
+                placeholder="e.g. blood orange"
+                onChange={(e) => setNoteDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addNote();
+                  } else if (e.key === "Escape") setNoteDraft(null);
+                }}
+                onBlur={addNote}
+                className="w-40 rounded-full px-3.5 py-2 text-base outline-none"
+                style={{ background: C.stone }}
+              />
+            )}
           </div>
         </FormSection>
       </div>
@@ -3373,7 +3419,7 @@ function ForYouRow({ picks, onOpen, onRate }) {
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{p.cafe.name}</span>
                     <span className="block truncate text-xs" style={{ color: C.taupe }}>
-                      {p.cafe.areas[0].toLowerCase()} · {p.cafe.coffee.roaster ? p.cafe.coffee.roaster.split(" (")[0].split(" +")[0].toLowerCase() : "roaster not published"}
+                      {[p.cafe.areas[0], p.cafe.coffee.roaster && p.cafe.coffee.roaster.split(" (")[0].split(" +")[0]].filter(Boolean).join(" · ").toLowerCase()}
                     </span>
                   </span>
                   <span className="tabular shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: C.matchaSoft, color: C.matcha }}>
@@ -3385,7 +3431,7 @@ function ForYouRow({ picks, onOpen, onRate }) {
                 </span>
                 {p.cafe.coffee.notes.length > 0 && (
                   <span className="mt-3 flex flex-wrap gap-1.5">
-                    {p.cafe.coffee.notes.slice(0, 3).map((n) => (
+                    {p.cafe.coffee.notes.slice(0, 2).map((n) => (
                       <Tag key={n}>{n}</Tag>
                     ))}
                   </span>
@@ -4042,6 +4088,16 @@ export default function Samspresso() {
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
   }, [taste, history, cafesFull, cafesById, itemsById]);
+  const notesByCafe = useMemo(() => {
+    const m = {};
+    history.forEach((h) => (h.notes || []).forEach((n) => {
+      const k = noteKey(n);
+      if (!k) return;
+      (m[h.cafeId] = m[h.cafeId] || []).includes(k) || m[h.cafeId].push(k);
+    }));
+    return m;
+  }, [history]);
+  const pastNotes = useMemo(() => [...new Set(history.flatMap((h) => (h.notes || []).map(noteKey)))], [history]);
   const similarTo = useCallback(
     (cafe) =>
       !cafe || !cafe.coffee
@@ -4049,7 +4105,7 @@ export default function Samspresso() {
         : cafesFull
             .filter((c) => c.id !== cafe.id && c.coffee)
             .map((c) => ({ cafe: c, score: tasteMatch(cafe.coffee.taste, c.coffee.taste), traits: sharedTraits(cafe.coffee.taste, c.coffee.taste) }))
-            .filter((m) => m.score >= 45)
+            .filter((m) => m.score >= 60)
             .sort((a, b) => b.score - a.score)
             .slice(0, 3),
     [cafesFull]
@@ -4303,7 +4359,7 @@ export default function Samspresso() {
       <BottomNav tab={tab} setTab={setTab} onRate={openRate} />
 
       <Sheet data={detailCafe} onClose={closeDetail} label="Café details" originEl={detailOrigin}>
-        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} similar={similarTo(cafesById[cafe.id] || cafe)} onOpenCafe={(id) => { setDetailOrigin(null); setDetailId(id); }} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} onOpenStory={(id) => {
+        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} myNotes={notesByCafe[cafe.id] || []} similar={similarTo(cafesById[cafe.id] || cafe)} onOpenCafe={(id) => { setDetailOrigin(null); setDetailId(id); }} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} onOpenStory={(id) => {
           setDetailId(null);
           setTimeout(() => openArticle(id), 320);
         }} />}
@@ -4326,7 +4382,7 @@ export default function Samspresso() {
       </Sheet>
 
       <Sheet data={rate} onClose={closeRate} label="Rate an item" bare tone="grouped">
-        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} areas={areas} initialCafeId={r.cafeId} initialItem={r.itemName} onSubmit={submitRating} onCancel={closeRate} />}
+        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} areas={areas} pastNotes={pastNotes} initialCafeId={r.cafeId} initialItem={r.itemName} onSubmit={submitRating} onCancel={closeRate} />}
       </Sheet>
 
       <Toast toast={toast} />
