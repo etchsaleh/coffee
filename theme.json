@@ -7,8 +7,8 @@
     "text": "#2A2623",
     "muted": "#8D867E",
     "brand": "#3E5700",
-    "matcha": "#7A8B5A",
-    "latte": "#C49A74"
+    "accent": "#7A8B5A",
+    "highlight": "#C49A74"
   },
   "fonts": {
     "display": "Instrument Serif",

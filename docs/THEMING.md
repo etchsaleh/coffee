@@ -41,8 +41,8 @@ To undo, open the file on GitHub, click **History**, and copy back an older vers
 | `text` | Main text |
 | `muted` | Secondary text and icons |
 | `brand` | Logo, main buttons, selected states |
-| `matcha` | Taste-match highlights |
-| `latte` | Samia's Picks |
+| `accent` | Taste matches, "open now" and live signals |
+| `highlight` | Samia's Picks and editorial highlights |
 
 Lighter tints (soft backgrounds, shadows, glows) are worked out automatically from these colours.
 
@@ -58,8 +58,8 @@ Lighter tints (soft backgrounds, shadows, glows) are worked out automatically fr
     "text": "#2A2623",
     "muted": "#8D867E",
     "brand": "#3E5700",
-    "matcha": "#7A8B5A",
-    "latte": "#C49A74"
+    "accent": "#7A8B5A",
+    "highlight": "#C49A74"
   },
   "fonts": {
     "display": "Instrument Serif",

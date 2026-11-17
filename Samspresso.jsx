@@ -82,8 +82,8 @@ const DEFAULT_THEME = {
     text: "#2A2623",
     muted: "#8D867E", // secondary text & icons
     brand: "#3E5700", // logo, buttons, active states
-    matcha: "#7A8B5A", // taste matches, "live"
-    latte: "#C49A74", // Samia's Picks
+    accent: "#7A8B5A", // taste matches, open now, live
+    highlight: "#C49A74", // Samia's Picks, editorial highlights
   },
   fonts: { display: "Instrument Serif", displayItalic: true, body: "Manrope" },
   corners: 24,
@@ -96,8 +96,8 @@ const COLOR_ROLES = [
   ["text", "Text"],
   ["muted", "Secondary text & icons"],
   ["brand", "Brand: logo, buttons, active"],
-  ["matcha", "Matcha: taste matches"],
-  ["latte", "Latte: Samia's Picks"],
+  ["accent", "Accent: taste matches & open now"],
+  ["highlight", "Highlight: Samia's Picks"],
 ];
 const HEX = /^#[0-9a-f]{6}$/i;
 const FONT_NAME = /^[A-Za-z0-9 ]{2,40}$/;
@@ -115,7 +115,10 @@ function tint(hex, a) {
 function sanitizeTheme(raw) {
   const t = JSON.parse(JSON.stringify(DEFAULT_THEME));
   if (!raw || typeof raw !== "object") return t;
-  const c = raw.colors || {};
+  // older theme files named these by their default colours
+  const c = { ...(raw.colors || {}) };
+  if (c.accent == null && c.matcha != null) c.accent = c.matcha;
+  if (c.highlight == null && c.latte != null) c.highlight = c.latte;
   Object.keys(t.colors).forEach((k) => {
     if (typeof c[k] === "string" && HEX.test(c[k].trim())) t.colors[k] = c[k].trim().toUpperCase();
   });
@@ -188,8 +191,8 @@ function applyTheme(theme) {
     ink: k.text,
     taupe: k.muted,
     brand: k.brand,
-    matcha: k.matcha,
-    latte: k.latte,
+    matcha: k.accent,
+    latte: k.highlight,
   });
   C.clay = C.latte;
   C.sage = C.matcha;
