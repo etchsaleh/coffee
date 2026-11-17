@@ -26,6 +26,8 @@ import {
   ArrowRight,
   Coffee,
   Store,
+  Search,
+  Sparkles,
 } from "lucide-react";
 
 /* ───────────────────────────── Design tokens ───────────────────────────── */
@@ -1577,6 +1579,160 @@ function tasteWords(t) {
 // Only recommend genuinely close matches; how many depends on the drink.
 const MATCH_MIN = 75;
 
+/** One row in the drink picker. */
+function PickRow({ title, sub, active, onClick, lead, right }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? "true" : undefined}
+      className="press flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left"
+      style={{ background: active ? C.brandSoft : C.bg }}
+    >
+      {lead}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{title}</span>
+        {sub && (
+          <span className="block truncate text-xs" style={{ color: C.taupe }}>
+            {sub}
+          </span>
+        )}
+      </span>
+      {active ? <Check size={18} strokeWidth={2.2} style={{ color: C.brand }} aria-label="selected" /> : right}
+    </button>
+  );
+}
+
+/**
+ * Picker for the taste deck: your taste, cups you loved and Samia's picks,
+ * with search across every drink, café, area and note.
+ */
+function DrinkPicker({ items, cafesById, itemsById, history, taste, current, onChoose }) {
+  const [q, setQ] = useState("");
+  const inputRef = useRef(null);
+  useEffect(() => {
+    // keyboard users and desktops get the cursor straight away; phones keep the list visible
+    if (!window.matchMedia || !window.matchMedia("(pointer: fine)").matches) return;
+    const t = setTimeout(() => inputRef.current && inputRef.current.focus({ preventScroll: true }), 320);
+    return () => clearTimeout(t);
+  }, []);
+  const rated = items.filter((i) => i.count > 0 && cafesById[i.cafeId]);
+  const loved = useMemo(() => {
+    const seen = new Set();
+    return history
+      .filter((h) => h.rating >= 4 && isCoffeeRating(h, itemsById) && itemsById[h.itemId] && itemsById[h.itemId].count > 0 && !seen.has(h.itemId) && seen.add(h.itemId))
+      .slice(0, 5)
+      .map((h) => itemsById[h.itemId]);
+  }, [history, itemsById]);
+  const loves = history.filter((h) => h.rating >= 4 && isCoffeeRating(h, itemsById)).length;
+  const picks = rated.filter((i) => i.pick && !i.styles.includes("Pastries") && !loved.includes(i)).sort((a, b) => b.rating - a.rating).slice(0, 4);
+  const terms = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const results = terms.length
+    ? rated
+        .map((i) => {
+          const c = cafesById[i.cafeId];
+          const name = i.name.toLowerCase();
+          const hay = [name, c.name, ...c.areas, ...i.flavours, ...i.styles, ...((c.coffee && c.coffee.notes) || [])].join(" ").toLowerCase();
+          if (!terms.every((t) => hay.includes(t))) return null;
+          return { i, rank: (name.startsWith(terms[0]) ? 2 : 0) + (name.includes(terms[0]) ? 1 : 0) };
+        })
+        .filter(Boolean)
+        .sort((a, b) => b.rank - a.rank || b.i.rating - a.i.rating)
+        .slice(0, 30)
+        .map((r) => r.i)
+    : [];
+  const drinkRow = (i) => {
+    const c = cafesById[i.cafeId];
+    return (
+      <li key={i.id}>
+        <PickRow
+          title={
+            <>
+              {i.name}
+              {i.pick && (
+                <span className="ml-1.5" style={{ color: C.latte }} aria-label="Samia's Pick">
+                  ✦
+                </span>
+              )}
+            </>
+          }
+          sub={`${c.name} · ${c.areas[0].toLowerCase()}`}
+          active={current === i.id}
+          onClick={() => onChoose(i.id)}
+          right={
+            <span className="tabular text-sm" style={{ color: C.taupe }}>
+              {f2(i.rating)}
+            </span>
+          }
+        />
+      </li>
+    );
+  };
+  const Section = ({ title, children }) => (
+    <section className="mt-6">
+      <h3 className="mb-2 text-sm" style={{ color: C.taupe }}>
+        {title}
+      </h3>
+      <ul className="space-y-2">{children}</ul>
+    </section>
+  );
+  return (
+    <div className="px-5 pb-8 pt-4 md:px-8 md:pt-8">
+      <h2 className="serif pr-12 text-3xl">pick a cup</h2>
+      <div className="relative mt-4">
+        <Search size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2" style={{ color: C.taupe }} aria-hidden="true" />
+        <input
+          ref={inputRef}
+          type="search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search drinks, cafés, notes"
+          aria-label="Search drinks, cafés and notes"
+          enterKeyHint="search"
+          className="w-full rounded-full py-3 pl-11 pr-11 text-base outline-none"
+          style={{ background: C.stone }}
+        />
+        {q && (
+          <button type="button" aria-label="Clear search" onClick={() => { setQ(""); inputRef.current && inputRef.current.focus(); }} className="press absolute right-2 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full">
+            <X size={16} style={{ color: C.taupe }} />
+          </button>
+        )}
+      </div>
+      {terms.length ? (
+        results.length ? (
+          <Section title={`${results.length} ${results.length === 1 ? "drink" : "drinks"}`}>{results.map(drinkRow)}</Section>
+        ) : (
+          <p className="a-fade mt-10 text-center text-sm" style={{ color: C.taupe }}>
+            Nothing matches “{q.trim()}”.
+          </p>
+        )
+      ) : (
+        <>
+          {taste && (
+            <ul className="mt-5">
+              <li>
+                <PickRow
+                  title="your taste"
+                  sub={`from ${loves} ${loves === 1 ? "cup" : "cups"} you loved`}
+                  active={current === "taste"}
+                  onClick={() => onChoose("taste")}
+                  lead={
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: C.matchaSoft, color: C.matcha }}>
+                      <Sparkles size={17} aria-hidden="true" />
+                    </span>
+                  }
+                />
+              </li>
+            </ul>
+          )}
+          {loved.length > 0 && <Section title="cups you loved">{loved.map(drinkRow)}</Section>}
+          {picks.length > 0 && <Section title="samia's picks">{picks.map(drinkRow)}</Section>}
+        </>
+      )}
+    </div>
+  );
+}
+
 const short = (name) => name.replace(/ (Coffee|Espresso Bar|Espresso|Café)$/, "");
 
 /**
@@ -1610,7 +1766,7 @@ function tasteRecs(taste, history, items, cafesById, itemsById) {
     .slice(0, 10);
 }
 
-function TasteMatch({ items, cafes, cafesById, itemsById, taste, history, sourceId, setSourceId, saved, toggleSave, onOpenCafe, onRate }) {
+function TasteMatch({ items, cafesById, itemsById, taste, history, sourceId, onPick, saved, toggleSave, onOpenCafe, onRate }) {
   const mine = sourceId === "taste" && !!taste;
   const src = mine ? null : items.find((i) => i.id === sourceId) || items[0];
   const srcCafe = src && cafesById[src.cafeId];
@@ -1638,8 +1794,14 @@ function TasteMatch({ items, cafes, cafesById, itemsById, taste, history, source
       </LargeTitle>
       <h1 id="tm-title" className="flex flex-wrap items-center gap-x-3 gap-y-3">
         <span className="serif whitespace-nowrap text-4xl leading-tight md:text-5xl">{mine ? "Picked for" : "If you love the"}</span>
-        {/* Native select for speed; styled as a pill. The visible label never wraps. */}
-        <span className="focus-within-ring relative inline-flex max-w-full items-center gap-2 rounded-full bg-white py-2 pl-5 pr-2 soft">
+        {/* The pill opens a short, searchable picker. The visible label never wraps. */}
+        <button
+          type="button"
+          onClick={onPick}
+          aria-haspopup="dialog"
+          aria-label={`Choose a drink you love. Now: ${mine ? "your taste" : `${src.name} at ${srcCafe ? srcCafe.name : ""}`}`}
+          className="press focus-within-ring relative inline-flex max-w-full items-center gap-2 rounded-full bg-white py-2 pl-5 pr-2 text-left soft"
+        >
           <span className="truncate whitespace-nowrap text-xl font-light tracking-tight md:text-3xl">
             {mine ? (
               "your taste"
@@ -1652,28 +1814,7 @@ function TasteMatch({ items, cafes, cafesById, itemsById, taste, history, source
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ background: C.stone }}>
             <ChevronDown size={17} strokeWidth={1.7} aria-hidden="true" />
           </span>
-          <select
-            aria-label="Choose a drink you love"
-            value={mine ? "taste" : src.id}
-            onChange={(e) => setSourceId(e.target.value)}
-            className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
-            style={{ fontSize: 16 }}
-          >
-            {taste && <option value="taste">your taste · from {loves} {loves === 1 ? "cup" : "cups"} you loved</option>}
-            {cafes.map((c) => (
-              <optgroup key={c.id} label={c.name}>
-                {items
-                  .filter((i) => i.cafeId === c.id && i.count > 0)
-                  .map((i) => (
-                    <option key={i.id} value={i.id}>
-                      {i.name}
-                      {i.pick ? " ✦" : ""}
-                    </option>
-                  ))}
-              </optgroup>
-            ))}
-          </select>
-        </span>
+        </button>
       </h1>
       <p className="mt-3 text-sm md:text-base" style={{ color: C.taupe }}>
         {recs.length === 0
@@ -2685,7 +2826,7 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
 function CoffeeProfile({ coffee, myNotes = [], onAddNote }) {
   if (!coffee) return null;
   const roastLabel = { light: "light roast", medium: "medium roast", "medium-dark": "medium–dark roast", dark: "dark roast" };
-  const roaster = coffee.roaster ? coffee.roaster.replace(/ \(roasts its own\)/, "") : null;
+  const roaster = coffee.roaster ? coffee.roaster.replace(/ \(.*\)/, "") : null;
   const line = [roaster, coffee.roast && roastLabel[coffee.roast]].filter(Boolean).join(" · ");
   const mine = new Set(myNotes.map(noteKey));
   const theirs = coffee.notes.filter((n) => !mine.has(noteKey(n)));
@@ -2720,7 +2861,7 @@ function CoffeeProfile({ coffee, myNotes = [], onAddNote }) {
   );
 }
 
-function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, onOpenStory, similar = [], onOpenCafe, myNotes = [] }) {
+function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, onOpenStory, similar = [], onOpenCafe, myNotes = [], onMoreLike }) {
   return (
     <div>
     <div className="px-5 pb-6 pt-3 md:px-8 md:pt-8">
@@ -2805,8 +2946,22 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
               <p className="flex flex-wrap items-center gap-2 font-medium">
                 {it.name} {it.pick && <PickBadge small />}
               </p>
-              <p className="mt-0.5 truncate text-xs" style={{ color: C.taupe }}>
-                {it.flavours.slice(0, 2).join(", ").toLowerCase()}
+              <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs" style={{ color: C.taupe }}>
+                <span className="truncate">{it.flavours.slice(0, 2).join(", ").toLowerCase()}</span>
+                {onMoreLike && it.count > 0 && (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <button
+                      type="button"
+                      onClick={() => onMoreLike(it.id)}
+                      aria-label={`More like the ${it.name}`}
+                      className="press shrink-0 font-medium"
+                      style={{ color: C.matcha, fontSize: 12 }}
+                    >
+                      more like this
+                    </button>
+                  </>
+                )}
               </p>
             </div>
             <span className="tabular text-base font-light">{f2(it.rating)}</span>
@@ -3881,6 +4036,26 @@ export default function Samspresso() {
     setToast({ t: Date.now(), title: `Rated ${name} ${f1(rating)} ★`, sub: `${cafeName} now ${f2(newScore)} · #${newRank} café in London` });
   };
 
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const chooseSource = useCallback((id) => {
+    setSourceId(id);
+    setPickerOpen(false);
+  }, []);
+  // "more like this" from a café: close it and show the deck seeded with that drink
+  const moreLike = useCallback(
+    (id) => {
+      setDetailId(null);
+      setSourceId(id);
+      setTimeout(() => {
+        setTab("discover");
+        try {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        } catch (_) {}
+      }, 260);
+    },
+    [setTab]
+  );
+
   const showOnMap = (id) => {
     setDetailId(null);
     resetFilters();
@@ -3894,7 +4069,7 @@ export default function Samspresso() {
 
   const discover = (
     <div className="space-y-8">
-      <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} itemsById={itemsById} taste={taste} history={history} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} onRate={() => openRate()} />
+      <TasteMatch items={items} cafesById={cafesById} itemsById={itemsById} taste={taste} history={history} sourceId={sourceId} onPick={() => setPickerOpen(true)} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} onRate={() => openRate()} />
       <JournalRow entries={journal} readIds={readIds} onOpen={openArticle} />
       <section aria-labelledby="explore-title">
         <div className="mb-4 min-w-0">
@@ -3986,7 +4161,7 @@ export default function Samspresso() {
       <BottomNav tab={tab} setTab={setTab} onRate={openRate} />
 
       <Sheet data={detailCafe} onClose={closeDetail} label="Café details" originEl={detailOrigin}>
-        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} myNotes={notesByCafe[cafe.id] || []} similar={similarTo(cafesById[cafe.id] || cafe)} onOpenCafe={(id) => { setDetailOrigin(null); setDetailId(id); }} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} onOpenStory={(id) => {
+        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} onMoreLike={moreLike} myNotes={notesByCafe[cafe.id] || []} similar={similarTo(cafesById[cafe.id] || cafe)} onOpenCafe={(id) => { setDetailOrigin(null); setDetailId(id); }} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} onOpenStory={(id) => {
           setDetailId(null);
           setTimeout(() => openArticle(id), 320);
         }} />}
@@ -4008,6 +4183,9 @@ export default function Samspresso() {
         )}
       </Sheet>
 
+      <Sheet data={pickerOpen ? { open: true } : null} onClose={() => setPickerOpen(false)} label="Pick a cup">
+        {() => <DrinkPicker items={items} cafesById={cafesById} itemsById={itemsById} history={history} taste={taste} current={sourceId} onChoose={chooseSource} />}
+      </Sheet>
       <Sheet data={rate} onClose={closeRate} label="Rate an item" bare tone="grouped">
         {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} areas={areas} pastNotes={pastNotes} initialCafeId={r.cafeId} initialItem={r.itemName} onSubmit={submitRating} onCancel={closeRate} />}
       </Sheet>
