@@ -158,7 +158,8 @@ const CSS = `
 
 /* ───────────────────────────── Mock database ───────────────────────────── */
 
-const AREAS = ["All London", "Soho", "Marylebone", "Fitzrovia", "Bloomsbury", "Shoreditch", "City", "Borough", "Victoria", "South Ken"];
+// Base neighbourhoods; areas added by users join these at runtime.
+const AREAS = ["All London", "Soho", "Marylebone", "Fitzrovia", "Bloomsbury", "Shoreditch", "City", "Borough", "Victoria", "South Ken", "White City"];
 const DRINKS = ["All Drinks", "Flat White", "Matcha", "Pour Over", "Oat Milk", "Pastries"];
 const NOTE_CHIPS = ["Silky", "Fruity", "Chocolatey", "Great Oat Milk", "Nutty", "Bright", "Caramel", "Floral", "Balanced", "Bold"];
 const AREA_POS = {
@@ -168,6 +169,7 @@ const AREA_POS = {
   Fitzrovia: [418, 298],
   City: [760, 368],
   Bloomsbury: [508, 258],
+  "White City": [-268, 392],
   Marylebone: [262, 300],
   Victoria: [372, 690],
   "South Ken": [128, 712],
@@ -177,6 +179,14 @@ const AREA_POS = {
 const SEED_CAFES = [
   {
     id: "monmouth",
+    coffee: {
+      roaster: "Monmouth (roasts its own)",
+      espresso: "Monmouth Espresso",
+      roast: "medium-dark",
+      notes: ["toasted almond", "fruity", "smooth body"],
+      taste: { roast: 0.72, fruit: 0.4, choc: 0.6, milk: 0.55, aroma: 0.1 },
+      sources: [{ label: "monmouthcoffee.co.uk", url: "https://www.monmouthcoffee.co.uk/product/monmouth-espresso" }],
+    },
     hours: [[7.5, 18], [8, 18], null], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Monmouth Coffee",
     hood: "Borough Market · Covent Garden",
@@ -192,6 +202,17 @@ const SEED_CAFES = [
   },
   {
     id: "watchhouse",
+    coffee: {
+      roaster: "WatchHouse (own roastery, Maltby Street)",
+      espresso: "1829 seasonal espresso",
+      roast: "medium",
+      notes: ["almond", "caramel", "chocolate"],
+      taste: { roast: 0.5, fruit: 0.35, choc: 0.7, milk: 0.65, aroma: 0.15 },
+      sources: [
+        { label: "Brian's Coffee Spot", url: "https://www.brian-coffee-spot.com/2021/06/24/watchhouse-roastery-cafe" },
+        { label: "The Way to Coffee", url: "https://www.thewaytocoffee.com/beans/1829-espresso" },
+      ],
+    },
     hours: [[7, 18], [8, 18], [8, 17]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "WatchHouse",
     hood: "Bermondsey · Soho",
@@ -207,6 +228,14 @@ const SEED_CAFES = [
   },
   {
     id: "origin",
+    coffee: {
+      roaster: "Origin Coffee (own roastery, Cornwall)",
+      espresso: "Pathfinder seasonal espresso",
+      roast: "light",
+      notes: ["blueberry", "lemon", "marzipan"],
+      taste: { roast: 0.22, fruit: 0.9, choc: 0.25, milk: 0.25, aroma: 0.2 },
+      sources: [{ label: "origincoffee.co.uk", url: "https://www.origincoffee.co.uk/products/pathfinder" }],
+    },
     hours: [[7.5, 17.5], [9, 17], [9, 17]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Origin Coffee",
     hood: "Shoreditch · Southwark",
@@ -221,6 +250,18 @@ const SEED_CAFES = [
   },
   {
     id: "rosslyn",
+    coffee: {
+      roaster: "House blends by Origin Coffee",
+      espresso: "Milk blend (Brazil)",
+      roast: "medium",
+      notes: ["milk chocolate", "caramel", "hazelnut"],
+      taste: { roast: 0.5, fruit: 0.2, choc: 0.85, milk: 0.9, aroma: 0.05 },
+      asOf: "reported 2018–2021",
+      sources: [
+        { label: "Brian's Coffee Spot", url: "https://www.brian-coffee-spot.com/2018/07/30/rosslyn-coffee" },
+        { label: "Tamp", url: "https://tamp-website.pages.dev/roasters/rosslyn-coffee/coffee-roasted-for-milk/" },
+      ],
+    },
     hours: [[7, 16], null, null], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Rosslyn Coffee",
     hood: "City of London",
@@ -235,6 +276,17 @@ const SEED_CAFES = [
   },
   {
     id: "prufrock",
+    coffee: {
+      roaster: "Square Mile + rotating European guests",
+      espresso: "Square Mile Red Brick",
+      roast: "medium",
+      notes: ["plum", "chocolate", "hazelnut"],
+      taste: { roast: 0.45, fruit: 0.6, choc: 0.55, milk: 0.4, aroma: 0.15 },
+      sources: [
+        { label: "prufrockcoffee.com", url: "https://prufrockcoffee.com/about" },
+        { label: "Square Mile", url: "https://shop.squaremilecoffee.com/products/red-brick" },
+      ],
+    },
     hours: [[7.5, 16.5], [9, 16], null], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Prufrock Coffee",
     hood: "Leather Lane · Holborn",
@@ -249,6 +301,17 @@ const SEED_CAFES = [
   },
   {
     id: "kaffeine",
+    coffee: {
+      roaster: "Square Mile + guest espresso",
+      espresso: "Square Mile Red Brick",
+      roast: "medium",
+      notes: ["plum", "chocolate", "hazelnut"],
+      taste: { roast: 0.5, fruit: 0.5, choc: 0.6, milk: 0.65, aroma: 0.1 },
+      sources: [
+        { label: "Brian's Coffee Spot", url: "https://www.brian-coffee-spot.com/2020/09/03/kaffeine-covid-19-update" },
+        { label: "kaffeine.co.uk", url: "https://kaffeine.co.uk/our-guest-espresso-weekends-an-explanation" },
+      ],
+    },
     hours: [[7.5, 17], [8.5, 17], [9, 17]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Kaffeine",
     hood: "Fitzrovia",
@@ -263,6 +326,14 @@ const SEED_CAFES = [
   },
   {
     id: "storestreet",
+    coffee: {
+      roaster: "Square Mile + monthly guests",
+      espresso: "Square Mile house espresso",
+      roast: "medium",
+      notes: ["plum", "chocolate", "hazelnut"],
+      taste: { roast: 0.5, fruit: 0.5, choc: 0.55, milk: 0.6, aroma: 0.1 },
+      sources: [{ label: "Time Out", url: "https://www.timeout.com/london/restaurants/store-street-espresso" }],
+    },
     hours: [[7.5, 18], [9, 17], [9, 17]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Store Street Espresso",
     hood: "Bloomsbury",
@@ -277,6 +348,17 @@ const SEED_CAFES = [
   },
   {
     id: "monocle",
+    coffee: {
+      roaster: "Allpress (Redchurch Street)",
+      espresso: "Allpress espresso blend",
+      roast: "medium",
+      notes: ["caramel", "milk chocolate", "stone fruit"],
+      taste: { roast: 0.62, fruit: 0.3, choc: 0.7, milk: 0.75, aroma: 0.1 },
+      sources: [
+        { label: "Monocle", url: "https://monocle.com/design/monocle-cafe-london-opening/" },
+        { label: "Selfridges", url: "https://www.selfridges.com/FR/en/cat/allpress-espresso-redchurch-espresso-blend-coffee-250g_554-3001457-ALLRCB/" },
+      ],
+    },
     hours: [[7, 19], [8, 19], [8, 19]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Monocle Café",
     hood: "Chiltern Street · Marylebone",
@@ -291,6 +373,17 @@ const SEED_CAFES = [
   },
   {
     id: "hagen",
+    coffee: {
+      roaster: "Hagen (roasts its own)",
+      espresso: "Brazilian house espresso",
+      roast: null,
+      notes: [],
+      taste: { roast: 0.55, fruit: 0.3, choc: 0.6, milk: 0.7, aroma: 0.15 },
+      sources: [
+        { label: "World Coffee Portal", url: "https://www.worldcoffeeportal.com/news/hagen-unveils-next-generation-espresso-bar-in-londons-mayfair/" },
+        { label: "Deliveroo menu", url: "https://deliveroo.co.uk/menu/london/hampstead/hagen-espresso-bars-hampstead" },
+      ],
+    },
     hours: [[7, 18], [8, 18], [8, 18]], // approx. opening hours: weekdays, Saturday, Sunday
     name: "Hagen Espresso Bar",
     hood: "Old Brompton Road · South Ken",
@@ -305,17 +398,56 @@ const SEED_CAFES = [
   },
   {
     id: "commonbreads",
-    hours: [[7, 17], [8, 17], [8, 16]], // approx. opening hours: weekdays, Saturday, Sunday
+    coffee: {
+      roaster: null,
+      espresso: null,
+      roast: null,
+      notes: ["strong", "depth of flavour"],
+      notesFrom: "reviews",
+      taste: { roast: 0.65, fruit: 0.3, choc: 0.55, milk: 0.6, aroma: 0.3 },
+      sources: [
+        { label: "Belgravia Village", url: "https://www.belgraviavillage.com/brand/common-breads" },
+        { label: "The Infatuation", url: "https://www.theinfatuation.com/london/reviews/common-breads" },
+      ],
+    },
+    hours: [[8, 18], [8, 18], [8, 18]], // Mon–Sun 8am–6pm (Belgravia Village listing)
     name: "Common Breads",
-    hood: "Victoria",
+    hood: "Buckingham Palace Road · Victoria",
     areas: ["Victoria"],
     tube: "Victoria",
-    walk: 4,
+    walk: 3,
     price: "£",
-    vibes: ["Bakery", "Grab & Go", "Sourdough"],
-    blurb: "A bakery-café with a cult iced latte. Creamy, lightly sweet and dangerously easy to drink.",
-    x: 380,
-    y: 690,
+    vibes: ["Lebanese Bakery", "Baked On-site", "Grab & Go"],
+    blurb: "A Lebanese bakery by Victoria: manouche and ka'ak baked on site all day, and coffee reviewers call strong, with real depth.",
+    x: 366,
+    y: 680,
+  },
+  {
+    id: "bergamot",
+    coffee: {
+      roaster: null,
+      espresso: null,
+      roast: null,
+      notes: ["bergamot", "saffron", "aromatic"],
+      notesFrom: "signature lattes",
+      taste: { roast: 0.5, fruit: 0.35, choc: 0.3, milk: 0.8, aroma: 0.92 },
+      sources: [
+        { label: "bergamot.kitchen", url: "https://www.bergamot.kitchen/" },
+        { label: "OpenTable", url: "https://www.opentable.co.uk/r/bergamot-cafe-london" },
+      ],
+    },
+    // Tue–Sun 10am–5pm, closed Monday (OpenTable)
+    hours: [null, [10, 17], [10, 17], [10, 17], [10, 17], [10, 17], [10, 17]],
+    name: "Bergamot",
+    hood: "Wood Lane Arches · White City",
+    areas: ["White City"],
+    tube: "Wood Lane",
+    walk: 2,
+    price: "££",
+    vibes: ["Persian Café", "Railway Arch", "Supper Club"],
+    blurb: "A Persian café in a railway arch beside Westfield. Fragrant bergamot and saffron lattes, with saffron halva on the side.",
+    x: -268,
+    y: 392,
   },
 ];
 
@@ -359,6 +491,9 @@ const SEED_ITEMS = [
   { id: "mo-bun", cafeId: "monocle", name: "Cinnamon Bun", rating: 4.5, count: 19, styles: ["Pastries"], flavours: ["Spiced", "Buttery", "Soft"], p: [0.55, 0.85, 0.1, 0.2, 0.35, 0, 1] },
   { id: "hg-iced", cafeId: "hagen", name: "Iced Oat Latte", rating: 4.7, count: 28, styles: ["Oat Milk"], flavours: ["Oat-Friendly", "Creamy", "Refreshing"], p: [0.45, 0.6, 0.25, 0.85, 0.5, 1, 0] },
   { id: "hg-fw", cafeId: "hagen", name: "Flat White", rating: 4.6, count: 33, styles: ["Flat White"], flavours: ["Velvety Microfoam", "Caramel", "Balanced"], p: [0.7, 0.6, 0.3, 0.8, 0.6, 0, 0] },
+  { id: "cb-musakhan", cafeId: "commonbreads", name: "Musakhan Manouche", rating: 4.7, count: 18, styles: ["Pastries"], flavours: ["Sumac", "Tangy", "Savoury"], p: [0.6, 0.3, 0.4, 0.1, 0.4, 0, 1] },
+  { id: "bg-bergamot", cafeId: "bergamot", name: "Bergamot Latte", rating: 4.7, count: 14, styles: [], flavours: ["Aromatic", "Citrus", "Creamy"], p: [0.5, 0.6, 0.45, 0.85, 0.35, 0, 0] },
+  { id: "bg-saffron", cafeId: "bergamot", name: "Saffron Latte", rating: 4.6, count: 11, styles: [], flavours: ["Saffron", "Aromatic", "Creamy"], p: [0.55, 0.7, 0.25, 0.85, 0.35, 0, 0] },
   { id: "cb-iced", cafeId: "commonbreads", name: "Iced Latte", rating: 4.8, count: 24, pick: true, styles: [], flavours: ["Creamy", "Caramel", "Refreshing"], p: [0.5, 0.6, 0.25, 0.85, 0.55, 1, 0] },
 ];
 
@@ -467,7 +602,7 @@ function fmtHour(h) {
 }
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const hoursFor = (cafe, day) => cafe.hours && cafe.hours[day < 5 ? 0 : day === 5 ? 1 : 2];
+const hoursFor = (cafe, day) => cafe.hours && (cafe.hours.length === 7 ? cafe.hours[day] : cafe.hours[day < 5 ? 0 : day === 5 ? 1 : 2]);
 
 /** { open, label } for a café at London time `now`, or null when hours are unknown. */
 function openStatus(cafe, now) {
@@ -1367,6 +1502,65 @@ function SwipeStack({ recs, cafesById, saved, toggleSave, onOpenCafe }) {
   );
 }
 
+/* ── Café taste matching ──────────────────────────────────────────────
+ * Each café has a coffee profile (roast, fruit, chocolate/nut, milk focus,
+ * aromatic/spiced), grounded in published roaster notes. Your profile is a
+ * weighted blend of the cafés behind the cups you rated highly. */
+const TASTE_KEYS = ["roast", "fruit", "choc", "milk", "aroma"];
+
+function tasteMatch(a, b) {
+  const d = Math.sqrt(TASTE_KEYS.reduce((s, k) => s + (a[k] - b[k]) ** 2, 0) / TASTE_KEYS.length);
+  return clamp(Math.round(100 - d * 140), 40, 99);
+}
+
+// Pastries and food say nothing about coffee taste, so they don't count.
+const isCoffeeRating = (h, itemsById) => {
+  const it = itemsById[h.itemId];
+  return !(it && it.styles.includes("Pastries"));
+};
+
+/** Your taste vector from your coffee ratings (only cups scored 3.5+ count as likes). */
+function userTaste(history, cafesById, itemsById = {}) {
+  let w = 0;
+  const v = { roast: 0, fruit: 0, choc: 0, milk: 0, aroma: 0 };
+  history.forEach((h) => {
+    if (!isCoffeeRating(h, itemsById)) return;
+    const c = cafesById[h.cafeId];
+    const t = c && c.coffee && c.coffee.taste;
+    const weight = h.rating - 3.5;
+    if (!t || weight <= 0) return;
+    TASTE_KEYS.forEach((k) => (v[k] += t[k] * weight));
+    w += weight;
+  });
+  if (!w) return null;
+  TASTE_KEYS.forEach((k) => (v[k] /= w));
+  return v;
+}
+
+/** Short, human description of what two profiles share. */
+function sharedTraits(a, b) {
+  const out = [];
+  if (a.roast < 0.35 && b.roast < 0.35) out.push("light roast");
+  else if (a.roast > 0.65 && b.roast > 0.65) out.push("darker roast");
+  if (a.fruit > 0.55 && b.fruit > 0.55) out.push("fruit-forward");
+  if (a.choc > 0.6 && b.choc > 0.6) out.push("chocolatey, nutty cups");
+  if (a.milk > 0.65 && b.milk > 0.65) out.push("great milk drinks");
+  if (a.aroma > 0.6 && b.aroma > 0.6) out.push("aromatic, spiced lattes");
+  return out;
+}
+
+/** Words for a taste profile, strongest first. */
+function tasteWords(t) {
+  if (!t) return [];
+  const out = [];
+  out.push(t.roast < 0.38 ? "light roast" : t.roast > 0.62 ? "darker roast" : "medium roast");
+  if (t.fruit > 0.5) out.push("fruity & bright");
+  if (t.choc > 0.55) out.push("chocolate & nut");
+  if (t.milk > 0.6) out.push("milk drinks");
+  if (t.aroma > 0.5) out.push("aromatic & spiced");
+  return out;
+}
+
 // Only recommend genuinely close matches; how many depends on the drink.
 const MATCH_MIN = 75;
 
@@ -1556,10 +1750,10 @@ const CafeArt = memo(function CafeArt({ cafe, className = "", rounded = "" }) {
 
 /* ───────────────────────────── Filters & café cards ───────────────────────────── */
 
-function Filters({ area, setArea, drink, setDrink, compact = false, glass = false }) {
+function Filters({ area, setArea, drink, setDrink, compact = false, glass = false, areas = AREAS }) {
   return (
     <div className={compact ? "space-y-2" : "space-y-3"}>
-      <Segmented label="Filter by neighbourhood" options={AREAS} value={area} onChange={setArea} size={compact ? "sm" : "md"} scroll glass={glass} />
+      <Segmented label="Filter by neighbourhood" options={areas} value={area} onChange={setArea} size={compact ? "sm" : "md"} scroll glass={glass} />
       <Segmented label="Filter by drink style" options={DRINKS} value={drink} onChange={setDrink} size={compact ? "sm" : "md"} scroll glass={glass} />
     </div>
   );
@@ -1693,13 +1887,16 @@ const TUBE_STATIONS = [
   ["Piccadilly Circus", 448, 437],
   ["Warren St", 412, 180],
   ["Old St", 820, 166],
+  ["Wood Lane", -275, 386],
+  ["White City", -279, 404],
+  ["Shepherd's Bush", -117, 532],
   ["Baker St", 263, 215],
   ["Victoria", 362, 674],
   ["South Kensington", 130, 716],
 ];
 
 const TUBE_LINES = [
-  { c: C.mapLine, d: "M-60 410 L256 385 L328 367 L388 350 L472 332 L560 308 L628 297 L739 357 L811 380 L862 301 L1060 250" },
+  { c: C.mapLine, d: "M-300 380 L-279 404 L-117 532 L-53 455 L120 402 L256 385 L328 367 L388 350 L472 332 L560 308 L628 297 L739 357 L811 380 L862 301 L1060 250" },
   { c: C.mapLine, d: "M400 -60 L412 180 L442 254 L472 332 L496 415 L522 472 L540 500 L560 780" },
   { c: C.mapLine, d: "M800 -60 L820 166 L811 287 L811 380 L828 521 L771 593 L760 780" },
   { c: C.mapLine, d: "M420 -60 L412 180 L388 350 L378 528 L362 780" },
@@ -1736,6 +1933,8 @@ const HOODS = [
   ["SOUTH KEN", 170, 680],
   ["CLERKENWELL", 700, 190],
   ["SOUTH BANK", 620, 545],
+  ["WHITE CITY", -268, 340],
+  ["SHEPHERD'S BUSH", -110, 600],
 ];
 
 const MapBase = memo(function MapBase() {
@@ -1830,14 +2029,26 @@ function LondonMap({ cafes, visibleIds, selectedId, onSelect, hoveredId, onOpen,
   const minK = containK * 0.95;
   const maxK = coverK * 3.6;
 
+  // pannable area: the central map plus wherever cafés sit outside it (e.g. White City)
+  const ext = useMemo(() => {
+    const xs = cafes.filter((c) => c.x != null).map((c) => c.x);
+    const ys = cafes.filter((c) => c.y != null).map((c) => c.y);
+    return {
+      x0: Math.min(0, ...xs.map((x) => x - 120)),
+      x1: Math.max(W, ...xs.map((x) => x + 120)),
+      y0: Math.min(0, ...ys.map((y) => y - 120)),
+      y1: Math.max(H, ...ys.map((y) => y + 120)),
+    };
+  }, [cafes]);
+
   const clampView = useCallback(
     (v) => {
       const k = clamp(v.k, minK, maxK);
       const m = 140 * k;
       const fit = (lo, hi, val) => (lo > hi ? (lo + hi) / 2 : clamp(val, lo, hi));
-      return { k, x: fit(size.w - W * k - m, m, v.x), y: fit(size.h - H * k - m, m, v.y) };
+      return { k, x: fit(size.w - ext.x1 * k - m, -ext.x0 * k + m, v.x), y: fit(size.h - ext.y1 * k - m, -ext.y0 * k + m, v.y) };
     },
-    [size.w, size.h, minK, maxK]
+    [size.w, size.h, minK, maxK, ext]
   );
 
   const homeView = useCallback(() => {
@@ -2282,7 +2493,7 @@ function Leaderboard({ cafes, items, cafesById, onOpenCafe, saved, toggleSave, f
 
 /* ───────────────────────────── Profile ───────────────────────────── */
 
-function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onRate }) {
+function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onRate, taste }) {
   const [tab, setTab] = useState("ratings");
   const savedItems = items.filter((i) => saved.has(i.id));
   const stats = [
@@ -2298,6 +2509,16 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
             your cup log
           </p>
           <h1 className="serif mt-1 whitespace-nowrap text-4xl md:text-5xl">sip, rate, repeat.</h1>
+          {taste && (
+            <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm" style={{ color: C.taupe }}>
+              your taste:
+              {tasteWords(taste).map((w) => (
+                <Tag key={w} tone="sage">
+                  {w}
+                </Tag>
+              ))}
+            </p>
+          )}
         </LargeTitle>
         <dl className="mt-6 grid grid-cols-3 gap-3">
           {stats.map((s) => (
@@ -2400,7 +2621,49 @@ function Profile({ history, saved, items, cafesById, toggleSave, onOpenCafe, onR
 
 /* ───────────────────────────── Café detail ───────────────────────────── */
 
-function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, onOpenStory }) {
+function CoffeeProfile({ coffee }) {
+  if (!coffee) return null;
+  const roastLabel = { light: "light roast", medium: "medium roast", "medium-dark": "medium–dark roast", dark: "dark roast" };
+  return (
+    <div className="mt-6 rounded-3xl p-4" style={{ background: C.bg }}>
+      <p className="text-sm" style={{ color: C.taupe }}>
+        the coffee
+      </p>
+      <p className="mt-1 font-medium">{coffee.roaster || "Roaster not published"}</p>
+      {coffee.espresso && (
+        <p className="text-sm" style={{ color: C.taupe }}>
+          {coffee.espresso}
+        </p>
+      )}
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        <Tag tone={coffee.roast ? "sage" : "stone"}>{coffee.roast ? roastLabel[coffee.roast] : "roast not published"}</Tag>
+        {coffee.notes.map((n) => (
+          <Tag key={n}>{n}</Tag>
+        ))}
+      </div>
+      {(coffee.notesFrom || coffee.asOf) && (
+        <p className="mt-2 text-xs" style={{ color: C.taupe }}>
+          {[coffee.notesFrom && `notes from ${coffee.notesFrom}`, coffee.asOf].filter(Boolean).join(" · ")}
+        </p>
+      )}
+      {coffee.sources && coffee.sources.length > 0 && (
+        <p className="mt-2 text-xs" style={{ color: C.taupe }}>
+          sources:{" "}
+          {coffee.sources.map((src, i) => (
+            <span key={src.url}>
+              {i > 0 && ", "}
+              <a href={src.url} target="_blank" rel="noopener noreferrer" className="underline">
+                {src.label}
+              </a>
+            </span>
+          ))}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, onOpenStory, similar = [], onOpenCafe }) {
   return (
     <div>
     <div className="px-5 pb-6 pt-3 md:px-8 md:pt-8">
@@ -2439,6 +2702,8 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
           <Tag key={v}>{v.toLowerCase()}</Tag>
         ))}
       </div>
+
+      <CoffeeProfile coffee={cafe.coffee} />
 
       <h3 className="mb-2 mt-7 text-sm" style={{ color: C.taupe }}>
         Menu &amp; Ratings
@@ -2508,6 +2773,36 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
           </button>
         )}
       </div>
+      {similar.length > 0 && (
+        <div className="mt-8">
+          <h3 className="mb-2 text-sm" style={{ color: C.taupe }}>
+            {similar[0].score >= 70 ? "cafés like this" : "closest in taste"}
+          </h3>
+          {similar[0].score < 70 && (
+            <p className="-mt-1 mb-2 text-xs" style={{ color: C.taupe }}>
+              Nothing else on the list tastes quite like {cafe.name} yet. These are the nearest.
+            </p>
+          )}
+          <ul className="space-y-2">
+            {similar.map((m) => (
+              <li key={m.cafe.id}>
+                <button type="button" onClick={() => onOpenCafe && onOpenCafe(m.cafe.id)} className="press flex w-full items-center gap-3 rounded-2xl p-3 text-left" style={{ background: C.bg }}>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{m.cafe.name}</span>
+                    <span className="block truncate text-xs" style={{ color: C.taupe }}>
+                      {m.traits.length ? m.traits.slice(0, 2).join(" · ") : m.cafe.areas[0].toLowerCase()}
+                    </span>
+                  </span>
+                  <span className="tabular rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: C.matchaSoft, color: C.matcha }}>
+                    {m.score}%
+                  </span>
+                  <ArrowRight size={15} style={{ color: C.taupe }} />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
     </div>
   );
@@ -2578,10 +2873,10 @@ function Chip({ on, onClick, children, className = "", small = false }) {
   );
 }
 
-function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onCancel }) {
+function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onCancel, areas = AREAS }) {
   const [selCafe, setSelCafe] = useState(initialCafeId || cafes[0].id);
   const [adding, setAdding] = useState(false);
-  const [newCafe, setNewCafe] = useState({ name: "", area: "Soho" });
+  const [newCafe, setNewCafe] = useState({ name: "", area: "", station: "" });
   const [itemName, setItemName] = useState(initialItem);
   const [rating, setRating] = useState(4.5);
   const [notes, setNotes] = useState([]);
@@ -2589,7 +2884,7 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
   const nameRef = useRef(null);
   const cafeId = adding ? "new" : selCafe;
   const cafeItems = adding ? [] : items.filter((i) => i.cafeId === selCafe);
-  const valid = itemName.trim().length > 1 && (!adding || newCafe.name.trim().length > 1);
+  const valid = itemName.trim().length > 1 && (!adding || (newCafe.name.trim().length > 1 && newCafe.area.trim().length > 1));
   const pct = ((rating - 1) / 4) * 100;
   const toggleNote = (n) => setNotes((ns) => (ns.includes(n) ? ns.filter((x) => x !== n) : [...ns, n]));
   const inputCls = "w-full rounded-2xl px-4 py-3 text-base outline-none tr";
@@ -2675,18 +2970,38 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
                 tabIndex={adding ? 0 : -1}
                 onChange={(e) => setNewCafe((n) => ({ ...n, name: e.target.value }))}
               />
-              <div className="relative">
+              {/* any area: existing ones are suggested, new ones become filters */}
+              <input
+                id="rate-new-area"
+                list="rate-area-list"
+                className={inputCls}
+                style={inputStyle}
+                placeholder="Area, e.g. White City"
+                aria-label="Neighbourhood (type any area)"
+                value={newCafe.area}
+                tabIndex={adding ? 0 : -1}
+                onChange={(e) => setNewCafe((n) => ({ ...n, area: e.target.value }))}
+              />
+              <datalist id="rate-area-list">
+                {areas.slice(1).map((a) => (
+                  <option key={a} value={a} />
+                ))}
+              </datalist>
+              <div className="relative sm:col-span-2">
                 <select
-                  id="rate-new-area"
-                  aria-label="Neighbourhood"
+                  id="rate-new-station"
+                  aria-label="Nearest Tube station"
                   className={`${inputCls} appearance-none pr-10`}
-                  style={inputStyle}
-                  value={newCafe.area}
+                  style={{ ...inputStyle, color: newCafe.station ? C.ink : C.taupe }}
+                  value={newCafe.station}
                   tabIndex={adding ? 0 : -1}
-                  onChange={(e) => setNewCafe((n) => ({ ...n, area: e.target.value }))}
+                  onChange={(e) => setNewCafe((n) => ({ ...n, station: e.target.value }))}
                 >
-                  {AREAS.slice(1).map((a) => (
-                    <option key={a}>{a}</option>
+                  <option value="">Nearest Tube station (optional)</option>
+                  {[...TUBE_STATIONS].sort((x, y) => x[0].localeCompare(y[0])).map(([n]) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
                   ))}
                 </select>
                 <ChevronDown size={16} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2" aria-hidden="true" />
@@ -2916,6 +3231,66 @@ function Toast({ toast }) {
 }
 
 /* ───────────────────────────── Sort & "near me" ───────────────────────────── */
+
+/* ───────────────────────────── For you ───────────────────────────── */
+
+function ForYouRow({ picks, onOpen, onRate }) {
+  return (
+    <section aria-labelledby="foryou-title">
+      <div className="mb-4">
+        <p className="mb-1 text-sm" style={{ color: C.sage }}>
+          based on what you've loved
+        </p>
+        <h2 id="foryou-title" className="serif whitespace-nowrap text-3xl md:text-4xl">
+          picked for your taste
+        </h2>
+      </div>
+      {picks.length === 0 ? (
+        <div className="rounded-3xl p-5 text-sm" style={{ background: C.stone, color: C.taupe }}>
+          Rate a few cups you love and we'll learn your taste: roast, fruit, chocolate, milk.{" "}
+          <button type="button" onClick={onRate} className="font-medium underline" style={{ color: C.brand }}>
+            Rate a drink
+          </button>
+        </div>
+      ) : (
+        <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0" style={{ scrollPaddingLeft: 16 }}>
+          {picks.map((p, i) => (
+            <div key={p.cafe.id} className="a-fadeup shrink-0 snap-start" style={{ animationDelay: `${i * 60}ms` }}>
+              <button
+                type="button"
+                data-morph
+                onClick={(e) => onOpen(p.cafe.id, e.currentTarget)}
+                className="lift flex h-full w-64 flex-col rounded-3xl bg-white p-4 text-left soft"
+              >
+                <span className="flex items-start justify-between gap-2">
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{p.cafe.name}</span>
+                    <span className="block truncate text-xs" style={{ color: C.taupe }}>
+                      {p.cafe.areas[0].toLowerCase()} · {p.cafe.coffee.roaster ? p.cafe.coffee.roaster.split(" (")[0].split(" +")[0].toLowerCase() : "roaster not published"}
+                    </span>
+                  </span>
+                  <span className="tabular shrink-0 rounded-full px-2 py-0.5 text-xs font-medium" style={{ background: C.matchaSoft, color: C.matcha }}>
+                    {p.score}%
+                  </span>
+                </span>
+                <span className="mt-3 block text-sm leading-relaxed" style={{ color: C.taupe }}>
+                  {p.reason}
+                </span>
+                {p.cafe.coffee.notes.length > 0 && (
+                  <span className="mt-3 flex flex-wrap gap-1.5">
+                    {p.cafe.coffee.notes.slice(0, 3).map((n) => (
+                      <Tag key={n}>{n}</Tag>
+                    ))}
+                  </span>
+                )}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 /* ───────────────────────────── The journal ───────────────────────────── */
 
@@ -3226,10 +3601,42 @@ function useAppIcon() {
 export default function Samspresso() {
   useAppIcon();
   const [tab, setTabRaw] = useState("discover");
-  const [cafes, setCafes] = useState(SEED_CAFES);
-  const [items, setItems] = useState(SEED_ITEMS);
-  const [history, setHistory] = useState(SEED_HISTORY);
-  const [saved, setSaved] = useState(() => new Set(["or-v60"]));
+  // Saved on this device: cafés/items you added, your ratings, history and Want to Try.
+  const stored = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("sp-state-v1") || "null");
+    } catch (_) {
+      return null;
+    }
+  }, []);
+  const [cafes, setCafes] = useState(() => (stored ? [...SEED_CAFES, ...(stored.userCafes || [])] : SEED_CAFES));
+  const [items, setItems] = useState(() => {
+    if (!stored) return SEED_ITEMS;
+    const upd = stored.itemUpdates || {};
+    return [...SEED_ITEMS.map((i) => (upd[i.id] ? { ...i, ...upd[i.id] } : i)), ...(stored.userItems || [])];
+  });
+  const [history, setHistory] = useState(() => (stored && stored.history) || SEED_HISTORY);
+  const [saved, setSaved] = useState(() => new Set((stored && stored.saved) || ["or-v60"]));
+  useEffect(() => {
+    try {
+      const seed = Object.fromEntries(SEED_ITEMS.map((i) => [i.id, i]));
+      const itemUpdates = {};
+      items.forEach((i) => {
+        const o = seed[i.id];
+        if (o && (o.rating !== i.rating || o.count !== i.count)) itemUpdates[i.id] = { rating: i.rating, count: i.count };
+      });
+      localStorage.setItem(
+        "sp-state-v1",
+        JSON.stringify({
+          userCafes: cafes.filter((c) => c.id.startsWith("u-")),
+          userItems: items.filter((i) => i.id.startsWith("ui-")),
+          itemUpdates,
+          history,
+          saved: [...saved],
+        })
+      );
+    } catch (_) {}
+  }, [cafes, items, history, saved]);
   const [area, setArea] = useState("All London");
   const [drink, setDrink] = useState("All Drinks");
   const [sourceId, setSourceId] = useState("mon-fw");
@@ -3269,6 +3676,52 @@ export default function Samspresso() {
     [cafes, items]
   );
   const cafesById = useMemo(() => Object.fromEntries(cafesFull.map((c) => [c.id, c])), [cafesFull]);
+  // base neighbourhoods first, then any area people have added
+  const areas = useMemo(() => {
+    const extra = [];
+    cafes.forEach((c) => c.areas.forEach((a) => !AREAS.includes(a) && !extra.includes(a) && extra.push(a)));
+    return [...AREAS, ...extra];
+  }, [cafes]);
+  const itemsById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
+  const taste = useMemo(() => userTaste(history, cafesById, itemsById), [history, cafesById, itemsById]);
+  const forYou = useMemo(() => {
+    if (!taste) return [];
+    const loved = history.filter((h) => h.rating >= 4 && isCoffeeRating(h, itemsById) && cafesById[h.cafeId] && cafesById[h.cafeId].coffee);
+    const tried = new Set(history.map((h) => h.cafeId));
+    return cafesFull
+      .filter((c) => c.coffee && !tried.has(c.id))
+      .map((c) => {
+        const score = tasteMatch(taste, c.coffee.taste);
+        // explain it with the loved café it's closest to
+        // credit the closest loved café; the most recent one wins near-ties
+        let best = null;
+        loved.forEach((h, idx) => {
+          const lc = cafesById[h.cafeId];
+          const m = tasteMatch(lc.coffee.taste, c.coffee.taste) + (idx === 0 ? 8 : 0);
+          if (!best || m > best.m) best = { m, h, lc };
+        });
+        const traits = best ? sharedTraits(best.lc.coffee.taste, c.coffee.taste) : [];
+        const reason = best
+          ? `Because you loved the ${best.h.name.toLowerCase()} at ${best.lc.name}${traits.length ? `: ${traits.slice(0, 2).join(", ")}` : ""}.`
+          : "Close to your taste so far.";
+        return { cafe: c, score, reason };
+      })
+      .filter((p) => p.score >= 70)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+  }, [taste, history, cafesFull, cafesById, itemsById]);
+  const similarTo = useCallback(
+    (cafe) =>
+      !cafe || !cafe.coffee
+        ? []
+        : cafesFull
+            .filter((c) => c.id !== cafe.id && c.coffee)
+            .map((c) => ({ cafe: c, score: tasteMatch(cafe.coffee.taste, c.coffee.taste), traits: sharedTraits(cafe.coffee.taste, c.coffee.taste) }))
+            .filter((m) => m.score >= 45)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, 3),
+    [cafesFull]
+  );
   const ranks = useMemo(() => {
     const r = {};
     [...cafesFull].filter((c) => c.items.length).sort((a, b) => b.avg - a.avg || b.total - a.total).forEach((c, i) => (r[c.id] = i + 1));
@@ -3353,19 +3806,24 @@ export default function Samspresso() {
     let cafeName;
     if (cid === "new") {
       cid = `u-${Date.now()}`;
-      const [ax, ay] = AREA_POS[newCafe.area] || [600, 380];
+      const areaName = titleCase(newCafe.area);
+      const st = TUBE_STATIONS.find((t) => t[0] === newCafe.station);
+      const known = areas.find((a) => a.toLowerCase() === areaName.toLowerCase());
+      const area = known || areaName;
+      // place it at the chosen station, else at a known area's centre, else list-only (no pin yet)
+      const pos = st ? [st[1], st[2]] : AREA_POS[area] || null;
       const cafe = {
         id: cid,
         name: titleCase(newCafe.name),
-        hood: `${newCafe.area} · Community find`,
-        areas: [newCafe.area],
-        tube: "Nearby",
+        hood: `${area} · Community find`,
+        areas: [area],
+        tube: st ? st[0] : "—",
         walk: null,
         price: "££",
         vibes: ["Community Find"],
         blurb: "Added by you. Rate more items to help this spot climb the leaderboard.",
-        x: ax + (Math.random() * 40 - 20),
-        y: ay + (Math.random() * 30 - 15),
+        x: pos ? pos[0] + (Math.random() * 24 - 12) : null,
+        y: pos ? pos[1] + (Math.random() * 18 - 9) : null,
       };
       nextCafes = [...cafes, cafe];
       cafeName = cafe.name;
@@ -3415,12 +3873,13 @@ export default function Samspresso() {
   };
 
   const mapOverlay = (
-    <Filters area={area} setArea={setArea} drink={drink} setDrink={setDrink} compact glass />
+    <Filters area={area} setArea={setArea} drink={drink} setDrink={setDrink} compact glass areas={areas} />
   );
 
   const discover = (
     <div className="space-y-8">
       <TasteMatch items={items} cafes={cafesFull} cafesById={cafesById} sourceId={sourceId} setSourceId={setSourceId} saved={saved} toggleSave={toggleSave} onOpenCafe={openCafe} onRate={() => openRate()} />
+      <ForYouRow picks={forYou} onOpen={openCafe} onRate={() => openRate()} />
       <JournalRow entries={journal} readIds={readIds} onOpen={openArticle} />
       <section aria-labelledby="explore-title">
         <div className="mb-4 min-w-0">
@@ -3435,7 +3894,7 @@ export default function Samspresso() {
             {drink !== "All Drinks" ? ` · ${drink.toLowerCase()}` : ""}
           </p>
         </div>
-        <Filters area={area} setArea={setArea} drink={drink} setDrink={setDrink} />
+        <Filters area={area} setArea={setArea} drink={drink} setDrink={setDrink} areas={areas} />
         <div key={`${area}|${drink}|${sort}|${openOnly}|${origin.label}`} className="mt-5 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((c, i) => (
             <CafeCard
@@ -3505,14 +3964,14 @@ export default function Samspresso() {
           {tab === "discover" && discover}
           {tab === "map" && mapView}
           {tab === "leaderboard" && <Leaderboard cafes={cafesFull} items={items} cafesById={cafesById} onOpenCafe={openCafe} saved={saved} toggleSave={toggleSave} flash={flash} />}
-          {tab === "profile" && <Profile history={history} saved={saved} items={items} cafesById={cafesById} toggleSave={toggleSave} onOpenCafe={openCafe} onRate={() => openRate()} />}
+          {tab === "profile" && <Profile taste={taste} history={history} saved={saved} items={items} cafesById={cafesById} toggleSave={toggleSave} onOpenCafe={openCafe} onRate={() => openRate()} />}
         </div>
       </main>
 
       <BottomNav tab={tab} setTab={setTab} onRate={openRate} />
 
       <Sheet data={detailCafe} onClose={closeDetail} label="Café details" originEl={detailOrigin}>
-        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} onOpenStory={(id) => {
+        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} similar={similarTo(cafesById[cafe.id] || cafe)} onOpenCafe={(id) => { setDetailOrigin(null); setDetailId(id); }} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} onOpenStory={(id) => {
           setDetailId(null);
           setTimeout(() => openArticle(id), 320);
         }} />}
@@ -3535,7 +3994,7 @@ export default function Samspresso() {
       </Sheet>
 
       <Sheet data={rate} onClose={closeRate} label="Rate an item" bare tone="grouped">
-        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} initialCafeId={r.cafeId} initialItem={r.itemName} onSubmit={submitRating} onCancel={closeRate} />}
+        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} areas={areas} initialCafeId={r.cafeId} initialItem={r.itemName} onSubmit={submitRating} onCancel={closeRate} />}
       </Sheet>
 
       <Toast toast={toast} />
