@@ -1171,6 +1171,19 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
   const surface = tone === "grouped" ? C.background : C.card;
   const panelRef = useRef(null);
   const contentRef = useRef(null);
+  const scrollRef = useRef(null);
+  // Swapping to different content while open (e.g. tapping "cafés like this"):
+  // start the new page at the top and fade it in, like opening a fresh sheet.
+  const swapKey = data && data.id != null ? data.id : null;
+  const prevKey = useRef(swapKey);
+  const [swaps, setSwaps] = useState(0);
+  useLayoutEffect(() => {
+    if (open && prevKey.current != null && swapKey !== prevKey.current) {
+      if (scrollRef.current) scrollRef.current.scrollTop = 0;
+      setSwaps((n) => n + 1);
+    }
+    prevKey.current = open ? swapKey : null;
+  }, [open, swapKey]);
   const morph = !!(originEl && originEl.isConnected);
   const reduce = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -1269,6 +1282,7 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
       />
       <div ref={panelRef} className={`relative w-full md:max-w-xl ${morph && !reduce ? "" : open ? "sheet-in" : "sheet-out"}`} style={{ willChange: "transform", transformOrigin: "0 0" }}>
         <div
+          ref={scrollRef}
           data-surface={tone === "grouped" ? undefined : "card"}
           className="no-scrollbar relative overflow-y-auto overflow-x-hidden rounded-t-3xl md:rounded-3xl"
           onPointerDown={onPointerDown}
@@ -1319,7 +1333,9 @@ function Sheet({ data, onClose, label, children, bare = false, tone = "white", o
               )}
             </>
           )}
-          {children(last.current)}
+          <div key={swaps} className={swaps ? "a-fadeup" : undefined}>
+            {children(last.current)}
+          </div>
           </div>
         </div>
         {/* filler below the sheet so the spring overshoot never shows a gap */}
