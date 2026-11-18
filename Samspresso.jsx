@@ -2967,7 +2967,7 @@ function CoffeeProfile({ coffee, myNotes = [], onAddNote }) {
   );
 }
 
-function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, onOpenStory, similar = [], onOpenCafe, myNotes = [], onMoreLike }) {
+function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, onOpenStory, similar = [], onOpenCafe, myNotes = [], onMoreLike, myRatings = {} }) {
   return (
     <div>
     <div className="px-5 pb-6 pt-3 md:px-8 md:pt-8">
@@ -3036,9 +3036,23 @@ function CafeDetail({ cafe, rank, saved, toggleSave, onRate, onShowMap, status, 
                 <BookmarkButton saved={saved.has(it.id)} onToggle={() => toggleSave(it.id)} plain />
               </div>
               <div className="mt-3 flex gap-2">
-                <button type="button" onClick={() => onRate(cafe.id, it.name)} className="press rounded-full px-3.5 py-1.5 text-xs font-medium" style={{ color: C.onBrand, background: C.brand }}>
-                  {isNewItem(it) ? "be the first to rate" : "rate it"}
-                </button>
+                {myRatings[it.id] ? (
+                  // already rated: show your score; tapping lets you change it
+                  <button
+                    type="button"
+                    onClick={() => onRate(cafe.id, it.name)}
+                    aria-label={`You rated ${it.name} ${f1(myRatings[it.id].rating)}. Change your rating`}
+                    className="press hit-y relative flex items-center gap-1 rounded-full px-3.5 py-1.5 text-xs font-medium"
+                    data-surface="card"
+                    style={{ background: C.card, color: C.fg }}
+                  >
+                    <Check size={13} strokeWidth={2.4} style={{ color: C.fgAccent }} aria-hidden="true" /> you rated it {f1(myRatings[it.id].rating)}
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => onRate(cafe.id, it.name)} className="press rounded-full px-3.5 py-1.5 text-xs font-medium" style={{ color: C.onBrand, background: C.brand }}>
+                    {isNewItem(it) ? "be the first to rate" : "rate it"}
+                  </button>
+                )}
                 {it.promo.journalId && onOpenStory && (
                   <button type="button" onClick={() => onOpenStory(it.promo.journalId)} className="press rounded-full bg-white px-3.5 py-1.5 text-xs font-medium" style={{ color: C.fg }}>
                     read the story
@@ -3195,7 +3209,7 @@ function Chip({ on, onClick, children, className = "", small = false, check = tr
   );
 }
 
-function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onCancel, areas = AREAS, pastNotes = [] }) {
+function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onCancel, areas = AREAS, pastNotes = [], myRatings = {} }) {
   const [selCafe, setSelCafe] = useState(initialCafeId || cafes[0].id);
   const [adding, setAdding] = useState(false);
   const [newCafe, setNewCafe] = useState({ name: "", area: "", station: "" });
@@ -3220,6 +3234,15 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
   };
   const inputCls = "w-full rounded-2xl px-4 py-3 text-base outline-none tr";
   const inputStyle = { background: C.surface };
+  // one rating per drink: picking one you've rated loads your rating, and saving updates it
+  const matched = cafeItems.find((i) => i.name.toLowerCase() === itemName.trim().toLowerCase());
+  const prior = matched ? myRatings[matched.id] : null;
+  const priorId = prior ? prior.id : null;
+  useEffect(() => {
+    if (!prior) return;
+    setRating(prior.rating);
+    setNotes((prior.notes || []).map(noteKey));
+  }, [priorId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (adding && nameRef.current) {
@@ -3244,14 +3267,14 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
           <button type="button" onClick={onCancel} className="press hit-y relative -ml-1 rounded-full px-2 py-1 text-base" style={{ color: C.fgBrand }}>
             Cancel
           </button>
-          <p className="pointer-events-none absolute inset-x-0 text-center text-base font-medium">New Rating</p>
+          <p className="pointer-events-none absolute inset-x-0 text-center text-base font-medium">{prior ? "Your Rating" : "New Rating"}</p>
           <button
             type="submit"
             disabled={!valid}
             className="press hit-y relative -mr-1 rounded-full px-3 py-1 text-base font-semibold"
             style={{ color: valid ? C.onBrand : C.fgMuted, background: valid ? C.brand : "transparent", transition: `background-color .35s ${EASE}, color .35s ${EASE}` }}
           >
-            Save
+            {prior ? "Update" : "Save"}
           </button>
         </div>
       </div>
@@ -3347,7 +3370,18 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
               edges and pills fade out there, rather than being cut off. */}
           <div className="-mx-3">
           <Collapse open={cafeItems.length > 0}>
-            <div key={selCafe} className="no-scrollbar mb-2 flex gap-2 overflow-x-auto px-3 a-fade" style={EDGE_FADE}>
+            <div
+              key={selCafe}
+              ref={(el) => {
+                // opened on a drink (e.g. from a café): start with its pill in view; taps never scroll the row
+                if (!el || el.dataset.placed) return;
+                el.dataset.placed = "1";
+                const on = el.querySelector('[aria-pressed="true"]');
+                if (on && on.offsetLeft + on.offsetWidth > el.clientWidth) el.scrollLeft = on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2;
+              }}
+              className="no-scrollbar mb-2 flex gap-2 overflow-x-auto px-3 a-fade"
+              style={EDGE_FADE}
+            >
               {cafeItems.map((it) => {
                 const on = itemName.toLowerCase() === it.name.toLowerCase();
                 return (
@@ -3360,6 +3394,11 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
             </div>
           </Collapse>
           </div>
+          {prior && (
+            <p className="a-fade mb-2 px-1 text-sm" style={{ color: C.fgAccent }} role="status">
+              You rated this {f1(prior.rating)} {timeAgo(prior.ts).toLowerCase()}. Saving updates your rating.
+            </p>
+          )}
           <input
             id="rate-item"
             className={inputCls}
@@ -5730,6 +5769,14 @@ export default function Samspresso() {
   const itemsById = useMemo(() => Object.fromEntries(items.map((i) => [i.id, i])), [items]);
   const taste = useMemo(() => userTaste(history, cafesById, itemsById), [history, cafesById, itemsById]);
   const sourceId = pickedSource || (taste ? "taste" : "mon-fw");
+  // your latest rating of each drink (one rating per drink; rating again updates it)
+  const myRatings = useMemo(() => {
+    const m = {};
+    history.forEach((h) => {
+      if (h.itemId && (!m[h.itemId] || h.ts > m[h.itemId].ts)) m[h.itemId] = h;
+    });
+    return m;
+  }, [history]);
   const notesByCafe = useMemo(() => {
     const m = {};
     history.forEach((h) => (h.notes || []).forEach((n) => {
@@ -5864,7 +5911,13 @@ export default function Samspresso() {
     let itemId;
     let newScore;
     let nextItems;
-    if (existing) {
+    const prior = existing ? myRatings[existing.id] : null;
+    if (existing && prior) {
+      // you've rated this before: swap your old score for the new one (same number of ratings)
+      itemId = existing.id;
+      newScore = existing.count > 1 ? (existing.rating * existing.count - prior.rating + rating) / existing.count : rating;
+      nextItems = items.map((i) => (i.id === itemId ? { ...i, rating: newScore } : i));
+    } else if (existing) {
       itemId = existing.id;
       newScore = (existing.rating * existing.count + rating) / (existing.count + 1);
       nextItems = items.map((i) => (i.id === itemId ? { ...i, rating: newScore, count: i.count + 1 } : i));
@@ -5889,10 +5942,10 @@ export default function Samspresso() {
 
     setCafes(nextCafes);
     setBaseItems(toBase(nextItems, content));
-    setHistory((h) => [{ id: `h-${Date.now()}`, itemId, cafeId: cid, name, cafeName, rating, notes, ts: Date.now() }, ...h]);
+    setHistory((h) => [{ id: `h-${Date.now()}`, itemId, cafeId: cid, name, cafeName, rating, notes, ts: Date.now() }, ...h.filter((x) => x.itemId !== itemId)]);
     setRate(null);
     setFlash({ id: itemId, cafeId: cid, t: Date.now() });
-    setToast({ t: Date.now(), title: `Rated ${name} ${f1(rating)} ★`, sub: `${cafeName} now ${f2(newScore)} · #${newRank} café in London` });
+    setToast({ t: Date.now(), title: prior ? `Updated your ${name} to ${f1(rating)} ★` : `Rated ${name} ${f1(rating)} ★`, sub: `${cafeName} now ${f2(newScore)} · #${newRank} café in London` });
   };
 
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -6020,7 +6073,7 @@ export default function Samspresso() {
       <BottomNav tab={tab} setTab={setTab} onRate={openRate} />
 
       <Sheet data={detailCafe} onClose={closeDetail} label="Café details" originEl={detailOrigin}>
-        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} onMoreLike={moreLike} myNotes={notesByCafe[cafe.id] || []} similar={similarTo(cafesById[cafe.id] || cafe)} onOpenCafe={(id) => { setDetailOrigin(null); setDetailId(id); }} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} onOpenStory={(id) => {
+        {(cafe) => <CafeDetail cafe={cafesById[cafe.id] || cafe} myRatings={myRatings} onMoreLike={moreLike} myNotes={notesByCafe[cafe.id] || []} similar={similarTo(cafesById[cafe.id] || cafe)} onOpenCafe={(id) => { setDetailOrigin(null); setDetailId(id); }} status={statusOf(cafesById[cafe.id] || cafe)} rank={ranks[cafe.id]} saved={saved} toggleSave={toggleSave} onRate={openRate} onShowMap={showOnMap} onOpenStory={(id) => {
           setDetailId(null);
           setTimeout(() => openArticle(id), 320);
         }} />}
@@ -6046,7 +6099,7 @@ export default function Samspresso() {
         {() => <DrinkPicker items={items} cafesById={cafesById} itemsById={itemsById} history={history} taste={taste} current={sourceId} onChoose={chooseSource} />}
       </Sheet>
       <Sheet data={rate} onClose={closeRate} label="Rate an item" bare tone="grouped">
-        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} areas={areas} pastNotes={pastNotes} initialCafeId={r.cafeId} initialItem={r.itemName} onSubmit={submitRating} onCancel={closeRate} />}
+        {(r) => <RateForm key={r.key} cafes={cafesFull} items={items} areas={areas} pastNotes={pastNotes} myRatings={myRatings} initialCafeId={r.cafeId} initialItem={r.itemName} onSubmit={submitRating} onCancel={closeRate} />}
       </Sheet>
 
       <Toast toast={toast} />
