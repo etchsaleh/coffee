@@ -3133,6 +3133,12 @@ function ratingWord(r) {
 }
 
 /** Height-animated reveal (no layout jump): grid rows 0fr → 1fr. */
+// soft fade where a sideways-scrolling row meets its container's edge
+const EDGE_FADE = {
+  WebkitMaskImage: "linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%)",
+  maskImage: "linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%)",
+};
+
 function Collapse({ open, children }) {
   return (
     <div
@@ -3159,7 +3165,7 @@ function FormSection({ title, aside, children }) {
   );
 }
 
-function Chip({ on, onClick, children, className = "", small = false }) {
+function Chip({ on, onClick, children, className = "", small = false, check = true }) {
   const [pop, setPop] = useState(0);
   return (
     <button
@@ -3173,13 +3179,15 @@ function Chip({ on, onClick, children, className = "", small = false }) {
       data-surface={on ? undefined : "surface"}
       style={{ background: on ? C.brand : C.surface, color: on ? C.onBrand : C.fg }}
     >
-      <span
-        aria-hidden="true"
-        className="inline-flex overflow-hidden"
-        style={{ width: on ? 14 : 0, opacity: on ? 1 : 0, transition: `width .35s ${EASE}, opacity .25s` }}
-      >
-        <Check size={14} strokeWidth={2.4} />
-      </span>
+      {check && (
+        <span
+          aria-hidden="true"
+          className="inline-flex overflow-hidden"
+          style={{ width: on ? 14 : 0, opacity: on ? 1 : 0, transition: `width .35s ${EASE}, opacity .25s` }}
+        >
+          <Check size={14} strokeWidth={2.4} />
+        </span>
+      )}
       <span key={on ? pop : "off"} className={on && pop ? "a-pop inline-block" : "inline-block"}>
         {children}
       </span>
@@ -3335,19 +3343,23 @@ function RateForm({ cafes, items, initialCafeId, initialItem = "", onSubmit, onC
         </FormSection>
 
         <FormSection title="what you had">
+          {/* one swipeable row: never wraps, so nothing below jumps. It runs to the card's
+              edges and pills fade out there, rather than being cut off. */}
+          <div className="-mx-3">
           <Collapse open={cafeItems.length > 0}>
-            {/* one swipeable row: never wraps, so nothing below jumps */}
-            <div key={selCafe} className="no-scrollbar -mx-3 mb-2 flex gap-2 overflow-x-auto px-3 a-fade">
+            <div key={selCafe} className="no-scrollbar mb-2 flex gap-2 overflow-x-auto px-3 a-fade" style={EDGE_FADE}>
               {cafeItems.map((it) => {
                 const on = itemName.toLowerCase() === it.name.toLowerCase();
                 return (
-                  <Chip key={it.id} on={on} onClick={() => setItemName(on ? "" : it.name)}>
+                  // single choice: no tick, so the pill keeps its width and the row doesn't shift
+                  <Chip key={it.id} on={on} check={false} onClick={() => setItemName(on ? "" : it.name)}>
                     {it.name}
                   </Chip>
                 );
               })}
             </div>
           </Collapse>
+          </div>
           <input
             id="rate-item"
             className={inputCls}
